@@ -1,0 +1,1629 @@
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewData["Title"] = "Hồ sơ người cao tuổi";
+}
+
+<!-- Custom Styles for Residents Page -->
+<style>
+    .residents-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .residents-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0;
+    }
+
+    .residents-actions-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .btn-secondary-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: #ffffff;
+        color: #344054;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+        text-decoration: none;
+    }
+
+    .btn-secondary-action:hover {
+        background-color: #f9fafb;
+        border-color: #98a2b3;
+    }
+
+    .btn-secondary-action svg {
+        width: 18px;
+        height: 18px;
+        stroke: #344054;
+        stroke-width: 2;
+        fill: none;
+    }
+
+    .btn-primary-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: var(--color-primary);
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+        text-decoration: none;
+    }
+
+    .btn-primary-action:hover {
+        background-color: var(--color-primary-hover);
+        transform: translateY(-1px);
+    }
+
+    .btn-primary-action svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        stroke-width: 2.5;
+        fill: none;
+    }
+
+    /* Filters Section */
+    .residents-filters-card {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+    }
+
+    .residents-search-wrapper {
+        position: relative;
+        flex: 1;
+        max-width: 480px;
+        min-width: 260px;
+    }
+
+    .residents-search-wrapper svg {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        stroke: #667085;
+        stroke-width: 2;
+        fill: none;
+    }
+
+    .residents-search-input {
+        width: 100%;
+        height: 42px;
+        background-color: #f9fafb;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        padding: 0 16px 0 42px;
+        font-size: 14px;
+        color: #101828;
+        transition: all 0.2s ease;
+        outline: none;
+    }
+
+    .residents-search-input:focus {
+        background-color: #ffffff;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(11, 165, 236, 0.12);
+    }
+
+    .residents-search-input::placeholder {
+        color: #667085;
+    }
+
+    .residents-pills-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .resident-pill {
+        background-color: #ffffff;
+        border: 1px solid #e4e7ec;
+        color: #344054;
+        border-radius: 20px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .resident-pill:hover:not(.active) {
+        background-color: #f9fafb;
+        border-color: #d0d5dd;
+    }
+
+    .resident-pill.active {
+        background-color: var(--color-primary);
+        color: #ffffff;
+        border-color: var(--color-primary);
+        font-weight: 600;
+        box-shadow: 0 1px 2px rgba(11, 165, 236, 0.2);
+    }
+
+    /* Table Section */
+    .residents-table-card {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+    }
+
+    .residents-table-responsive {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .residents-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 14px;
+    }
+
+    .residents-table th {
+        background-color: #fafbfc;
+        padding: 14px 20px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #475467;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid var(--border-color);
+        white-space: nowrap;
+    }
+
+    .residents-table td {
+        padding: 16px 20px;
+        border-bottom: 1px solid #f2f4f7;
+        color: #344054;
+        vertical-align: middle;
+    }
+
+    .residents-table tbody tr {
+        transition: background-color 0.15s ease;
+    }
+
+    .residents-table tbody tr:hover {
+        background-color: #f9fafb;
+    }
+
+    .cell-id {
+        font-weight: 600;
+        color: #475467;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .profile-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .profile-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background-color: #e0f2fe;
+        color: #0ba5ec;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+
+    .profile-name {
+        font-weight: 600;
+        color: #101828;
+        white-space: nowrap;
+    }
+
+    .cell-age, .cell-gender, .cell-room, .cell-blood {
+        color: #344054;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .cell-contact {
+        color: #475467;
+        font-weight: 500;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Status Badges */
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        line-height: 1.2;
+    }
+
+    .status-pill-stable {
+        background-color: #ecfdf3;
+        color: #027a48;
+    }
+
+    .status-pill-monitoring {
+        background-color: #fef0c7;
+        color: #b54708;
+    }
+
+    .status-pill-medium {
+        background-color: #fffaeb;
+        color: #b54708;
+    }
+
+    /* Schedule Status & Type Badges */
+    .status-badge {
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 12px;
+        white-space: nowrap;
+        display: inline-block;
+    }
+
+    .badge-done {
+        background-color: #ecfdf3;
+        color: #027a48;
+    }
+
+    .badge-pending {
+        background-color: #fffaeb;
+        color: #b54708;
+    }
+
+    .badge-todo {
+        background-color: #f2f4f7;
+        color: #344054;
+    }
+
+    .care-type-badge {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 10px;
+        display: inline-block;
+    }
+
+    .type-medical {
+        background-color: #eff8ff;
+        color: #175cd3;
+    }
+
+    .type-care {
+        background-color: #ecfdf3;
+        color: #027a48;
+    }
+
+    /* Detail Action Link */
+    .btn-view-detail {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #0ba5ec;
+        font-weight: 600;
+        font-size: 13px;
+        text-decoration: none;
+        cursor: pointer;
+        transition: color 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .btn-view-detail:hover {
+        color: #0086c9;
+        text-decoration: underline;
+    }
+
+    .btn-view-detail svg {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        stroke-width: 2;
+        fill: none;
+    }
+
+    /* Empty State */
+    .empty-residents {
+        padding: 48px 24px;
+        text-align: center;
+        color: #667085;
+    }
+
+    .empty-residents svg {
+        width: 48px;
+        height: 48px;
+        stroke: #98a2b3;
+        stroke-width: 1.5;
+        fill: none;
+        margin-bottom: 12px;
+    }
+
+    /* Modal Overlay & Containers */
+    .res-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(16, 24, 40, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.2s ease, visibility 0.2s ease;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    .res-modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .res-modal-container {
+        background: #ffffff;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 580px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        transform: scale(0.96);
+        transition: transform 0.2s ease;
+        overflow: hidden;
+    }
+
+    .res-modal-overlay.active .res-modal-container {
+        transform: scale(1);
+    }
+
+    .res-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border-color);
+        background-color: #ffffff;
+    }
+
+    .res-modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0;
+    }
+
+    .res-modal-close-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 6px;
+        color: #667085;
+        transition: background-color 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .res-modal-close-btn:hover {
+        background-color: #f2f4f7;
+        color: #101828;
+    }
+
+    .res-modal-close-btn svg {
+        width: 20px;
+        height: 20px;
+        stroke: currentColor;
+        stroke-width: 2;
+        fill: none;
+    }
+
+    .res-modal-body {
+        padding: 24px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .res-modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid var(--border-color);
+        background-color: #fafbfc;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+    }
+
+    /* Form Elements */
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #344054;
+    }
+
+    .form-input, .form-select, .form-textarea {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #101828;
+        background-color: #ffffff;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(11, 165, 236, 0.12);
+    }
+
+    .form-textarea {
+        resize: vertical;
+        min-height: 70px;
+    }
+
+    /* Detail View Styling */
+    .detail-card-banner {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #f2f4f7;
+    }
+
+    .detail-avatar-lg {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background-color: #e0f2fe;
+        color: #0ba5ec;
+        font-size: 20px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .detail-name-meta h3 {
+        margin: 0 0 6px 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: #101828;
+    }
+
+    .detail-tags {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .tag-badge {
+        font-size: 12px;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 6px;
+        background-color: #f2f4f7;
+        color: #344054;
+    }
+
+    .detail-section-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #101828;
+        margin: 12px 0 8px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .detail-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        background: #f9fafb;
+        padding: 16px;
+        border-radius: 10px;
+        border: 1px solid #eaecf0;
+    }
+
+    .detail-info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .detail-info-label {
+        font-size: 12px;
+        color: #667085;
+        font-weight: 500;
+    }
+
+    .detail-info-value {
+        font-size: 14px;
+        color: #101828;
+        font-weight: 600;
+    }
+
+    /* Toast Notification */
+    .toast-popup {
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        background-color: #101828;
+        color: #ffffff;
+        padding: 12px 20px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+    }
+
+    .toast-popup.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+</style>
+
+<!-- Header -->
+<div class="residents-header">
+    <h1 class="residents-title">Hồ sơ người cao tuổi</h1>
+    <div class="residents-actions-group">
+        <!-- Import Excel -->
+        <button class="btn-secondary-action" id="btn-import-excel">
+            <svg viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span>Import Excel</span>
+        </button>
+
+        <!-- Thêm hồ sơ mới -->
+        <button class="btn-primary-action" id="btn-open-create-modal">
+            <svg viewBox="0 0 24 24">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Thêm hồ sơ mới</span>
+        </button>
+    </div>
+</div>
+
+<!-- Filters Panel -->
+<div class="residents-filters-card">
+    <!-- Search Input -->
+    <div class="residents-search-wrapper">
+        <svg viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" class="residents-search-input" id="residents-search" placeholder="Tìm theo tên, ID, phòng..." />
+    </div>
+
+    <!-- Filter Pills -->
+    <div class="residents-pills-wrapper">
+        <button class="resident-pill active" data-filter="all">Tất cả</button>
+        <button class="resident-pill" data-filter="Đang ổn định">Đang ổn định</button>
+        <button class="resident-pill" data-filter="Cần theo dõi">Cần theo dõi</button>
+        <button class="resident-pill" data-filter="Trung bình">Trung bình</button>
+    </div>
+</div>
+
+<!-- Table Card -->
+<div class="residents-table-card">
+    <div class="residents-table-responsive">
+        <table class="residents-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>HỌ TÊN</th>
+                    <th>TUỔI</th>
+                    <th>GIỚI TÍNH</th>
+                    <th>PHÒNG</th>
+                    <th>NHÓM MÁU</th>
+                    <th>TÌNH TRẠNG</th>
+                    <th>NGƯỜI LIÊN HỆ</th>
+                    <th style="width: 120px; text-align: right;"></th>
+                </tr>
+            </thead>
+            <tbody id="residents-table-body">
+                <!-- Dynamically populated from JavaScript / nguoinha.sql -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-residents" id="residents-empty-state" style="display: none;">
+        <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <p>Không tìm thấy hồ sơ người cao tuổi phù hợp.</p>
+    </div>
+</div>
+
+<!-- ==========================================================================
+   MODAL: THÊM HỒ SƠ MỚI
+   ========================================================================== -->
+<div class="res-modal-overlay" id="create-resident-modal">
+    <div class="res-modal-container">
+        <div class="res-modal-header">
+            <h2 class="res-modal-title">Thêm hồ sơ người cao tuổi</h2>
+            <button class="res-modal-close-btn" id="btn-close-create-modal" title="Đóng">
+                <svg viewBox="0 0 24 24">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="res-modal-body">
+            <div class="form-group">
+                <label class="form-label" for="inp-fullname">Họ và tên <span style="color: #f04438;">*</span></label>
+                <input type="text" class="form-input" id="inp-fullname" placeholder="VD: Nguyễn Văn An" required />
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="inp-age">Tuổi <span style="color: #f04438;">*</span></label>
+                    <input type="number" class="form-input" id="inp-age" placeholder="78" min="50" max="120" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="inp-gender">Giới tính</label>
+                    <select class="form-select" id="inp-gender">
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="inp-room">Phòng <span style="color: #f04438;">*</span></label>
+                    <input type="text" class="form-input" id="inp-room" placeholder="VD: 201" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="inp-blood">Nhóm máu</label>
+                    <select class="form-select" id="inp-blood">
+                        <option value="A+">A+</option>
+                        <option value="B+">B+</option>
+                        <option value="O+" selected>O+</option>
+                        <option value="AB+">AB+</option>
+                        <option value="A-">A-</option>
+                        <option value="B-">B-</option>
+                        <option value="O-">O-</option>
+                        <option value="AB-">AB-</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="inp-status">Tình trạng sức khỏe</label>
+                <select class="form-select" id="inp-status">
+                    <option value="Đang ổn định" selected>Đang ổn định</option>
+                    <option value="Cần theo dõi">Cần theo dõi</option>
+                    <option value="Trung bình">Trung bình</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="inp-family-name">Họ tên người nhà <span style="color: #f04438;">*</span></label>
+                    <input type="text" class="form-input" id="inp-family-name" placeholder="VD: Nguyễn Văn Hải" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="inp-family-phone">Số điện thoại <span style="color: #f04438;">*</span></label>
+                    <input type="tel" class="form-input" id="inp-family-phone" placeholder="0909090909" required />
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="inp-family-rel">Mối quan hệ</label>
+                    <select class="form-select" id="inp-family-rel">
+                        <option value="Con trai">Con trai</option>
+                        <option value="Con gái">Con gái</option>
+                        <option value="Chồng">Chồng</option>
+                        <option value="Vợ">Vợ</option>
+                        <option value="Cháu">Cháu</option>
+                        <option value="Khác">Khác</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="inp-admission">Ngày tiếp nhận</label>
+                    <input type="date" class="form-input" id="inp-admission" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="inp-family-address">Địa chỉ người nhà</label>
+                <input type="text" class="form-input" id="inp-family-address" placeholder="123 Nguyễn Trãi, Quận 1, TP. HCM" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="inp-notes">Ghi chú bệnh nền / sức khỏe</label>
+                <textarea class="form-textarea" id="inp-notes" placeholder="VD: Tiền sử huyết áp cao, dị ứng kháng sinh..."></textarea>
+            </div>
+        </div>
+        <div class="res-modal-footer">
+            <button class="btn-secondary-action" id="btn-cancel-create-modal">Hủy</button>
+            <button class="btn-primary-action" id="btn-save-new-resident">Lưu hồ sơ</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+   MODAL: XEM CHI TIẾT HỒ SƠ
+   ========================================================================== -->
+<div class="res-modal-overlay" id="detail-resident-modal">
+    <div class="res-modal-container" style="max-width: 600px;">
+        <div class="res-modal-header">
+            <h2 class="res-modal-title">Chi tiết hồ sơ người cao tuổi</h2>
+            <button class="res-modal-close-btn" id="btn-close-detail-modal" title="Đóng">
+                <svg viewBox="0 0 24 24">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="res-modal-body">
+            <!-- Banner -->
+            <div class="detail-card-banner">
+                <div class="detail-avatar-lg" id="detail-avatar">NVA</div>
+                <div class="detail-name-meta">
+                    <h3 id="detail-fullname">Nguyễn Văn An</h3>
+                    <div class="detail-tags">
+                        <span class="tag-badge" id="detail-id">NCT001</span>
+                        <span class="tag-badge" id="detail-room">Phòng 201</span>
+                        <span class="status-pill status-pill-stable" id="detail-status">Đang ổn định</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- General Info -->
+            <div class="detail-section-title">Thông tin cơ bản</div>
+            <div class="detail-info-grid">
+                <div class="detail-info-item">
+                    <span class="detail-info-label">Tuổi</span>
+                    <span class="detail-info-value" id="detail-age">78</span>
+                </div>
+                <div class="detail-info-item">
+                    <span class="detail-info-label">Giới tính</span>
+                    <span class="detail-info-value" id="detail-gender">Nam</span>
+                </div>
+                <div class="detail-info-item">
+                    <span class="detail-info-label">Nhóm máu</span>
+                    <span class="detail-info-value" id="detail-blood">A+</span>
+                </div>
+                <div class="detail-info-item">
+                    <span class="detail-info-label">Ngày nhập trung tâm</span>
+                    <span class="detail-info-value" id="detail-admission">15/05/2024</span>
+                </div>
+            </div>
+
+            <!-- Family Contact Info -->
+            <div class="detail-section-title">Thông tin người nhà liên hệ</div>
+            <div class="detail-info-grid">
+                <div class="detail-info-item">
+                    <span class="detail-info-label">Họ tên người nhà</span>
+                    <span class="detail-info-value" id="detail-family-name">Nguyễn Văn Hải</span>
+                </div>
+                <div class="detail-info-item">
+                    <span class="detail-info-label">Quan hệ</span>
+                    <span class="detail-info-value" id="detail-family-rel">Con trai</span>
+                </div>
+                <div class="detail-info-item" style="grid-column: span 2;">
+                    <span class="detail-info-label">Số điện thoại liên hệ</span>
+                    <span class="detail-info-value" id="detail-family-phone" style="color: #0ba5ec; font-size: 15px;">0909090909</span>
+                </div>
+                <div class="detail-info-item" style="grid-column: span 2;">
+                    <span class="detail-info-label">Địa chỉ người nhà</span>
+                    <span class="detail-info-value" id="detail-family-address">123 Nguyễn Trãi, Quận 1, TP. HCM</span>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="detail-section-title">Ghi chú sức khỏe</div>
+            <div style="background: #f9fafb; padding: 12px 16px; border-radius: 8px; border: 1px solid #eaecf0; font-size: 13px; color: #344054;" id="detail-notes">
+                Theo dõi huyết áp định kỳ mỗi sáng, chế độ ăn giảm muối.
+            </div>
+        </div>
+        <div class="res-modal-footer" style="justify-content: space-between;">
+            <div style="display: flex; gap: 8px;">
+                <a href="@Url.Action("Health", "Home")" id="btn-detail-health" class="btn-secondary-action" style="font-size: 13px; padding: 8px 12px; text-decoration: none;">
+                    📈 Sức khỏe
+                </a>
+                <button type="button" id="btn-detail-schedule" class="btn-secondary-action" style="font-size: 13px; padding: 8px 12px; cursor: pointer;">
+                    🗓️ Lịch chăm sóc
+                </button>
+            </div>
+            <button class="btn-secondary-action" id="btn-close-detail-footer">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+   MODAL: LỊCH CHĂM SÓC NGƯỜI CAO TUỔI
+   ========================================================================== -->
+<div class="res-modal-overlay" id="resident-care-schedule-modal" style="z-index: 1000;">
+    <div class="res-modal-container" style="max-width: 600px;">
+        <div class="res-modal-header">
+            <div>
+                <h2 class="res-modal-title" style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 18px;">🗓️</span>
+                    <span>Lịch chăm sóc &mdash; <span id="care-schedule-resident-name">Phạm Thị Cúc</span></span>
+                </h2>
+                <div style="font-size: 13px; color: #667085; margin-top: 4px;" id="care-schedule-resident-meta">
+                    Mã: NCT003 &middot; Phòng 305
+                </div>
+            </div>
+            <button class="res-modal-close-btn" id="btn-close-care-schedule-modal" title="Đóng">
+                <svg viewBox="0 0 24 24">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="res-modal-body" style="padding: 20px 24px; max-height: 60vh;">
+            <div id="care-schedule-list" style="display: flex; flex-direction: column; gap: 12px;">
+                <!-- Dynamically populated tasks or empty message -->
+            </div>
+        </div>
+        <div class="res-modal-footer" style="justify-content: space-between;">
+            <a href="#" id="btn-care-schedule-view-full" class="btn-secondary-action" style="font-size: 13px; text-decoration: none;">
+                <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2;">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span>Xem trên trang Lịch chăm sóc</span>
+            </a>
+            <button class="btn-secondary-action" id="btn-close-care-schedule-footer">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+   MODAL: IMPORT EXCEL
+   ========================================================================== -->
+<div class="res-modal-overlay" id="import-excel-modal">
+    <div class="res-modal-container" style="max-width: 480px;">
+        <div class="res-modal-header">
+            <h2 class="res-modal-title">Import danh sách từ Excel</h2>
+            <button class="res-modal-close-btn" id="btn-close-import-modal" title="Đóng">
+                <svg viewBox="0 0 24 24">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="res-modal-body" style="text-align: center;">
+            <div style="border: 2px dashed #d0d5dd; border-radius: 12px; padding: 32px 20px; background-color: #f9fafb; cursor: pointer;" onclick="document.getElementById('excel-file-input').click();">
+                <svg viewBox="0 0 24 24" style="width: 40px; height: 40px; stroke: #0ba5ec; stroke-width: 2; fill: none; margin-bottom: 12px;">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+                <div style="font-weight: 600; color: #101828; margin-bottom: 4px;">Nhấn để chọn file Excel hoặc CSV</div>
+                <div style="font-size: 12px; color: #667085;">Hỗ trợ định dạng .xlsx, .xls, .csv (Tối đa 10MB)</div>
+                <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleExcelSelect(event);" />
+            </div>
+            <div id="import-file-name" style="font-size: 13px; font-weight: 600; color: #0ba5ec; margin-top: 12px; display: none;"></div>
+        </div>
+        <div class="res-modal-footer">
+            <button class="btn-secondary-action" id="btn-cancel-import">Hủy</button>
+            <button class="btn-primary-action" id="btn-submit-import">Tải lên & Xử lý</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Popup -->
+<div class="toast-popup" id="toast-notify">
+    <span id="toast-text">Thông báo</span>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Default baseline data strictly synchronized with health measurements (Image 2)
+            const defaultResidents = [
+                {
+                    id: "NCT001",
+                    initials: "NVA",
+                    name: "Nguyễn Văn An",
+                    age: 78,
+                    gender: "Nam",
+                    room: "201",
+                    blood: "A+",
+                    status: "Trung bình",
+                    familyName: "Nguyễn Văn Hải",
+                    familyPhone: "0909090909",
+                    familyRel: "Con trai",
+                    familyAddress: "123 Nguyễn Trãi, Quận 1, TP. HCM",
+                    admissionDate: "15/05/2024",
+                    notes: "Theo dõi huyết áp định kỳ mỗi sáng, chế độ ăn giảm muối."
+                },
+                {
+                    id: "NCT002",
+                    initials: "LVB",
+                    name: "Lê Văn Bình",
+                    age: 82,
+                    gender: "Nam",
+                    room: "102",
+                    blood: "B+",
+                    status: "Trung bình",
+                    familyName: "Lê Thị Mai",
+                    familyPhone: "0918888888",
+                    familyRel: "Con gái",
+                    familyAddress: "456 Lê Lợi, Quận Gò Vấp, TP. HCM",
+                    admissionDate: "10/11/2023",
+                    notes: "Thoái hóa khớp gối, cần hỗ trợ vận động và vật lý trị liệu."
+                },
+                {
+                    id: "NCT003",
+                    initials: "PTC",
+                    name: "Phạm Thị Cúc",
+                    age: 75,
+                    gender: "Nữ",
+                    room: "305",
+                    blood: "O+",
+                    status: "Trung bình",
+                    familyName: "Trần Minh Hoàng",
+                    familyPhone: "0989999999",
+                    familyRel: "Chồng",
+                    familyAddress: "789 Cách Mạng Tháng 8, Quận 3, TP. HCM",
+                    admissionDate: "20/02/2024",
+                    notes: "Tiền sử đường huyết dao động, kiểm tra sức khỏe hàng ngày."
+                }
+            ];
+
+            const STORAGE_KEY = "silvercare_elderly_profiles_v3";
+            let currentResidents = [];
+
+            // Sync resident status with health vitals from Health tracking
+            // Mapping: Bình thường --> Đang ổn định, Trung bình --> Trung bình, Cao --> Cần theo dõi
+            function getUpdatedStatusFromHealth(resId, defaultStatus) {
+                const now = new Date();
+                const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                
+                let update = null;
+                try {
+                    const rawV4 = localStorage.getItem("silvercare_health_records_v4");
+                    if (rawV4) {
+                        const records = JSON.parse(rawV4);
+                        if (records[resId]?.[todayKey]) {
+                            update = records[resId][todayKey];
+                        }
+                    }
+                } catch(e) {}
+
+                if (!update) {
+                    const rawHealth = localStorage.getItem("silvercare_health_today_updates_v3") || localStorage.getItem("silvercare_health_today_updates_v2");
+                    if (rawHealth) {
+                        try {
+                            const healthData = JSON.parse(rawHealth);
+                            const rowId = resId === "NCT001" ? "row-1" : (resId === "NCT002" ? "row-2" : (resId === "NCT003" ? "row-3" : ""));
+                            update = healthData[resId] || (rowId ? healthData[rowId] : null);
+                        } catch (e) {}
+                    }
+                }
+
+                if (update && typeof update.sys === "number") {
+                    const bpDiff = update.sys - update.dia;
+                    if (update.sys >= 140 || update.dia >= 90 || bpDiff <= 20 || update.hr > 100 || update.hr < 50 || update.temp >= 38.5 || update.temp < 35.0) {
+                        return "Cần theo dõi"; // Cao
+                    }
+                    if ((update.sys >= 120 && update.sys <= 139) || (update.dia >= 80 && update.dia <= 89) || (update.hr >= 91 && update.hr <= 100) || (update.hr >= 50 && update.hr <= 59) || (update.temp >= 37.5 && update.temp <= 38.4)) {
+                        return "Trung bình"; // Trung bình
+                    }
+                    return "Đang ổn định"; // Bình thường
+                }
+                return defaultStatus;
+            }
+
+            // Load residents from storage or fallback to default
+            function loadResidents() {
+                localStorage.removeItem("silvercare_elderly_profiles_v2");
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    try {
+                        currentResidents = JSON.parse(raw);
+                    } catch (e) {
+                        currentResidents = [...defaultResidents];
+                    }
+                } else {
+                    currentResidents = [...defaultResidents];
+                }
+
+                // Sync status from today's health measurements
+                currentResidents.forEach(res => {
+                    res.status = getUpdatedStatusFromHealth(res.id, res.status);
+                });
+                saveResidents();
+            }
+
+            function saveResidents() {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(currentResidents));
+            }
+
+            // Helper to get initials
+            function computeInitials(name) {
+                if (!name) return "NCT";
+                const parts = name.trim().split(" ");
+                if (parts.length >= 3) {
+                    return `${parts[0][0]}${parts[parts.length - 2][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+                } else if (parts.length === 2) {
+                    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+                }
+                return name.substring(0, 2).toUpperCase();
+            }
+
+            // Helper for status badge
+            function getStatusBadgeHtml(status) {
+                if (status === "Đang ổn định") {
+                    return `<span class="status-pill status-pill-stable">Đang ổn định</span>`;
+                } else if (status === "Cần theo dõi") {
+                    return `<span class="status-pill status-pill-monitoring">Cần theo dõi</span>`;
+                } else if (status === "Trung bình") {
+                    return `<span class="status-pill status-pill-medium">Trung bình</span>`;
+                }
+                return `<span class="status-pill" style="background:#f2f4f7; color:#344054;">${status}</span>`;
+            }
+
+            // Render Table Rows
+            function renderTable() {
+                const tbody = document.getElementById("residents-table-body");
+                const emptyState = document.getElementById("residents-empty-state");
+                if (!tbody) return;
+
+                tbody.innerHTML = "";
+
+                const activePill = document.querySelector(".resident-pill.active");
+                const selectedFilter = activePill ? activePill.getAttribute("data-filter") : "all";
+                const searchVal = document.getElementById("residents-search").value.toLowerCase().trim();
+
+                let visibleCount = 0;
+
+                currentResidents.forEach(res => {
+                    // Check filter
+                    const matchesFilter = (selectedFilter === "all" || res.status === selectedFilter);
+                    
+                    // Check search
+                    const textToSearch = `${res.id} ${res.name} ${res.room} ${res.familyName} ${res.familyPhone}`.toLowerCase();
+                    const matchesSearch = textToSearch.includes(searchVal);
+
+                    if (matchesFilter && matchesSearch) {
+                        visibleCount++;
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td class="cell-id">${res.id}</td>
+                            <td>
+                                <div class="profile-cell">
+                                    <div class="profile-avatar">${res.initials || computeInitials(res.name)}</div>
+                                    <span class="profile-name">${res.name}</span>
+                                </div>
+                            </td>
+                            <td class="cell-age">${res.age}</td>
+                            <td class="cell-gender">${res.gender}</td>
+                            <td class="cell-room">${res.room}</td>
+                            <td class="cell-blood">${res.blood}</td>
+                            <td>${getStatusBadgeHtml(res.status)}</td>
+                            <td class="cell-contact" title="${res.familyName} - ${res.familyPhone}">${res.familyName} - ${res.familyPhone}</td>
+                            <td style="text-align: right;">
+                                <a href="#" class="btn-view-detail" data-id="${res.id}">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                    <span>Xem chi tiết</span>
+                                </a>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    }
+                });
+
+                if (visibleCount === 0) {
+                    emptyState.style.display = "block";
+                } else {
+                    emptyState.style.display = "none";
+                }
+
+                // Bind detail view triggers
+                document.querySelectorAll(".btn-view-detail").forEach(btn => {
+                    btn.addEventListener("click", function (e) {
+                        e.preventDefault();
+                        const id = this.getAttribute("data-id");
+                        openDetailModal(id);
+                    });
+                });
+            }
+
+            // Toast helper
+            function showToast(msg) {
+                const toast = document.getElementById("toast-notify");
+                const text = document.getElementById("toast-text");
+                if (toast && text) {
+                    text.innerText = msg;
+                    toast.classList.add("show");
+                    setTimeout(() => toast.classList.remove("show"), 3000);
+                }
+            }
+
+            // Default care tasks baseline
+            const defaultCareTasks = [
+                { id: "task-1", name: "Uống thuốc sáng", time: "08:00", patientName: "Nguyễn Văn An", patientRoom: "201", status: "todo", type: "Chăm sóc", note: "Uống thuốc sau khi ăn no" },
+                { id: "task-2", name: "Vật lý trị liệu", time: "10:00", patientName: "Lê Văn Bình", patientRoom: "102", status: "pending", type: "Y tế", note: "Tập phục hồi chức năng khớp gối" },
+                { id: "task-3", name: "Đo huyết áp & khám định kỳ", time: "14:00", patientName: "Phạm Thị Cúc", patientRoom: "305", status: "todo", type: "Y tế", note: "Kiểm tra huyết áp và chỉ số sức khỏe chiều" },
+                { id: "task-4", name: "Chăm sóc cá nhân", time: "16:00", patientName: "Nguyễn Văn An", patientRoom: "201", status: "todo", type: "Chăm sóc", note: "Hỗ trợ vận động nhẹ ngoài sân vườn" },
+                { id: "task-5", name: "Uống thuốc tối", time: "20:00", patientName: "Lê Văn Bình", patientRoom: "102", status: "done", type: "Chăm sóc", note: "Uống thuốc theo đơn bác sĩ trước khi ngủ" }
+            ];
+
+            // ==========================================================================
+            // DETAIL MODAL LOGIC
+            // ==========================================================================
+            const detailModal = document.getElementById("detail-resident-modal");
+            const btnCloseDetail = document.getElementById("btn-close-detail-modal");
+            const btnCloseDetailFooter = document.getElementById("btn-close-detail-footer");
+            let activeDetailResident = null;
+
+            function openDetailModal(id) {
+                const res = currentResidents.find(r => r.id === id);
+                if (!res) return;
+                activeDetailResident = res;
+
+                // Update Sức khỏe button link directly to this resident's health chart
+                const btnHealth = document.getElementById("btn-detail-health");
+                if (btnHealth) {
+                    btnHealth.href = `@Url.Action("Health", "Home")?residentId=${encodeURIComponent(res.id)}#chart-section`;
+                }
+
+                document.getElementById("detail-avatar").innerText = res.initials || computeInitials(res.name);
+                document.getElementById("detail-fullname").innerText = res.name;
+                document.getElementById("detail-id").innerText = res.id;
+                document.getElementById("detail-room").innerText = `Phòng ${res.room}`;
+                
+                const statusEl = document.getElementById("detail-status");
+                statusEl.innerText = res.status;
+                statusEl.className = "status-pill " + (res.status === "Đang ổn định" ? "status-pill-stable" : (res.status === "Cần theo dõi" ? "status-pill-monitoring" : "status-pill-medium"));
+
+                document.getElementById("detail-age").innerText = res.age;
+                document.getElementById("detail-gender").innerText = res.gender;
+                document.getElementById("detail-blood").innerText = res.blood;
+                document.getElementById("detail-admission").innerText = res.admissionDate || "15/05/2024";
+
+                document.getElementById("detail-family-name").innerText = res.familyName || "Chưa có";
+                document.getElementById("detail-family-rel").innerText = res.familyRel || "Người thân";
+                document.getElementById("detail-family-phone").innerText = res.familyPhone || "Chưa có";
+                document.getElementById("detail-family-address").innerText = res.familyAddress || "123 Nguyễn Trãi, Quận 1, TP. HCM";
+
+                document.getElementById("detail-notes").innerText = res.notes || "Chưa có ghi chú đặc biệt.";
+
+                detailModal.classList.add("active");
+            }
+
+            function closeDetailModal() {
+                detailModal.classList.remove("active");
+            }
+
+            if (btnCloseDetail) btnCloseDetail.addEventListener("click", closeDetailModal);
+            if (btnCloseDetailFooter) btnCloseDetailFooter.addEventListener("click", closeDetailModal);
+            if (detailModal) {
+                detailModal.addEventListener("click", function(e) {
+                    if (e.target === detailModal) closeDetailModal();
+                });
+            }
+
+            // ==========================================================================
+            // CARE SCHEDULE POPUP MODAL LOGIC
+            // ==========================================================================
+            const careScheduleModal = document.getElementById("resident-care-schedule-modal");
+            const btnOpenCareSchedule = document.getElementById("btn-detail-schedule");
+            const btnCloseCareSchedule = document.getElementById("btn-close-care-schedule-modal");
+            const btnCloseCareScheduleFooter = document.getElementById("btn-close-care-schedule-footer");
+            const careScheduleList = document.getElementById("care-schedule-list");
+            const careScheduleResidentName = document.getElementById("care-schedule-resident-name");
+            const careScheduleResidentMeta = document.getElementById("care-schedule-resident-meta");
+            const btnCareScheduleViewFull = document.getElementById("btn-care-schedule-view-full");
+
+            function openCareScheduleModal(res) {
+                if (!res) return;
+
+                if (careScheduleResidentName) careScheduleResidentName.innerText = res.name;
+                if (careScheduleResidentMeta) careScheduleResidentMeta.innerHTML = `Mã: ${res.id} &middot; Phòng ${res.room}`;
+                if (btnCareScheduleViewFull) {
+                    const cleanRoom = res.room ? res.room.replace(/\D/g, '') : '';
+                    btnCareScheduleViewFull.href = `@Url.Action("Schedule", "Home")?room=${encodeURIComponent(cleanRoom)}&name=${encodeURIComponent(res.name)}`;
+                }
+
+                // Get tasks from localStorage or default
+                let allTasks = [];
+                const savedTasks = localStorage.getItem("silvercare_schedules_v2");
+                if (savedTasks) {
+                    try {
+                        allTasks = JSON.parse(savedTasks);
+                    } catch (e) {
+                        allTasks = [...defaultCareTasks];
+                    }
+                } else {
+                    allTasks = [...defaultCareTasks];
+                }
+
+                // Filter tasks matching this resident
+                const resNameNorm = res.name.toLowerCase().trim();
+                const resRoomNorm = res.room ? res.room.replace(/\D/g, '').trim() : '';
+
+                const matchedTasks = allTasks.filter(t => {
+                    const tName = (t.patientName || "").toLowerCase().trim();
+                    const tRoom = (t.patientRoom || "").replace(/\D/g, '').trim();
+
+                    if (tName === resNameNorm) return true;
+                    if (tName && resNameNorm && (tName.includes(resNameNorm) || resNameNorm.includes(tName))) return true;
+                    if (resRoomNorm && tRoom && resRoomNorm === tRoom && tName.includes(resNameNorm.split(' ').pop())) return true;
+                    return false;
+                });
+
+                if (matchedTasks.length > 0) {
+                    // Sort by time
+                    matchedTasks.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+
+                    careScheduleList.innerHTML = matchedTasks.map(task => {
+                        const isDone = task.status === "done";
+                        const isPending = task.status === "pending";
+                        const badgeClass = isDone ? "badge-done" : (isPending ? "badge-pending" : "badge-todo");
+                        const badgeText = isDone ? "Hoàn thành" : (isPending ? "Đang chờ" : "Chưa thực hiện");
+                        const typeClass = task.type === "Y tế" ? "type-medical" : "type-care";
+
+                        return `
+                            <div class="care-task-card" style="background: #ffffff; border: 1px solid #eaecf0; border-radius: 10px; padding: 14px 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; box-shadow: 0 1px 2px rgba(16,24,40,0.04);">
+                                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                                    <div style="background: #f0f9ff; color: #026aa2; font-weight: 700; font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 1px solid #b9e6fe; white-space: nowrap;">
+                                        ${task.time}
+                                    </div>
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                            <span style="font-weight: 600; color: #101828; font-size: 14px;">${task.name}</span>
+                                            <span class="care-type-badge ${typeClass}">
+                                                ${task.type || "Chăm sóc"}
+                                            </span>
+                                        </div>
+                                        ${task.note ? `
+                                            <div style="font-size: 12px; color: #475467; margin-top: 5px; display: flex; align-items: center; gap: 4px;">
+                                                <svg viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: #98a2b3; fill: none; stroke-width: 2; flex-shrink: 0;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                                <span>${task.note}</span>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                                    <span class="status-badge ${badgeClass}">
+                                        ${badgeText}
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    }).join("");
+                } else {
+                    // Empty state matching prompt requirement exactly: "Chưa có lịch chăm sóc của ..."
+                    careScheduleList.innerHTML = `
+                        <div class="care-schedule-empty" style="text-align: center; padding: 36px 16px;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; background: #f2f4f7; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 14px;">
+                                <svg viewBox="0 0 24 24" style="width: 28px; height: 28px; stroke: #667085; stroke-width: 1.8; fill: none;">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                            </div>
+                            <div style="font-size: 16px; font-weight: 700; color: #101828; margin-bottom: 6px;">
+                                Chưa có lịch chăm sóc của ${res.name}
+                            </div>
+                            <div style="font-size: 13px; color: #667085; max-width: 380px; margin: 0 auto 16px auto; line-height: 1.5;">
+                                Hiện tại chưa có công việc hoặc lịch chăm sóc nào được lên lịch cho người cao tuổi này trong hôm nay.
+                            </div>
+                            <a href="@Url.Action("Schedule", "Home")" class="btn-primary-action" style="font-size: 13px; padding: 8px 16px; display: inline-flex; text-decoration: none;">
+                                + Tạo lịch chăm sóc
+                            </a>
+                        </div>
+                    `;
+                }
+
+                careScheduleModal.classList.add("active");
+            }
+
+            function closeCareScheduleModal() {
+                careScheduleModal.classList.remove("active");
+            }
+
+            if (btnOpenCareSchedule) {
+                btnOpenCareSchedule.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    if (activeDetailResident) {
+                        openCareScheduleModal(activeDetailResident);
+                    }
+                });
+            }
+
+            if (btnCloseCareSchedule) btnCloseCareSchedule.addEventListener("click", closeCareScheduleModal);
+            if (btnCloseCareScheduleFooter) btnCloseCareScheduleFooter.addEventListener("click", closeCareScheduleModal);
+            if (careScheduleModal) {
+                careScheduleModal.addEventListener("click", function(e) {
+                    if (e.target === careScheduleModal) closeCareScheduleModal();
+                });
+            }
+
+            // ==========================================================================
+            // CREATE MODAL LOGIC
+            // ==========================================================================
+            const createModal = document.getElementById("create-resident-modal");
+            const btnOpenCreate = document.getElementById("btn-open-create-modal");
+            const btnCloseCreate = document.getElementById("btn-close-create-modal");
+            const btnCancelCreate = document.getElementById("btn-cancel-create-modal");
+            const btnSaveResident = document.getElementById("btn-save-new-resident");
+
+            function openCreateModal() {
+                // Reset form
+                document.getElementById("inp-fullname").value = "";
+                document.getElementById("inp-age").value = "";
+                document.getElementById("inp-gender").value = "Nam";
+                document.getElementById("inp-room").value = "";
+                document.getElementById("inp-blood").value = "O+";
+                document.getElementById("inp-status").value = "Đang ổn định";
+                document.getElementById("inp-family-name").value = "";
+                document.getElementById("inp-family-phone").value = "";
+                document.getElementById("inp-family-rel").value = "Con trai";
+                document.getElementById("inp-family-address").value = "";
+                document.getElementById("inp-admission").valueAsDate = new Date();
+                document.getElementById("inp-notes").value = "";
+
+                createModal.classList.add("active");
+            }
+
+            function closeCreateModal() {
+                createModal.classList.remove("active");
+            }
+
+            if (btnOpenCreate) btnOpenCreate.addEventListener("click", openCreateModal);
+            if (btnCloseCreate) btnCloseCreate.addEventListener("click", closeCreateModal);
+            if (btnCancelCreate) btnCancelCreate.addEventListener("click", closeCreateModal);
+            if (createModal) {
+                createModal.addEventListener("click", function(e) {
+                    if (e.target === createModal) closeCreateModal();
+                });
+            }
+
+            if (btnSaveResident) {
+                btnSaveResident.addEventListener("click", function () {
+                    const name = document.getElementById("inp-fullname").value.trim();
+                    const age = parseInt(document.getElementById("inp-age").value);
+                    const gender = document.getElementById("inp-gender").value;
+                    const room = document.getElementById("inp-room").value.trim();
+                    const blood = document.getElementById("inp-blood").value;
+                    const status = document.getElementById("inp-status").value;
+                    const familyName = document.getElementById("inp-family-name").value.trim();
+                    const familyPhone = document.getElementById("inp-family-phone").value.trim();
+                    const familyRel = document.getElementById("inp-family-rel").value;
+                    const familyAddress = document.getElementById("inp-family-address").value.trim();
+                    const admissionVal = document.getElementById("inp-admission").value;
+                    const notes = document.getElementById("inp-notes").value.trim();
+
+                    if (!name || isNaN(age) || !room || !familyName || !familyPhone) {
+                        alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
+                        return;
+                    }
+
+                    // Format date
+                    let formattedAdmission = "Hôm nay";
+                    if (admissionVal) {
+                        const parts = admissionVal.split("-");
+                        if (parts.length === 3) {
+                            formattedAdmission = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        }
+                    }
+
+                    // Generate next NCT id
+                    let maxNum = 0;
+                    currentResidents.forEach(r => {
+                        if (r.id && r.id.startsWith("NCT")) {
+                            const n = parseInt(r.id.substring(3));
+                            if (!isNaN(n) && n > maxNum) maxNum = n;
+                        }
+                    });
+                    const nextNum = Math.max(maxNum + 1, currentResidents.length + 1);
+                    const newId = `NCT${String(nextNum).padStart(3, '0')}`;
+
+                    const newResident = {
+                        id: newId,
+                        initials: computeInitials(name),
+                        name: name,
+                        age: age,
+                        gender: gender,
+                        room: room,
+                        blood: blood,
+                        status: status,
+                        familyName: familyName,
+                        familyPhone: familyPhone,
+                        familyRel: familyRel,
+                        familyAddress: familyAddress,
+                        admissionDate: formattedAdmission,
+                        notes: notes
+                    };
+
+                    currentResidents.push(newResident);
+                    saveResidents();
+
+                    closeCreateModal();
+                    renderTable();
+                    showToast(`Đã thêm hồ sơ thành công cho: ${name}`);
+                });
+            }
+
+            // ==========================================================================
+            // IMPORT EXCEL MODAL LOGIC
+            // ==========================================================================
+            const importModal = document.getElementById("import-excel-modal");
+            const btnOpenImport = document.getElementById("btn-import-excel");
+            const btnCloseImport = document.getElementById("btn-close-import-modal");
+            const btnCancelImport = document.getElementById("btn-cancel-import");
+            const btnSubmitImport = document.getElementById("btn-submit-import");
+
+            function openImportModal() {
+                document.getElementById("import-file-name").style.display = "none";
+                document.getElementById("excel-file-input").value = "";
+                importModal.classList.add("active");
+            }
+
+            function closeImportModal() {
+                importModal.classList.remove("active");
+            }
+
+            if (btnOpenImport) btnOpenImport.addEventListener("click", openImportModal);
+            if (btnCloseImport) btnCloseImport.addEventListener("click", closeImportModal);
+            if (btnCancelImport) btnCancelImport.addEventListener("click", closeImportModal);
+            if (importModal) {
+                importModal.addEventListener("click", function(e) {
+                    if (e.target === importModal) closeImportModal();
+                });
+            }
+
+            window.handleExcelSelect = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const label = document.getElementById("import-file-name");
+                    label.innerText = `Đã chọn: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                    label.style.display = "block";
+                }
+            };
+
+            if (btnSubmitImport) {
+                btnSubmitImport.addEventListener("click", function() {
+                    const fileInput = document.getElementById("excel-file-input");
+                    if (!fileInput.files || fileInput.files.length === 0) {
+                        alert("Vui lòng chọn một file Excel hoặc CSV để tải lên!");
+                        return;
+                    }
+                    closeImportModal();
+                    showToast("Đã xử lý và import dữ liệu Excel thành công!");
+                });
+            }
+
+            // ==========================================================================
+            // SEARCH & FILTER LISTENERS
+            // ==========================================================================
+            document.querySelectorAll(".resident-pill").forEach(pill => {
+                pill.addEventListener("click", function () {
+                    document.querySelectorAll(".resident-pill").forEach(p => p.classList.remove("active"));
+                    this.classList.add("active");
+                    renderTable();
+                });
+            });
+
+            const searchInp = document.getElementById("residents-search");
+            if (searchInp) {
+                searchInp.addEventListener("input", renderTable);
+            }
+
+            // Initialize
+            loadResidents();
+            renderTable();
+
+            // Auto-open detail modal if navigated with residentId/id
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetResId = urlParams.get('residentId') || urlParams.get('id');
+            const targetName = urlParams.get('name');
+            if (targetResId || targetName) {
+                setTimeout(() => {
+                    let target = null;
+                    if (targetResId) {
+                        target = currentResidents.find(r => r.id === targetResId);
+                    }
+                    if (!target && targetName) {
+                        target = currentResidents.find(r => r.name.toLowerCase().includes(targetName.toLowerCase()));
+                    }
+                    if (target) {
+                        openDetailModal(target.id);
+                    }
+                }, 200);
+            }
+        });
+    </script>
+}

@@ -1,0 +1,878 @@
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewData["Title"] = "Quản lý thuốc";
+}
+
+<style>
+    /* Medicine Management View Styling */
+    .medicine-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+    }
+
+    .medicine-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0;
+        letter-spacing: -0.02em;
+    }
+
+    .btn-add-medicine {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: #0ba5ec;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 18px;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    }
+
+    .btn-add-medicine:hover {
+        background-color: #0284c7;
+        box-shadow: 0 4px 12px rgba(11, 165, 236, 0.25);
+    }
+
+    .btn-add-medicine svg {
+        width: 18px;
+        height: 18px;
+        stroke: #ffffff;
+        stroke-width: 2.2;
+    }
+
+    /* Medicine Table Card */
+    .medicine-table-card {
+        background-color: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #eaecf0;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+        overflow: hidden;
+    }
+
+    .medicine-table-responsive {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .medicine-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    .medicine-table th {
+        background-color: #ffffff;
+        color: #667085;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 16px 20px;
+        border-bottom: 1px solid #eaecf0;
+        white-space: nowrap;
+    }
+
+    .medicine-table td {
+        padding: 18px 20px;
+        font-size: 14px;
+        color: #344054;
+        border-bottom: 1px solid #f2f4f7;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .medicine-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .medicine-table tbody tr {
+        transition: background-color 0.15s ease;
+    }
+
+    .medicine-table tbody tr:hover {
+        background-color: #f8fafd;
+    }
+
+    /* Medicine Name Cell */
+    .med-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .med-pill-icon {
+        width: 32px;
+        height: 32px;
+        background-color: #f0f9ff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .med-pill-icon svg {
+        width: 16px;
+        height: 16px;
+        stroke: #0ba5ec;
+        stroke-width: 2;
+        fill: none;
+    }
+
+    .med-name-text {
+        font-weight: 600;
+        color: #101828;
+    }
+
+    .med-resident-name {
+        font-weight: 500;
+        color: #101828;
+    }
+
+    /* Status Badges */
+    .med-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        border-radius: 16px;
+        font-size: 12.5px;
+        font-weight: 500;
+    }
+
+    .med-badge-active {
+        background-color: #ecfdf3;
+        color: #027a48;
+    }
+
+    .med-badge-paused {
+        background-color: #fef0c7;
+        color: #b54708;
+    }
+
+    .med-badge-stopped {
+        background-color: #f2f4f7;
+        color: #475467;
+    }
+
+    .med-notes {
+        color: #667085;
+        font-size: 13.5px;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Action Buttons */
+    .med-actions-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: flex-end;
+    }
+
+    .btn-action-icon {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 6px;
+        color: #98a2b3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+    }
+
+    .btn-action-icon svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        fill: none;
+    }
+
+    .btn-action-edit:hover {
+        background-color: #f0f9ff;
+        color: #0ba5ec;
+    }
+
+    .btn-action-delete:hover {
+        background-color: #fef3f2;
+        color: #f04438;
+    }
+
+    /* Modals */
+    .custom-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(16, 24, 40, 0.45);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1050;
+        animation: modalFadeIn 0.2s ease-out;
+    }
+
+    .custom-modal-overlay.show {
+        display: flex;
+    }
+
+    @@keyframes modalFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .custom-modal-card {
+        background-color: #ffffff;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 520px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        overflow: hidden;
+        animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @@keyframes modalSlideUp {
+        from { transform: translateY(16px) scale(0.97); }
+        to { transform: translateY(0) scale(1); }
+    }
+
+    .custom-modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid #eaecf0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .custom-modal-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0;
+    }
+
+    .btn-close-modal {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #98a2b3;
+        padding: 4px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-close-modal:hover {
+        background-color: #f2f4f7;
+        color: #101828;
+    }
+
+    .custom-modal-body {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .modal-form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .modal-form-label {
+        font-size: 13.5px;
+        font-weight: 500;
+        color: #344054;
+    }
+
+    .modal-form-input, .modal-form-select {
+        width: 100%;
+        height: 42px;
+        padding: 0 14px;
+        background-color: #ffffff;
+        border: 1px solid #d0d5dd;
+        border-radius: 10px;
+        font-size: 14px;
+        color: #101828;
+        outline: none;
+        box-sizing: border-box;
+        transition: all 0.2s;
+    }
+
+    .modal-form-input:focus, .modal-form-select:focus {
+        border-color: #0ba5ec;
+        box-shadow: 0 0 0 3px rgba(11, 165, 236, 0.12);
+    }
+
+    .custom-modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid #eaecf0;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        background-color: #f9fafb;
+    }
+
+    .btn-modal-cancel {
+        background-color: #ffffff;
+        border: 1px solid #d0d5dd;
+        color: #344054;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 9px 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .btn-modal-cancel:hover {
+        background-color: #f2f4f7;
+    }
+
+    .btn-modal-submit {
+        background-color: #0ba5ec;
+        border: 1px solid #0ba5ec;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 9px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .btn-modal-submit:hover {
+        background-color: #0284c7;
+    }
+
+    .btn-modal-danger {
+        background-color: #f04438;
+        border: 1px solid #f04438;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 9px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    .btn-modal-danger:hover {
+        background-color: #d92d20;
+    }
+
+    /* Empty state */
+    .med-empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        color: #667085;
+    }
+
+    .med-empty-state svg {
+        width: 48px;
+        height: 48px;
+        stroke: #98a2b3;
+        margin-bottom: 12px;
+    }
+</style>
+
+<div class="medicine-header">
+    <h1 class="medicine-title">Quản lý thuốc</h1>
+    <button type="button" class="btn-add-medicine" onclick="openAddMedicineModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>Thêm thuốc</span>
+    </button>
+</div>
+
+<!-- Medicine Table Card -->
+<div class="medicine-table-card">
+    <div class="medicine-table-responsive">
+        <table class="medicine-table" id="medicineTable">
+            <thead>
+                <tr>
+                    <th>TÊN THUỐC</th>
+                    <th>LIỀU LƯỢNG</th>
+                    <th>NGƯỜI DÙNG</th>
+                    <th>KHUNG GIỜ</th>
+                    <th>TẦN SUẤT</th>
+                    <th>TRẠNG THÁI</th>
+                    <th>GHI CHÚ</th>
+                    <th style="text-align: right; width: 80px;"></th>
+                </tr>
+            </thead>
+            <tbody id="medicineTableBody">
+                <!-- Rows injected dynamically via JavaScript -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 1. Modal Thêm thuốc mới -->
+<div class="custom-modal-overlay" id="addMedicineModal">
+    <div class="custom-modal-card">
+        <div class="custom-modal-header">
+            <h2 class="custom-modal-title">Thêm thuốc mới</h2>
+            <button type="button" class="btn-close-modal" onclick="closeModal('addMedicineModal')">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <form id="addMedicineForm" onsubmit="handleAddMedicine(event)">
+            <div class="custom-modal-body">
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="addMedName">Tên thuốc</label>
+                    <input type="text" id="addMedName" class="modal-form-input" placeholder="VD: Amlodipine 5mg" required />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="addDosage">Liều lượng</label>
+                    <input type="text" id="addDosage" class="modal-form-input" placeholder="VD: 1 viên, 2 viên, 5ml" required />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="addResidentName">Người dùng (Người cao tuổi)</label>
+                    <select id="addResidentName" class="modal-form-select" required>
+                        <option value="Nguyễn Văn An">Nguyễn Văn An (Phòng 201)</option>
+                        <option value="Lê Văn Bình">Lê Văn Bình (Phòng 102)</option>
+                        <option value="Phạm Thị Cúc">Phạm Thị Cúc (Phòng 305)</option>
+                    </select>
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="addScheduleTime">Khung giờ (dựa trên lịch chăm sóc)</label>
+                    <input type="text" id="addScheduleTime" class="modal-form-input" placeholder="VD: 08:00, 20:00" required />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="addFrequency">Tần suất</label>
+                    <input type="text" id="addFrequency" class="modal-form-input" placeholder="VD: 1 lần/ngày, 2 lần/ngày" required />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="addStatus">Trạng thái</label>
+                    <select id="addStatus" class="modal-form-select">
+                        <option value="Đang dùng">Đang dùng</option>
+                        <option value="Tạm dừng">Tạm dừng</option>
+                        <option value="Đã ngưng">Đã ngưng</option>
+                    </select>
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="addNotes">Ghi chú</label>
+                    <input type="text" id="addNotes" class="modal-form-input" placeholder="VD: Uống sau bữa ăn" />
+                </div>
+            </div>
+            <div class="custom-modal-footer">
+                <button type="button" class="btn-modal-cancel" onclick="closeModal('addMedicineModal')">Hủy</button>
+                <button type="submit" class="btn-modal-submit">Thêm thuốc</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 2. Modal Chỉnh sửa thuốc -->
+<div class="custom-modal-overlay" id="editMedicineModal">
+    <div class="custom-modal-card">
+        <div class="custom-modal-header">
+            <h2 class="custom-modal-title">Chỉnh sửa thông tin thuốc</h2>
+            <button type="button" class="btn-close-modal" onclick="closeModal('editMedicineModal')">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <form id="editMedicineForm" onsubmit="handleSaveEditMedicine(event)">
+            <input type="hidden" id="editMedId" />
+            <div class="custom-modal-body">
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="editMedName">Tên thuốc</label>
+                    <input type="text" id="editMedName" class="modal-form-input" required />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="editDosage">Liều lượng</label>
+                    <input type="text" id="editDosage" class="modal-form-input" required />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="editResidentName">Người dùng (Người cao tuổi)</label>
+                    <select id="editResidentName" class="modal-form-select" required>
+                        <option value="Nguyễn Văn An">Nguyễn Văn An (Phòng 201)</option>
+                        <option value="Lê Văn Bình">Lê Văn Bình (Phòng 102)</option>
+                        <option value="Phạm Thị Cúc">Phạm Thị Cúc (Phòng 305)</option>
+                    </select>
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="editScheduleTime">Khung giờ</label>
+                    <input type="text" id="editScheduleTime" class="modal-form-input" required />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="editFrequency">Tần suất</label>
+                    <input type="text" id="editFrequency" class="modal-form-input" required />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="editStatus">Trạng thái</label>
+                    <select id="editStatus" class="modal-form-select">
+                        <option value="Đang dùng">Đang dùng</option>
+                        <option value="Tạm dừng">Tạm dừng</option>
+                        <option value="Đã ngưng">Đã ngưng</option>
+                    </select>
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-form-label" for="editNotes">Ghi chú</label>
+                    <input type="text" id="editNotes" class="modal-form-input" />
+                </div>
+            </div>
+            <div class="custom-modal-footer">
+                <button type="button" class="btn-modal-cancel" onclick="closeModal('editMedicineModal')">Hủy</button>
+                <button type="submit" class="btn-modal-submit">Lưu thay đổi</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 3. Modal Xác nhận xóa thuốc -->
+<div class="custom-modal-overlay" id="deleteMedicineModal">
+    <div class="custom-modal-card" style="max-width: 440px;">
+        <div class="custom-modal-header">
+            <h2 class="custom-modal-title">Xác nhận xóa thuốc</h2>
+            <button type="button" class="btn-close-modal" onclick="closeModal('deleteMedicineModal')">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="custom-modal-body">
+            <input type="hidden" id="deleteMedId" />
+            <p id="deleteConfirmText" style="color: #475467; font-size: 14px; margin: 0; line-height: 1.5;">
+                Bạn có chắc chắn muốn xóa đơn thuốc này không? Hành động này không thể hoàn tác.
+            </p>
+        </div>
+        <div class="custom-modal-footer">
+            <button type="button" class="btn-modal-cancel" onclick="closeModal('deleteMedicineModal')">Hủy</button>
+            <button type="button" class="btn-modal-danger" onclick="confirmDeleteMedicine()">Xóa thuốc</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Baseline default data strictly matching nguoicaotuoi.sql and medicine.sql
+        const defaultMedicines = [
+            {
+                id: 1,
+                name: "Amlodipine 5mg",
+                dosage: "1 viên",
+                resident: "Nguyễn Văn An",
+                scheduleTime: "08:00, 20:00",
+                frequency: "2 lần/ngày",
+                status: "Đang dùng",
+                notes: "Uống sau bữa ăn"
+            },
+            {
+                id: 2,
+                name: "Metformin 500mg",
+                dosage: "2 viên",
+                resident: "Nguyễn Văn An",
+                scheduleTime: "07:00, 12:00, 19:00",
+                frequency: "3 lần/ngày",
+                status: "Đang dùng",
+                notes: "Uống trong bữa ăn"
+            },
+            {
+                id: 3,
+                name: "Diclofenac 50mg",
+                dosage: "1 viên",
+                resident: "Lê Văn Bình",
+                scheduleTime: "09:00, 21:00",
+                frequency: "2 lần/ngày",
+                status: "Đang dùng",
+                notes: "Không dùng khi đau dạ dày ..."
+            },
+            {
+                id: 4,
+                name: "Calcium + Vitamin D",
+                dosage: "1 viên",
+                resident: "Lê Văn Bình",
+                scheduleTime: "12:00",
+                frequency: "1 lần/ngày",
+                status: "Đang dùng",
+                notes: "Uống sau bữa trưa"
+            },
+            {
+                id: 5,
+                name: "Warfarin 2mg",
+                dosage: "1 viên",
+                resident: "Phạm Thị Cúc",
+                scheduleTime: "18:00",
+                frequency: "1 lần/ngày",
+                status: "Đang dùng",
+                notes: "Theo dõi INR định kỳ"
+            },
+            {
+                id: 6,
+                name: "Atorvastatin 20mg",
+                dosage: "1 viên",
+                resident: "Phạm Thị Cúc",
+                scheduleTime: "21:00",
+                frequency: "1 lần/ngày",
+                status: "Đang dùng",
+                notes: "Uống buổi tối trước ngủ"
+            }
+        ];
+
+        let medicinesList = [];
+
+        function getAvailableResidents() {
+            const raw = localStorage.getItem("silvercare_elderly_profiles_v3");
+            if (raw) {
+                try {
+                    const list = JSON.parse(raw);
+                    if (Array.isArray(list) && list.length > 0) return list;
+                } catch(e) {}
+            }
+            return [
+                { name: "Nguyễn Văn An", room: "201" },
+                { name: "Lê Văn Bình", room: "102" },
+                { name: "Phạm Thị Cúc", room: "305" }
+            ];
+        }
+
+        function populateResidentSelects() {
+            const residents = getAvailableResidents();
+            const addSel = document.getElementById("addResidentName");
+            const editSel = document.getElementById("editResidentName");
+
+            const html = residents.map(r => {
+                const roomStr = r.room && r.room.startsWith("Phòng") ? r.room : `Phòng ${r.room || '---'}`;
+                return `<option value="${escapeHtml(r.name)}">${escapeHtml(r.name)} (${escapeHtml(roomStr)})</option>`;
+            }).join("");
+
+            if (addSel) addSel.innerHTML = html;
+            if (editSel) editSel.innerHTML = html;
+        }
+
+        // Load medicines from localStorage or default
+        function loadMedicines() {
+            populateResidentSelects();
+            const validResidents = getAvailableResidents().map(r => r.name);
+            localStorage.removeItem('silvercare_medicines_list');
+            const stored = localStorage.getItem('silvercare_medicines_v2');
+            if (stored) {
+                try {
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        medicinesList = parsed;
+                    } else {
+                        medicinesList = [...defaultMedicines];
+                        saveMedicinesToStorage();
+                    }
+                } catch (e) {
+                    medicinesList = [...defaultMedicines];
+                    saveMedicinesToStorage();
+                }
+            } else {
+                medicinesList = [...defaultMedicines];
+                saveMedicinesToStorage();
+            }
+            renderMedicinesTable();
+        }
+
+        function saveMedicinesToStorage() {
+            localStorage.setItem('silvercare_medicines_v2', JSON.stringify(medicinesList));
+        }
+
+        // Render table
+        function renderMedicinesTable() {
+            const tbody = document.getElementById('medicineTableBody');
+            if (!tbody) return;
+
+            if (medicinesList.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="med-empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            <p>Chưa có thông tin thuốc nào được lưu trữ.</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            medicinesList.forEach(med => {
+                let badgeClass = 'med-badge-active';
+                if (med.status === 'Tạm dừng') badgeClass = 'med-badge-paused';
+                else if (med.status === 'Đã ngưng') badgeClass = 'med-badge-stopped';
+
+                html += `
+                    <tr>
+                        <td>
+                            <div class="med-name-cell">
+                                <div class="med-pill-icon">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M10.5 3a5.5 5.5 0 0 0-5.5 5.5v7a5.5 5.5 0 0 0 11 0v-7A5.5 5.5 0 0 0 10.5 3z" style="transform: rotate(45deg); transform-origin: 12px 12px;" />
+                                        <line x1="6" y1="18" x2="18" y2="6" />
+                                    </svg>
+                                </div>
+                                <span class="med-name-text">${escapeHtml(med.name)}</span>
+                            </div>
+                        </td>
+                        <td>${escapeHtml(med.dosage)}</td>
+                        <td><span class="med-resident-name">${escapeHtml(med.resident)}</span></td>
+                        <td>${escapeHtml(med.scheduleTime)}</td>
+                        <td>${escapeHtml(med.frequency)}</td>
+                        <td><span class="med-badge ${badgeClass}">${escapeHtml(med.status)}</span></td>
+                        <td><span class="med-notes" title="${escapeHtml(med.notes || '')}">${escapeHtml(med.notes || '—')}</span></td>
+                        <td>
+                            <div class="med-actions-cell">
+                                <button type="button" class="btn-action-icon btn-action-edit" title="Chỉnh sửa" onclick="openEditMedicineModal(${med.id})">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                </button>
+                                <button type="button" class="btn-action-icon btn-action-delete" title="Xóa" onclick="openDeleteMedicineModal(${med.id})">
+                                    <svg viewBox="0 0 24 24">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // Open/Close Modal Utilities
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.add('show');
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.remove('show');
+        }
+
+        // Add Modal Handler
+        function openAddMedicineModal() {
+            document.getElementById('addMedicineForm').reset();
+            openModal('addMedicineModal');
+        }
+
+        function handleAddMedicine(e) {
+            e.preventDefault();
+            const newMed = {
+                id: Date.now(),
+                name: document.getElementById('addMedName').value.trim(),
+                dosage: document.getElementById('addDosage').value.trim(),
+                resident: document.getElementById('addResidentName').value,
+                scheduleTime: document.getElementById('addScheduleTime').value.trim(),
+                frequency: document.getElementById('addFrequency').value.trim(),
+                status: document.getElementById('addStatus').value,
+                notes: document.getElementById('addNotes').value.trim()
+            };
+
+            medicinesList.unshift(newMed);
+            saveMedicinesToStorage();
+            renderMedicinesTable();
+            closeModal('addMedicineModal');
+        }
+
+        // Edit Modal Handler
+        function openEditMedicineModal(id) {
+            const med = medicinesList.find(m => m.id === id);
+            if (!med) return;
+
+            document.getElementById('editMedId').value = med.id;
+            document.getElementById('editMedName').value = med.name;
+            document.getElementById('editDosage').value = med.dosage;
+            document.getElementById('editResidentName').value = med.resident;
+            document.getElementById('editScheduleTime').value = med.scheduleTime;
+            document.getElementById('editFrequency').value = med.frequency;
+            document.getElementById('editStatus').value = med.status;
+            document.getElementById('editNotes').value = med.notes || '';
+
+            openModal('editMedicineModal');
+        }
+
+        function handleSaveEditMedicine(e) {
+            e.preventDefault();
+            const id = parseInt(document.getElementById('editMedId').value);
+            const index = medicinesList.findIndex(m => m.id === id);
+            if (index === -1) return;
+
+            medicinesList[index] = {
+                ...medicinesList[index],
+                name: document.getElementById('editMedName').value.trim(),
+                dosage: document.getElementById('editDosage').value.trim(),
+                resident: document.getElementById('editResidentName').value,
+                scheduleTime: document.getElementById('editScheduleTime').value.trim(),
+                frequency: document.getElementById('editFrequency').value.trim(),
+                status: document.getElementById('editStatus').value,
+                notes: document.getElementById('editNotes').value.trim()
+            };
+
+            saveMedicinesToStorage();
+            renderMedicinesTable();
+            closeModal('editMedicineModal');
+        }
+
+        // Delete Modal Handler
+        function openDeleteMedicineModal(id) {
+            const med = medicinesList.find(m => m.id === id);
+            if (!med) return;
+
+            document.getElementById('deleteMedId').value = med.id;
+            document.getElementById('deleteConfirmText').innerHTML = `Bạn có chắc chắn muốn xóa thuốc <strong>${escapeHtml(med.name)}</strong> của cư dân <strong>${escapeHtml(med.resident)}</strong> không?`;
+            openModal('deleteMedicineModal');
+        }
+
+        function confirmDeleteMedicine() {
+            const id = parseInt(document.getElementById('deleteMedId').value);
+            medicinesList = medicinesList.filter(m => m.id !== id);
+            saveMedicinesToStorage();
+            renderMedicinesTable();
+            closeModal('deleteMedicineModal');
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            loadMedicines();
+        });
+    </script>
+}

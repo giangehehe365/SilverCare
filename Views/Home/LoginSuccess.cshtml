@@ -1,0 +1,29 @@
+@{
+    ViewData["Title"] = "Đăng nhập thành công";
+    var role = ViewBag.Role as string;
+    var themeClass = (role == "Người nhà") ? "family-theme" : "";
+}
+
+<div class="login-page @themeClass">
+    <div class="login-card-container" style="margin-top: 80px;">
+        <div class="login-card" style="text-align: center;">
+            <!-- Icon -->
+            <div class="success-icon-container">
+                <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: @(role == "Người nhà" ? "#08bdaa" : "#0ba5ec")">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+            </div>
+            
+            <h2 style="text-align: center; margin-bottom: 16px;">Đăng nhập thành công!</h2>
+            
+            <p style="color: #607ca4; font-size: 16px; margin-bottom: 32px; line-height: 1.6; text-align: center;">
+                Chúc mừng bạn đã đăng nhập thành công vào hệ thống dành cho <strong>@role</strong> của SilverCare.
+            </p>
+            
+            <a href="/" class="login-submit-btn" style="display: flex; align-items: center; justify-content: center; text-decoration: none;">
+                Quay lại trang chủ
+            </a>
+        </div>
+    </div>
+</div>

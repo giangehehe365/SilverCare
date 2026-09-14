@@ -1,0 +1,713 @@
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewData["Title"] = "Cài đặt - Hồ sơ cá nhân";
+
+    var fullName = ViewBag.FullName as string ?? TempData["FullName"] as string ?? "Nguyễn Thị Lan";
+    var role = ViewBag.Role as string ?? TempData["Role"] as string ?? "Nhân viên";
+    var email = ViewBag.Email as string ?? "ntlan@silvercare.vn";
+    var phone = ViewBag.Phone as string ?? "0901 234 567";
+    var department = ViewBag.Department as string ?? "Phòng chăm sóc A";
+    var activeTab = ViewBag.ActiveTab as string ?? "profile";
+    var successMsg = ViewBag.SuccessMessage as string;
+
+    var roleSubtitle = role == "Nhân viên" ? "Nhân viên chăm sóc" : (role == "Người nhà" ? "Người nhà thân nhân" : role);
+
+    // Compute initials for avatar (e.g., "Nguyễn Thị Lan" -> "NTL")
+    string initials = "NTL";
+    if (!string.IsNullOrEmpty(fullName))
+    {
+        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 3)
+        {
+            initials = $"{parts[0][0]}{parts[parts.Length-2][0]}{parts[parts.Length-1][0]}".ToUpper();
+        }
+        else if (parts.Length > 0)
+        {
+            initials = string.Join("", parts.Select(p => p[0])).ToUpper();
+            if (initials.Length > 3) initials = initials.Substring(0, 3);
+        }
+    }
+}
+
+<style>
+    /* Settings Page Styling */
+    .settings-page-header {
+        margin-bottom: 24px;
+    }
+
+    .settings-page-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0;
+        letter-spacing: -0.02em;
+    }
+
+    .settings-layout {
+        display: flex;
+        align-items: flex-start;
+        gap: 24px;
+    }
+
+    /* Left Navigation Card */
+    .settings-nav-card {
+        width: 260px;
+        flex-shrink: 0;
+        background-color: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #eaecf0;
+        padding: 12px;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+    }
+
+    .settings-nav-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .settings-nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #475467;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+    }
+
+    .settings-nav-item svg {
+        width: 18px;
+        height: 18px;
+        stroke: #667085;
+        stroke-width: 2;
+        fill: none;
+        flex-shrink: 0;
+        transition: stroke 0.15s ease;
+    }
+
+    .settings-nav-item:hover:not(.active) {
+        background-color: #f9fafb;
+        color: #101828;
+    }
+
+    .settings-nav-item:hover:not(.active) svg {
+        stroke: #101828;
+    }
+
+    .settings-nav-item.active {
+        background-color: #f0f9ff;
+        color: #0ba5ec;
+        font-weight: 600;
+    }
+
+    .settings-nav-item.active svg {
+        stroke: #0ba5ec;
+    }
+
+    /* Right Content Card */
+    .settings-content-card {
+        flex: 1;
+        background-color: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #eaecf0;
+        padding: 32px 36px;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+        min-height: 480px;
+    }
+
+    .settings-tab-pane {
+        display: none;
+    }
+
+    .settings-tab-pane.active {
+        display: block;
+        animation: fadeIn 0.2s ease-in-out;
+    }
+
+    @@keyframes fadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .settings-content-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0 0 24px 0;
+    }
+
+    /* Profile Avatar & Info */
+    .settings-profile-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 28px;
+    }
+
+    .settings-profile-avatar {
+        width: 58px;
+        height: 58px;
+        background-color: #0ba5ec;
+        border-radius: 14px;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        box-shadow: 0 4px 10px rgba(11, 165, 236, 0.2);
+        flex-shrink: 0;
+    }
+
+    .settings-profile-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .settings-profile-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #101828;
+        margin-bottom: 2px;
+    }
+
+    .settings-profile-role {
+        font-size: 13.5px;
+        color: #667085;
+        font-weight: 400;
+    }
+
+    /* Form Fields Grid */
+    .settings-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px 24px;
+        margin-bottom: 28px;
+    }
+
+    .settings-form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .settings-form-label {
+        font-size: 13.5px;
+        font-weight: 500;
+        color: #344054;
+    }
+
+    .settings-form-input {
+        width: 100%;
+        height: 42px;
+        padding: 0 14px;
+        background-color: #f9fafb;
+        border: 1px solid #eaecf0;
+        border-radius: 10px;
+        font-size: 14px;
+        color: #101828;
+        outline: none;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+    }
+
+    .settings-form-input:focus {
+        border-color: #0ba5ec;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(11, 165, 236, 0.12);
+    }
+
+    /* Submit / Save Button */
+    .settings-submit-btn {
+        background-color: #0ba5ec;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 24px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    }
+
+    .settings-submit-btn:hover {
+        background-color: #0284c7;
+        box-shadow: 0 4px 12px rgba(11, 165, 236, 0.25);
+    }
+
+    /* Alert Message */
+    .settings-alert-success {
+        background-color: #ecfdf3;
+        color: #027a48;
+        border: 1px solid #a6f4c5;
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Toggle Switches for Notifications */
+    .settings-toggle-list {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        margin-top: 28px;
+    }
+
+    .settings-toggle-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0;
+        background: transparent;
+        border: none;
+    }
+
+    .settings-toggle-label {
+        font-size: 15px;
+        font-weight: 700;
+        color: #101828;
+        margin-bottom: 4px;
+    }
+
+    .settings-toggle-desc {
+        font-size: 13.5px;
+        color: #667085;
+    }
+
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 48px;
+        height: 26px;
+        flex-shrink: 0;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #eaecf0;
+        transition: .25s ease;
+        border-radius: 26px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .25s ease;
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.1);
+    }
+
+    input:checked + .slider {
+        background-color: #0ba5ec;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(22px);
+    }
+
+    /* Permissions Table List */
+    .permissions-table-list {
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+        margin-top: 10px;
+    }
+
+    .permission-row-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 2px 0;
+    }
+
+    .permission-title {
+        font-size: 15px;
+        font-weight: 500;
+        color: #344054;
+        letter-spacing: -0.01em;
+    }
+
+    .permission-status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 18px;
+        border-radius: 20px;
+        font-size: 13.5px;
+        font-weight: 500;
+        white-space: nowrap;
+        user-select: none;
+    }
+
+    .permission-status-badge.badge-granted {
+        background-color: #ecfdf3;
+        color: #12b76a;
+    }
+
+    .permission-status-badge.badge-denied {
+        background-color: #f2f4f7;
+        color: #98a2b3;
+    }
+</style>
+
+<div class="settings-page-header">
+    <h1 class="settings-page-title">Cài đặt</h1>
+</div>
+
+<div class="settings-layout">
+    <!-- Left Navigation Card -->
+    <aside class="settings-nav-card">
+        <ul class="settings-nav-list">
+            <li>
+                <button type="button" class="settings-nav-item @(activeTab == "profile" ? "active" : "")" onclick="switchSettingsTab('profile', this)">
+                    <!-- User Icon -->
+                    <svg viewBox="0 0 24 24">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>Hồ sơ cá nhân</span>
+                </button>
+            </li>
+            <li>
+                <button type="button" class="settings-nav-item @(activeTab == "password" ? "active" : "")" onclick="switchSettingsTab('password', this)">
+                    <!-- Key Icon -->
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="7.5" cy="15.5" r="4.5"></circle>
+                        <path d="m21 3-9.5 9.5"></path>
+                        <path d="m15.5 7.5 3 3"></path>
+                    </svg>
+                    <span>Đổi mật khẩu</span>
+                </button>
+            </li>
+            <li>
+                <button type="button" class="settings-nav-item @(activeTab == "notifications" ? "active" : "")" onclick="switchSettingsTab('notifications', this)">
+                    <!-- Bell Icon -->
+                    <svg viewBox="0 0 24 24">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    </svg>
+                    <span>Cài đặt thông báo</span>
+                </button>
+            </li>
+            <li>
+                <button type="button" class="settings-nav-item @(activeTab == "permissions" ? "active" : "")" onclick="switchSettingsTab('permissions', this)">
+                    <!-- Shield Icon -->
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                    <span>Phân quyền tài khoản</span>
+                </button>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Right Content Card -->
+    <main class="settings-content-card">
+        @if (!string.IsNullOrEmpty(successMsg))
+        {
+            <div class="settings-alert-success" id="settingsAlert">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <span>@successMsg</span>
+            </div>
+        }
+
+        <!-- 1. Tab Hồ sơ cá nhân -->
+        <div class="settings-tab-pane @(activeTab == "profile" ? "active" : "")" id="tab-profile">
+            <h2 class="settings-content-title">Hồ sơ cá nhân</h2>
+
+            <!-- Avatar & Profile info header -->
+            <div class="settings-profile-header">
+                <div class="settings-profile-avatar">@initials</div>
+                <div class="settings-profile-info">
+                    <div class="settings-profile-name">@fullName</div>
+                    <div class="settings-profile-role">@roleSubtitle</div>
+                </div>
+            </div>
+
+            <!-- Profile Form -->
+            <form method="post" asp-action="Profile">
+                <input type="hidden" name="tab" value="profile" />
+                <div class="settings-form-grid">
+                    <div class="settings-form-group">
+                        <label class="settings-form-label" for="fullName">Họ tên</label>
+                        <input type="text" id="fullName" name="fullName" class="settings-form-input" value="@fullName" required />
+                    </div>
+
+                    <div class="settings-form-group">
+                        <label class="settings-form-label" for="email">Email</label>
+                        <input type="email" id="email" name="email" class="settings-form-input" value="@email" required />
+                    </div>
+
+                    <div class="settings-form-group">
+                        <label class="settings-form-label" for="phone">Số điện thoại</label>
+                        <input type="text" id="phone" name="phone" class="settings-form-input" value="@phone" required />
+                    </div>
+
+                    <div class="settings-form-group">
+                        <label class="settings-form-label" for="department">Phòng ban</label>
+                        <input type="text" id="department" name="department" class="settings-form-input" value="@department" required />
+                    </div>
+                </div>
+
+                <button type="submit" class="settings-submit-btn">Lưu thay đổi</button>
+            </form>
+        </div>
+
+        <!-- 2. Tab Đổi mật khẩu -->
+        <div class="settings-tab-pane @(activeTab == "password" ? "active" : "")" id="tab-password">
+            <h2 class="settings-content-title">Đổi mật khẩu</h2>
+            
+            <form onsubmit="handlePasswordChange(event)">
+                <div class="settings-form-grid" style="grid-template-columns: 1fr; max-width: 480px;">
+                    <div class="settings-form-group">
+                        <label class="settings-form-label" for="currentPassword">Mật khẩu hiện tại</label>
+                        <input type="password" id="currentPassword" class="settings-form-input" placeholder="••••••••" required />
+                    </div>
+
+                    <div class="settings-form-group">
+                        <label class="settings-form-label" for="newPassword">Mật khẩu mới</label>
+                        <input type="password" id="newPassword" class="settings-form-input" placeholder="••••••••" required minlength="6" />
+                    </div>
+
+                    <div class="settings-form-group">
+                        <label class="settings-form-label" for="confirmPassword">Xác nhận mật khẩu mới</label>
+                        <input type="password" id="confirmPassword" class="settings-form-input" placeholder="••••••••" required minlength="6" />
+                    </div>
+                </div>
+
+                <button type="submit" class="settings-submit-btn">Cập nhật mật khẩu</button>
+            </form>
+        </div>
+
+        <!-- 3. Tab Cài đặt thông báo -->
+        <div class="settings-tab-pane @(activeTab == "notifications" ? "active" : "")" id="tab-notifications">
+            <h2 class="settings-content-title">Cài đặt thông báo</h2>
+
+            <div class="settings-toggle-list">
+                <!-- 1. Cảnh báo sức khỏe -->
+                <div class="settings-toggle-item">
+                    <div>
+                        <div class="settings-toggle-label">Cảnh báo sức khỏe</div>
+                        <div class="settings-toggle-desc">Nhận thông báo khi có cảnh báo AI về sức khỏe</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" checked />
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- 2. Nhắc uống thuốc -->
+                <div class="settings-toggle-item">
+                    <div>
+                        <div class="settings-toggle-label">Nhắc uống thuốc</div>
+                        <div class="settings-toggle-desc">Thông báo khi đến giờ cấp thuốc</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" checked />
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- 3. Lịch chăm sóc -->
+                <div class="settings-toggle-item">
+                    <div>
+                        <div class="settings-toggle-label">Lịch chăm sóc</div>
+                        <div class="settings-toggle-desc">Nhắc nhở lịch chăm sóc sắp tới</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" />
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- 4. Cập nhật hệ thống -->
+                <div class="settings-toggle-item">
+                    <div>
+                        <div class="settings-toggle-label">Cập nhật hệ thống</div>
+                        <div class="settings-toggle-desc">Thông báo về bảo trì và cập nhật</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" checked />
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- 5. Gửi email -->
+                <div class="settings-toggle-item">
+                    <div>
+                        <div class="settings-toggle-label">Gửi email</div>
+                        <div class="settings-toggle-desc">Nhận thông báo qua email</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" />
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Tab Phân quyền tài khoản -->
+        <div class="settings-tab-pane @(activeTab == "permissions" ? "active" : "")" id="tab-permissions">
+            <h2 class="settings-content-title">Phân quyền tài khoản</h2>
+
+            <div class="permissions-table-list">
+                <!-- 1. Xem hồ sơ người cao tuổi -->
+                <div class="permission-row-item">
+                    <span class="permission-title">Xem hồ sơ người cao tuổi</span>
+                    <span class="permission-status-badge badge-granted">Có quyền</span>
+                </div>
+
+                <!-- 2. Tạo và chỉnh sửa hồ sơ -->
+                <div class="permission-row-item">
+                    <span class="permission-title">Tạo và chỉnh sửa hồ sơ</span>
+                    @if (role == "Nhân viên")
+                    {
+                        <span class="permission-status-badge badge-granted">Có quyền</span>
+                    }
+                    else
+                    {
+                        <span class="permission-status-badge badge-denied">Không có quyền</span>
+                    }
+                </div>
+
+                <!-- 3. Nhập chỉ số sức khỏe -->
+                <div class="permission-row-item">
+                    <span class="permission-title">Nhập chỉ số sức khỏe</span>
+                    @if (role == "Nhân viên")
+                    {
+                        <span class="permission-status-badge badge-granted">Có quyền</span>
+                    }
+                    else
+                    {
+                        <span class="permission-status-badge badge-denied">Không có quyền</span>
+                    }
+                </div>
+
+                <!-- 4. Xác nhận cấp thuốc -->
+                <div class="permission-row-item">
+                    <span class="permission-title">Xác nhận cấp thuốc</span>
+                    @if (role == "Nhân viên")
+                    {
+                        <span class="permission-status-badge badge-granted">Có quyền</span>
+                    }
+                    else
+                    {
+                        <span class="permission-status-badge badge-denied">Không có quyền</span>
+                    }
+                </div>
+
+                <!-- 5. Xuất báo cáo PDF -->
+                <div class="permission-row-item">
+                    <span class="permission-title">Xuất báo cáo PDF</span>
+                    @if (role == "Nhân viên")
+                    {
+                        <span class="permission-status-badge badge-granted">Có quyền</span>
+                    }
+                    else
+                    {
+                        <span class="permission-status-badge badge-denied">Không có quyền</span>
+                    }
+                </div>
+
+                <!-- 6. Quản lý tài khoản người dùng -->
+                <div class="permission-row-item">
+                    <span class="permission-title">Quản lý tài khoản người dùng</span>
+                    <span class="permission-status-badge badge-denied">Không có quyền</span>
+                </div>
+
+                <!-- 7. Cấu hình hệ thống -->
+                <div class="permission-row-item">
+                    <span class="permission-title">Cấu hình hệ thống</span>
+                    <span class="permission-status-badge badge-denied">Không có quyền</span>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+@section Scripts {
+    <script>
+        function switchSettingsTab(tabName, btnElement) {
+            // Hide all tab panes
+            document.querySelectorAll('.settings-tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+
+            // Remove active from all nav items
+            document.querySelectorAll('.settings-nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Show selected tab pane
+            const targetPane = document.getElementById('tab-' + tabName);
+            if (targetPane) {
+                targetPane.classList.add('active');
+            }
+
+            // Set active class on button
+            if (btnElement) {
+                btnElement.classList.add('active');
+            }
+
+            // Update URL without full reload
+            if (history.pushState) {
+                const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?tab=' + tabName;
+                window.history.pushState({path:newurl}, '', newurl);
+            }
+        }
+
+        function handlePasswordChange(e) {
+            e.preventDefault();
+            const newPass = document.getElementById('newPassword').value;
+            const confirmPass = document.getElementById('confirmPassword').value;
+
+            if (newPass !== confirmPass) {
+                alert('Mật khẩu xác nhận không khớp! Vui lòng kiểm tra lại.');
+                return;
+            }
+
+            alert('Đổi mật khẩu thành công!');
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+        }
+    </script>
+}

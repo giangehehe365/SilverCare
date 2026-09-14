@@ -1,0 +1,111 @@
+@{
+    ViewData["Title"] = "Đăng nhập nhân viên";
+}
+
+<div class="login-page">
+    <!-- Back Button -->
+    <div class="back-navigation">
+        <a asp-controller="Home" asp-action="Index" class="back-link">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Quay lại</span>
+        </a>
+    </div>
+
+    <!-- Logo -->
+    <header class="silvercare-header-login">
+        <div class="brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="white">
+                    <path d="M12 21s-7-4.35-9.33-8.36C.5 8.9 2.11 5 5.7 5
+                    7.65 5 9.03 6.06 12 9
+                    14.97 6.06 16.35 5 18.3 5
+                    21.89 5 23.5 8.9 21.33 12.64
+                    19 16.65 12 21 12 21z" />
+                </svg>
+            </div>
+            <span class="brand-name">SilverCare</span>
+        </div>
+        <p class="brand-slogan">
+            "Chăm sóc bằng sự tận tâm"
+        </p>
+    </header>
+
+    <!-- Login Card -->
+    <main class="login-card-container">
+        <div class="login-card">
+            <h2>Đăng nhập nhân viên</h2>
+            
+            @if (ViewBag.Error != null)
+            {
+                <div class="alert-danger">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="alert-icon">
+                        <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span>@ViewBag.Error</span>
+                </div>
+            }
+            
+            <form class="login-form" method="post" asp-action="Staff">
+                <div class="form-group">
+                    <label for="username">Email / Số điện thoại</label>
+                    <input type="text" id="username" name="username" placeholder="example@silvercare.vn" required />
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Mật khẩu</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="password" name="password" placeholder="••••••••" required />
+                        <button type="button" class="toggle-password-btn" id="togglePasswordBtn" onclick="togglePasswordVisibility()">
+                            <!-- Eye icon -->
+                            <svg id="eyeIcon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-options">
+                    <label class="remember-checkbox-label">
+                        <input type="checkbox" name="remember" />
+                        <span>Ghi nhớ đăng nhập</span>
+                    </label>
+                    <a href="#" class="forgot-password-link">Quên mật khẩu?</a>
+                </div>
+                
+                <button type="submit" class="login-submit-btn">Đăng nhập</button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="login-footer">
+        Dành riêng cho nhân viên trung tâm SilverCare
+    </footer>
+
+    <!-- Help support button (bottom right) -->
+    <div class="help-support-container">
+        <button type="button" class="help-btn" title="Hỗ trợ">?</button>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function togglePasswordVisibility() {
+            var passwordInput = document.getElementById("password");
+            var eyeIcon = document.getElementById("eyeIcon");
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+            } else {
+                passwordInput.type = "password";
+                eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+            }
+        }
+    </script>
+}

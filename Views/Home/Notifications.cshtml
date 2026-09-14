@@ -1,0 +1,1994 @@
+@using System.Collections.Generic
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewData["Title"] = "Cảnh báo & Thông báo";
+
+    var fullName = TempData["FullName"] as string ?? "Nguyễn Thị Lan";
+    var role = TempData["Role"] as string ?? "Nhân viên";
+    TempData.Keep("FullName");
+    TempData.Keep("Role");
+}
+
+<style>
+    /* ==========================================================================
+       NOTIFICATIONS & ALERTS PAGE STYLING (FIGMA ACCURATE)
+       ========================================================================== */
+    .alerts-container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding-bottom: 60px;
+    }
+
+    /* Header */
+    .alerts-header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .alerts-title {
+        font-size: 26px;
+        font-weight: 700;
+        color: #101828;
+        letter-spacing: -0.02em;
+        margin: 0;
+    }
+
+    .alerts-subtitle {
+        font-size: 14px;
+        color: #667085;
+        margin: 0;
+    }
+
+    /* Top Control Bar */
+    .alerts-control-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+        background-color: #ffffff;
+        border: 1px solid #eaecf0;
+        border-radius: 12px;
+        padding: 6px 16px;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+
+    /* Filter Tabs (Figma Style) */
+    .alerts-tabs {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 4px 0;
+    }
+
+    .alerts-tab-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #667085;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        text-decoration: none;
+        position: relative;
+    }
+
+    .alerts-tab-btn:hover {
+        color: #101828;
+        background-color: #f8fafd;
+    }
+
+    .alerts-tab-btn.active {
+        color: #0ba5ec;
+        background-color: #f0f9ff;
+    }
+
+    .alerts-tab-btn.active::after {
+        content: "";
+        position: absolute;
+        bottom: -6px;
+        left: 12px;
+        right: 12px;
+        height: 2px;
+        background-color: #0ba5ec;
+        border-radius: 2px;
+    }
+
+    /* Tab Counter Badges */
+    .tab-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        background-color: #f2f4f7;
+        color: #475467;
+        transition: all 0.2s ease;
+    }
+
+    .alerts-tab-btn.active .tab-badge {
+        background-color: #0ba5ec;
+        color: #ffffff;
+    }
+
+    .tab-badge-high {
+        background-color: #fee4e2;
+        color: #d92d20;
+    }
+
+    .alerts-tab-btn.active .tab-badge-high {
+        background-color: #f04438;
+        color: #ffffff;
+    }
+
+    .tab-badge-medium {
+        background-color: #fef0c7;
+        color: #b54708;
+    }
+
+    .alerts-tab-btn.active .tab-badge-medium {
+        background-color: #f79009;
+        color: #ffffff;
+    }
+
+    .tab-badge-resolved {
+        background-color: #dcfae6;
+        color: #079455;
+    }
+
+    .alerts-tab-btn.active .tab-badge-resolved {
+        background-color: #12b76a;
+        color: #ffffff;
+    }
+
+    /* Header Actions */
+    .alerts-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .alerts-search-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .alerts-search-box svg {
+        position: absolute;
+        left: 10px;
+        width: 16px;
+        height: 16px;
+        stroke: #98a2b3;
+    }
+
+    .alerts-search-input {
+        padding: 7px 12px 7px 32px;
+        font-size: 13.5px;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        outline: none;
+        width: 220px;
+        transition: all 0.2s ease;
+        background-color: #ffffff;
+    }
+
+    .alerts-search-input:focus {
+        border-color: #0ba5ec;
+        box-shadow: 0 0 0 3px rgba(11, 165, 236, 0.15);
+        width: 260px;
+    }
+
+    .alerts-btn-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid #d0d5dd;
+        background-color: #ffffff;
+        color: #344054;
+        transition: all 0.2s ease;
+    }
+
+    .alerts-btn-action:hover {
+        background-color: #f8fafd;
+        border-color: #0ba5ec;
+        color: #0ba5ec;
+    }
+
+    .alerts-btn-action svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    /* Alert List Container */
+    .alerts-card-list {
+        background-color: #ffffff;
+        border: 1px solid #eaecf0;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Individual Alert Row */
+    .alert-row-item {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 16px;
+        padding: 20px 24px;
+        border-bottom: 1px solid #f2f4f7;
+        align-items: flex-start;
+        transition: background-color 0.18s ease, transform 0.18s ease;
+    }
+
+    .alert-row-item:last-child {
+        border-bottom: none;
+    }
+
+    .alert-row-item:hover {
+        background-color: #f8fafd;
+    }
+
+    .alert-row-item.is-resolved {
+        background-color: #fafbfc;
+        opacity: 0.88;
+    }
+
+    /* Left Icon Box */
+    .alert-icon-box {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .alert-icon-box svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    /* Priority Colors */
+    .icon-box-high {
+        background-color: #fee4e2;
+        color: #f04438;
+    }
+
+    .icon-box-medium {
+        background-color: #fef0c7;
+        color: #f79009;
+    }
+
+    .icon-box-low {
+        background-color: #e0f2fe;
+        color: #0ba5ec;
+    }
+
+    .icon-box-resolved {
+        background-color: #ecfdf3;
+        color: #12b76a;
+    }
+
+    /* Center Content */
+    .alert-content-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .alert-header-line {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Badges */
+    .alert-level-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    .badge-level-high {
+        background-color: #fee4e2;
+        color: #b42318;
+    }
+
+    .badge-level-medium {
+        background-color: #fef0c7;
+        color: #b54708;
+    }
+
+    .badge-level-low {
+        background-color: #e0f2fe;
+        color: #026aa2;
+    }
+
+    .badge-level-resolved {
+        background-color: #ecfdf3;
+        color: #027a48;
+    }
+
+    .alert-patient-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: #101828;
+        cursor: pointer;
+        transition: color 0.15s ease;
+    }
+
+    .alert-patient-name:hover {
+        color: #0ba5ec;
+        text-decoration: underline;
+    }
+
+    .alert-patient-room {
+        font-size: 13.5px;
+        color: #98a2b3;
+        font-weight: 500;
+    }
+
+    .badge-resolved-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 11.5px;
+        font-weight: 600;
+        background-color: #ecfdf3;
+        color: #027a48;
+        border: 1px solid #a6f4c5;
+    }
+
+    /* Alert Title */
+    .alert-title-text {
+        font-size: 16px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0;
+    }
+
+    /* Alert Detail */
+    .alert-description-text {
+        font-size: 13.5px;
+        color: #475467;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    /* Meta Line */
+    .alert-meta-line {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 12.5px;
+        color: #667085;
+        margin-top: 2px;
+    }
+
+    .alert-meta-time {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: #667085;
+    }
+
+    .alert-meta-assignee {
+        color: #667085;
+    }
+
+    .vital-pill-highlight {
+        display: inline-flex;
+        align-items: center;
+        padding: 1px 8px;
+        border-radius: 4px;
+        background-color: #f2f4f7;
+        color: #344054;
+        font-weight: 600;
+        font-size: 11.5px;
+    }
+
+    /* Right Action Buttons (Figma Style) */
+    .alert-actions-col {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 2px;
+    }
+
+    .btn-alert-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid transparent;
+        background: transparent;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .btn-alert-detail {
+        color: #0ba5ec;
+        background-color: #f0f9ff;
+        border-color: #b9e6fe;
+    }
+
+    .btn-alert-detail:hover {
+        background-color: #e0f2fe;
+        color: #0284c7;
+    }
+
+    .btn-alert-profile {
+        color: #475467;
+        background-color: #f8fafd;
+        border-color: #eaecf0;
+    }
+
+    .btn-alert-profile:hover {
+        background-color: #f2f4f7;
+        color: #101828;
+    }
+
+    .btn-alert-resolve {
+        color: #079455;
+        background-color: #edfcf2;
+        border-color: #abefc6;
+    }
+
+    .btn-alert-resolve:hover {
+        background-color: #d3f8df;
+        color: #027a48;
+    }
+
+    .btn-alert-resolved-done {
+        color: #98a2b3;
+        background-color: #f2f4f7;
+        border-color: #eaecf0;
+        cursor: default;
+    }
+
+    /* Empty state */
+    .alerts-empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 24px;
+        text-align: center;
+        gap: 12px;
+    }
+
+    .alerts-empty-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background-color: #f0f9ff;
+        color: #0ba5ec;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 4px;
+    }
+
+    .alerts-empty-icon svg {
+        width: 32px;
+        height: 32px;
+    }
+
+    .alerts-empty-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0;
+    }
+
+    .alerts-empty-desc {
+        font-size: 14px;
+        color: #667085;
+        max-width: 400px;
+        margin: 0;
+    }
+
+    /* ==========================================================================
+       MODAL STYLES (DETAIL & RESOLUTION)
+       ========================================================================== */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(16, 24, 40, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.25s ease;
+        padding: 16px;
+    }
+
+    .modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-dialog {
+        background-color: #ffffff;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 620px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 24px -4px rgba(16, 24, 40, 0.1), 0 8px 8px -4px rgba(16, 24, 40, 0.04);
+        transform: translateY(20px) scale(0.98);
+        transition: all 0.25s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-overlay.active .modal-dialog {
+        transform: translateY(0) scale(1);
+    }
+
+    .modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid #eaecf0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .modal-header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .modal-header-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0;
+    }
+
+    .modal-subtitle {
+        font-size: 13px;
+        color: #667085;
+        margin: 0;
+    }
+
+    .modal-close-btn {
+        background: transparent;
+        border: none;
+        color: #98a2b3;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+    }
+
+    .modal-close-btn:hover {
+        background-color: #f2f4f7;
+        color: #101828;
+    }
+
+    .modal-close-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .modal-body {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid #eaecf0;
+        background-color: #f8fafd;
+        border-bottom-left-radius: 16px;
+        border-bottom-right-radius: 16px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    /* Modal Form Elements */
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-label {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #344054;
+    }
+
+    .form-input, .form-select, .form-textarea {
+        width: 100%;
+        padding: 10px 14px;
+        font-size: 14px;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        outline: none;
+        box-sizing: border-box;
+        transition: all 0.2s ease;
+        font-family: inherit;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+        border-color: #0ba5ec;
+        box-shadow: 0 0 0 3px rgba(11, 165, 236, 0.15);
+    }
+
+    .form-textarea {
+        min-height: 80px;
+        resize: vertical;
+    }
+
+    /* Modal Info Cards */
+    .detail-info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .detail-info-card {
+        padding: 12px 14px;
+        border-radius: 10px;
+        background-color: #f8fafd;
+        border: 1px solid #eaecf0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .detail-info-label {
+        font-size: 12px;
+        color: #667085;
+        font-weight: 500;
+    }
+
+    .detail-info-value {
+        font-size: 15px;
+        font-weight: 700;
+        color: #101828;
+    }
+
+    .detail-ai-box {
+        padding: 14px 16px;
+        border-radius: 10px;
+        background-color: #f0f9ff;
+        border: 1px solid #b9e6fe;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .detail-ai-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #026aa2;
+    }
+
+    .detail-ai-text {
+        font-size: 13px;
+        color: #344054;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .modal-btn {
+        padding: 9px 18px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+    }
+
+    .btn-secondary {
+        background-color: #ffffff;
+        border-color: #d0d5dd;
+        color: #344054;
+    }
+
+    .btn-secondary:hover {
+        background-color: #f8fafd;
+    }
+
+    .btn-primary {
+        background-color: #0ba5ec;
+        color: #ffffff;
+    }
+
+    .btn-primary:hover {
+        background-color: #0284c7;
+    }
+
+    .btn-success {
+        background-color: #12b76a;
+        color: #ffffff;
+    }
+
+    .btn-success:hover {
+        background-color: #079455;
+    }
+
+    /* Toast Notification */
+    .toast-notification {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        padding: 12px 20px;
+        border-radius: 10px;
+        background-color: #101828;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 10px 15px -3px rgba(16, 24, 40, 0.2);
+        z-index: 2000;
+        transform: translateY(100px);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .toast-notification.show {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    @@media (max-width: 768px) {
+        .alerts-control-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .alerts-header-actions {
+            flex-direction: column;
+        }
+
+        .alerts-search-input {
+            width: 100% !important;
+        }
+
+        .alert-row-item {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .alert-actions-col {
+            justify-content: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .detail-info-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="alerts-container">
+    <!-- Header -->
+    <div class="alerts-header">
+        <h1 class="alerts-title">Cảnh báo & Thông báo</h1>
+        <p class="alerts-subtitle">Cảnh báo AI và thông báo hệ thống dựa trên chỉ số cập nhật</p>
+    </div>
+
+    <!-- Control & Filter Bar -->
+    <div class="alerts-control-bar">
+        <!-- Tabs -->
+        <div class="alerts-tabs" role="tablist">
+            <button class="alerts-tab-btn active" data-filter="all">
+                <span>Tất cả</span>
+                <span class="tab-badge" id="badge-all">0</span>
+            </button>
+            <button class="alerts-tab-btn" data-filter="high">
+                <span>Cao</span>
+                <span class="tab-badge tab-badge-high" id="badge-high">0</span>
+            </button>
+            <button class="alerts-tab-btn" data-filter="medium">
+                <span>Trung bình</span>
+                <span class="tab-badge tab-badge-medium" id="badge-medium">0</span>
+            </button>
+            <button class="alerts-tab-btn" data-filter="low">
+                <span>Thấp</span>
+                <span class="tab-badge" id="badge-low">0</span>
+            </button>
+            <button class="alerts-tab-btn" data-filter="resolved">
+                <span>Đã xử lý</span>
+                <span class="tab-badge tab-badge-resolved" id="badge-resolved">0</span>
+            </button>
+        </div>
+
+        <!-- Right Tools -->
+        <div class="alerts-header-actions">
+            <div class="alerts-search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" class="alerts-search-input" id="alerts-search-input" placeholder="Tìm theo tên, phòng, bệnh..." />
+            </div>
+
+            <button class="alerts-btn-action" id="btn-sync-ai" title="Quét và phân tích lại các chỉ số sức khỏe mới nhất">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                <span>Quét AI</span>
+            </button>
+
+            <button class="alerts-btn-action" id="btn-resolve-all" title="Đánh dấu tất cả cảnh báo là đã xử lý">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>Xử lý tất cả</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Alert List -->
+    <div class="alerts-card-list" id="alerts-list-container">
+        <!-- Rendered via JavaScript -->
+    </div>
+
+    <!-- Empty State -->
+    <div class="alerts-card-list alerts-empty-state" id="alerts-empty-state" style="display: none;">
+        <div class="alerts-empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+        </div>
+        <h3 class="alerts-empty-title">Không tìm thấy cảnh báo phù hợp</h3>
+        <p class="alerts-empty-desc">Tất cả các chỉ số sức khỏe của người cao tuổi hiện đang ở mức ổn định hoặc không khớp với bộ lọc tìm kiếm.</p>
+    </div>
+</div>
+
+<!-- ==========================================================================
+   MODAL 1: CHI TIẾT CẢNH BÁO & PHÂN TÍCH AI
+   ========================================================================== -->
+<div class="modal-overlay" id="modal-detail-overlay">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-header-icon icon-box-high" id="detail-icon-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="modal-title" id="detail-patient-name">Nguyễn Văn An</h3>
+                    <p class="modal-subtitle" id="detail-patient-meta">Phòng 101 &middot; Cập nhật lúc 08:30 hôm nay</p>
+                </div>
+            </div>
+            <button class="modal-close-btn" id="btn-close-detail">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <div class="modal-body">
+            <!-- Alert Subject -->
+            <div>
+                <span class="alert-level-badge badge-level-high" id="detail-badge-level">Cao</span>
+                <h4 style="font-size: 17px; font-weight: 700; margin: 8px 0 4px 0;" id="detail-alert-title">Huyết áp cao</h4>
+                <p style="font-size: 14px; color: #475467; margin: 0;" id="detail-alert-desc">Huyết áp đo được vượt ngưỡng tiêu chuẩn an toàn.</p>
+            </div>
+
+            <!-- Patient Profile Summary Box -->
+            <div style="background-color: #f8fafd; border: 1px solid #e0e8f2; border-radius: 10px; padding: 12px 16px; margin: 12px 0;">
+                <div style="font-size: 12px; font-weight: 700; color: #026aa2; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px;">
+                    Thông tin hồ sơ bệnh nhân
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 13.5px; color: #344054;">
+                    <div><strong>Mã BN:</strong> <span id="detail-patient-id">NCT001</span></div>
+                    <div><strong>Tuổi:</strong> <span id="detail-patient-age">78</span></div>
+                    <div><strong>Giới tính:</strong> <span id="detail-patient-gender">Nam</span></div>
+                    <div><strong>Nhóm máu:</strong> <span id="detail-patient-blood">A+</span></div>
+                </div>
+                <div style="margin-top: 6px; font-size: 13px; color: #475467;">
+                    <strong>Tiền sử bệnh lý từ hồ sơ:</strong> <span id="detail-patient-notes" style="font-style: italic;">Theo dõi huyết áp định kỳ mỗi sáng, chế độ ăn giảm muối.</span>
+                </div>
+            </div>
+
+            <!-- Vitals Grid -->
+            <div class="detail-info-grid">
+                <div class="detail-info-card">
+                    <span class="detail-info-label">Huyết áp đo gần nhất</span>
+                    <span class="detail-info-value" id="detail-val-bp">148/96 mmHg</span>
+                </div>
+                <div class="detail-info-card">
+                    <span class="detail-info-label">Nhịp tim</span>
+                    <span class="detail-info-value" id="detail-val-hr">74 bpm</span>
+                </div>
+                <div class="detail-info-card">
+                    <span class="detail-info-label">Thân nhiệt</span>
+                    <span class="detail-info-value" id="detail-val-temp">36.8 &deg;C</span>
+                </div>
+                <div class="detail-info-card">
+                    <span class="detail-info-label">Điều dưỡng phụ trách</span>
+                    <span class="detail-info-value" id="detail-val-staff">Nguyễn Thị Lan</span>
+                </div>
+            </div>
+
+            <!-- AI Diagnosis & Action Plan -->
+            <div class="detail-ai-box">
+                <div class="detail-ai-title">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>Phân tích & Khuyến nghị y tế AI</span>
+                </div>
+                <p class="detail-ai-text" id="detail-ai-recommendation">
+                    Chỉ số đo được vượt ngưỡng bình thường. Đề xuất nhân viên kiểm tra lại huyết áp sau 30 phút nghỉ ngơi, nhắc nhở uống thuốc hạ huyết áp theo đúng toa và báo cáo bác sĩ nếu tình trạng tiếp tục kéo dài.
+                </p>
+            </div>
+
+            <!-- Resolved note if any -->
+            <div id="detail-resolved-section" style="display: none; padding: 12px; background-color: #ecfdf3; border-radius: 8px; border: 1px solid #a6f4c5; margin-top: 12px;">
+                <div style="font-weight: 700; color: #027a48; font-size: 13.5px; margin-bottom: 4px;">Thông tin can thiệp:</div>
+                <div style="font-size: 13px; color: #027a48;" id="detail-resolved-text">Đã kiểm tra lại chỉ số và hỗ trợ người bệnh lúc 09:00 bởi Nguyễn Thị Lan.</div>
+            </div>
+        </div>
+
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; gap: 8px;">
+                <button class="modal-btn btn-secondary" id="btn-modal-view-record" title="Xem biểu đồ & nhật ký sức khỏe">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    Sức khỏe & Biểu đồ
+                </button>
+                <button class="modal-btn btn-secondary" id="btn-modal-view-resident" title="Xem hồ sơ người cao tuổi">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    Hồ sơ người cao tuổi
+                </button>
+            </div>
+            <button class="modal-btn btn-success" id="btn-modal-quick-resolve">
+                Ghi nhận xử lý
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+   MODAL 2: GHI NHẬN XỬ LÝ CẢNH BÁO
+   ========================================================================== -->
+<div class="modal-overlay" id="modal-resolve-overlay">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-header-icon icon-box-resolved">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="modal-title" id="resolve-modal-title">Xử lý cảnh báo - Nguyễn Văn An</h3>
+                    <p class="modal-subtitle">Ghi nhận can thiệp y tế & cập nhật trạng thái</p>
+                </div>
+            </div>
+            <button class="modal-close-btn" id="btn-close-resolve">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Biện pháp can thiệp đã thực hiện</label>
+                <select class="form-select" id="resolve-action-select">
+                    <option value="Đã đo lại chỉ số sinh hiệu (Ổn định hơn)">Đã đo lại chỉ số sinh hiệu (Ổn định hơn)</option>
+                    <option value="Đã cho uống thuốc theo chỉ định bác sĩ">Đã cho uống thuốc theo chỉ định bác sĩ</option>
+                    <option value="Đã thực hiện lau mát và bù nước điện giải">Đã thực hiện lau mát và bù nước điện giải</option>
+                    <option value="Đã thông báo bác sĩ điều trị và chăm sóc đặc biệt">Đã thông báo bác sĩ điều trị và chăm sóc đặc biệt</option>
+                    <option value="Đã liên hệ và thông báo cho người nhà">Đã liên hệ và thông báo cho người nhà</option>
+                    <option value="Người bệnh đã nghỉ ngơi và hồi phục">Người bệnh đã nghỉ ngơi và hồi phục</option>
+                    <option value="Khác (Ghi rõ bên dưới)">Khác (Ghi rõ bên dưới)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Ghi chú chi tiết của điều dưỡng / nhân viên</label>
+                <textarea class="form-textarea" id="resolve-note-input" placeholder="Ví dụ: Đã đo lại HA sau 20 phút nghỉ ngơi, tinh thần người bệnh ổn định..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Người thực hiện xử lý</label>
+                <input type="text" class="form-input" id="resolve-staff-name" value="@fullName" />
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="modal-btn btn-secondary" id="btn-cancel-resolve">Hủy</button>
+            <button class="modal-btn btn-primary" id="btn-confirm-resolve">Xác nhận hoàn tất</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-notification" id="toast-notify">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#12b76a" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+    </svg>
+    <span id="toast-message">Đã cập nhật cảnh báo thành công!</span>
+</div>
+
+@section Scripts {
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // ==========================================================================
+    // 1. STORAGE KEYS (STRICT SINGLE SOURCE OF TRUTH)
+    // ==========================================================================
+    const ELDERLY_STORAGE_KEY = "silvercare_elderly_profiles_v3";
+    const HEALTH_STORAGE_KEY = "silvercare_health_today_updates_v3";
+    const RESOLVED_STORAGE_KEY = "silvercare_alerts_resolved_v3";
+    const ACTIVITY_STORAGE_KEY = "silvercare_recent_activities_v2";
+
+    // Clean up obsolete mock keys
+    localStorage.removeItem("silvercare_alerts_notifications_v2");
+    localStorage.removeItem("silvercare_alerts_notifications_v1");
+
+    // Standard baseline residents if storage is empty
+    const defaultBaselineResidents = [
+        {
+            id: "NCT001",
+            initials: "NVA",
+            name: "Nguyễn Văn An",
+            age: 78,
+            gender: "Nam",
+            room: "201",
+            blood: "A+",
+            status: "Trung bình",
+            admissionDate: "15/05/2024",
+            notes: "Theo dõi huyết áp định kỳ mỗi sáng, chế độ ăn giảm muối."
+        },
+        {
+            id: "NCT002",
+            initials: "LVB",
+            name: "Lê Văn Bình",
+            age: 82,
+            gender: "Nam",
+            room: "102",
+            blood: "B+",
+            status: "Trung bình",
+            admissionDate: "10/11/2023",
+            notes: "Thoái hóa khớp gối, cần hỗ trợ vận động và vật lý trị liệu."
+        },
+        {
+            id: "NCT003",
+            initials: "PTC",
+            name: "Phạm Thị Cúc",
+            age: 75,
+            gender: "Nữ",
+            room: "305",
+            blood: "O+",
+            status: "Trung bình",
+            admissionDate: "20/02/2024",
+            notes: "Tiền sử đường huyết dao động, kiểm tra sức khỏe hàng ngày."
+        }
+    ];
+
+    // Standard baseline health measurements
+    const defaultBaselineHealth = {
+        "NCT001": { sys: 132, dia: 85, hr: 74, temp: 36.8, time: "11:03 hôm nay", note: "Huyết áp ổn định hơn hôm qua" },
+        "NCT002": { sys: 124, dia: 73, hr: 68, temp: 37.2, time: "14:43 hôm nay", note: "Thân nhiệt tăng nhẹ, 37.2°C" },
+        "NCT003": { sys: 105, dia: 65, hr: 83, temp: 37.6, time: "14:43 hôm nay", note: "Thân nhiệt tăng nhẹ, 37.6°C" }
+    };
+
+    let alertsData = [];
+    let currentFilter = "all";
+    let searchQuery = "";
+    let activeAlertId = null;
+
+    // DOM Elements
+    const alertsListContainer = document.getElementById("alerts-list-container");
+    const alertsEmptyState = document.getElementById("alerts-empty-state");
+    const searchInput = document.getElementById("alerts-search-input");
+    const tabButtons = document.querySelectorAll(".alerts-tab-btn");
+
+    // Badges
+    const badgeAll = document.getElementById("badge-all");
+    const badgeHigh = document.getElementById("badge-high");
+    const badgeMedium = document.getElementById("badge-medium");
+    const badgeLow = document.getElementById("badge-low");
+    const badgeResolved = document.getElementById("badge-resolved");
+
+    // Detail Modal Elements
+    const modalDetailOverlay = document.getElementById("modal-detail-overlay");
+    const btnCloseDetail = document.getElementById("btn-close-detail");
+    const detailPatientName = document.getElementById("detail-patient-name");
+    const detailPatientMeta = document.getElementById("detail-patient-meta");
+    const detailPatientId = document.getElementById("detail-patient-id");
+    const detailPatientAge = document.getElementById("detail-patient-age");
+    const detailPatientGender = document.getElementById("detail-patient-gender");
+    const detailPatientBlood = document.getElementById("detail-patient-blood");
+    const detailPatientNotes = document.getElementById("detail-patient-notes");
+    const detailBadgeLevel = document.getElementById("detail-badge-level");
+    const detailAlertTitle = document.getElementById("detail-alert-title");
+    const detailAlertDesc = document.getElementById("detail-alert-desc");
+    const detailValBp = document.getElementById("detail-val-bp");
+    const detailValHr = document.getElementById("detail-val-hr");
+    const detailValTemp = document.getElementById("detail-val-temp");
+    const detailValStaff = document.getElementById("detail-val-staff");
+    const detailAiRecommendation = document.getElementById("detail-ai-recommendation");
+    const detailResolvedSection = document.getElementById("detail-resolved-section");
+    const detailResolvedText = document.getElementById("detail-resolved-text");
+    const detailIconBox = document.getElementById("detail-icon-box");
+    const btnModalViewRecord = document.getElementById("btn-modal-view-record");
+    const btnModalViewResident = document.getElementById("btn-modal-view-resident");
+    const btnModalQuickResolve = document.getElementById("btn-modal-quick-resolve");
+
+    // Resolve Modal Elements
+    const modalResolveOverlay = document.getElementById("modal-resolve-overlay");
+    const btnCloseResolve = document.getElementById("btn-close-resolve");
+    const btnCancelResolve = document.getElementById("btn-cancel-resolve");
+    const btnConfirmResolve = document.getElementById("btn-confirm-resolve");
+    const resolveModalTitle = document.getElementById("resolve-modal-title");
+    const resolveActionSelect = document.getElementById("resolve-action-select");
+    const resolveNoteInput = document.getElementById("resolve-note-input");
+    const resolveStaffName = document.getElementById("resolve-staff-name");
+
+    // Toast
+    const toastNotify = document.getElementById("toast-notify");
+    const toastMessage = document.getElementById("toast-message");
+
+    function showToast(msg) {
+        if (!toastNotify) return;
+        toastMessage.innerText = msg;
+        toastNotify.classList.add("show");
+        setTimeout(() => {
+            toastNotify.classList.remove("show");
+        }, 3000);
+    }
+
+    // ==========================================================================
+    // 2. DYNAMIC HEALTH RECORD SCANNING & ALERT GENERATION
+    // ==========================================================================
+    function generateAlertsFromHealthRecords(showToastFeedback = false) {
+        // Step A: Load real residents list from Elderly Profiles
+        let residentsList = [];
+        const rawElderly = localStorage.getItem(ELDERLY_STORAGE_KEY);
+        if (rawElderly) {
+            try {
+                const parsed = JSON.parse(rawElderly);
+                if (Array.isArray(parsed) && parsed.length > 0) residentsList = parsed;
+                else residentsList = [...defaultBaselineResidents];
+            } catch(e) { residentsList = [...defaultBaselineResidents]; }
+        } else {
+            residentsList = [...defaultBaselineResidents];
+            localStorage.setItem(ELDERLY_STORAGE_KEY, JSON.stringify(residentsList));
+        }
+
+        // Step B: Load real health measurements
+        let healthUpdates = {};
+        const rawHealth = localStorage.getItem(HEALTH_STORAGE_KEY);
+        if (rawHealth) {
+            try {
+                const parsed = JSON.parse(rawHealth);
+                delete parsed["row-1"];
+                delete parsed["row-2"];
+                delete parsed["row-3"];
+                healthUpdates = { ...defaultBaselineHealth, ...parsed };
+                localStorage.setItem(HEALTH_STORAGE_KEY, JSON.stringify(healthUpdates));
+            } catch(e) { 
+                healthUpdates = { ...defaultBaselineHealth }; 
+                localStorage.setItem(HEALTH_STORAGE_KEY, JSON.stringify(healthUpdates));
+            }
+        } else {
+            healthUpdates = { ...defaultBaselineHealth };
+            localStorage.setItem(HEALTH_STORAGE_KEY, JSON.stringify(healthUpdates));
+        }
+
+        // Step C: Load resolved states map
+        let resolvedMap = {};
+        const rawResolved = localStorage.getItem(RESOLVED_STORAGE_KEY);
+        if (rawResolved) {
+            try {
+                resolvedMap = JSON.parse(rawResolved);
+            } catch(e) { resolvedMap = {}; }
+        }
+
+        const generatedAlerts = [];
+
+        // Step D: Evaluate clinical thresholds strictly per patient
+        residentsList.forEach(res => {
+            const m = healthUpdates[res.id] || (defaultBaselineHealth[res.id] ? defaultBaselineHealth[res.id] : null);
+            const roomLabel = res.room ? (res.room.toString().startsWith("Phòng") ? res.room : `Phòng ${res.room}`) : "Phòng ---";
+            const resNotes = res.notes || "";
+
+            if (!m || typeof m.sys !== "number" || m.time === "Chưa đo hôm nay") {
+                // If patient has condition requiring monitoring from profile notes
+                if (res.status === "Cần theo dõi" || resNotes.toLowerCase().includes("huyết áp") || resNotes.toLowerCase().includes("đường huyết")) {
+                    const alertKey = `alt-${res.id}-profile-check`;
+                    const resState = resolvedMap[alertKey] || null;
+                    generatedAlerts.push({
+                        id: alertKey,
+                        patientId: res.id,
+                        patientName: res.name,
+                        patientAge: res.age || 75,
+                        patientGender: res.gender || "---",
+                        patientBlood: res.blood || "O+",
+                        patientAdmission: res.admissionDate || "15/05/2024",
+                        patientNotes: resNotes || "Cần theo dõi sức khỏe định kỳ theo hồ sơ bệnh án.",
+                        room: roomLabel,
+                        level: res.status === "Cần theo dõi" ? "high" : "medium",
+                        title: "Cần đo & cập nhật chỉ số hôm nay",
+                        description: `Hồ sơ bệnh án ghi nhận: ${resNotes || 'Bệnh nhân chưa có chỉ số sinh hiệu đo trong ngày hôm nay.'}`,
+                        time: "Hôm nay",
+                        assignee: "@fullName" || "Nguyễn Thị Lan",
+                        vitalsSummary: "Chưa cập nhật sinh hiệu hôm nay",
+                        sys: null,
+                        dia: null,
+                        hr: null,
+                        temp: null,
+                        isResolved: !!resState,
+                        resolvedAt: resState?.resolvedAt || null,
+                        resolvedNote: resState?.resolvedNote || null,
+                        resolvedBy: resState?.resolvedBy || null,
+                        aiRecommendation: "Khuyến nghị điều dưỡng ca trực thực hiện đo kiểm tra huyết áp, nhịp tim và thân nhiệt cho người bệnh."
+                    });
+                }
+                return;
+            }
+
+            const sys = m.sys;
+            const dia = m.dia;
+            const hr = m.hr;
+            const temp = m.temp;
+            const timeStr = m.time || "Hôm nay";
+
+            // 1. EVALUATE BLOOD PRESSURE
+            if (sys >= 140 || dia >= 90) {
+                const isHighGrade = sys >= 160 || dia >= 100;
+                const alertKey = `alt-${res.id}-bp`;
+                const resState = resolvedMap[alertKey] || null;
+                generatedAlerts.push({
+                    id: alertKey,
+                    patientId: res.id,
+                    patientName: res.name,
+                    patientAge: res.age || 78,
+                    patientGender: res.gender || "Nam",
+                    patientBlood: res.blood || "A+",
+                    patientAdmission: res.admissionDate || "15/05/2024",
+                    patientNotes: resNotes || "Theo dõi huyết áp định kỳ.",
+                    room: roomLabel,
+                    level: "high",
+                    title: isHighGrade ? "Huyết áp tăng cao bất thường (Độ 2)" : "Huyết áp cao",
+                    description: `Huyết áp tâm thu/tâm trương cập nhật đạt ${sys}/${dia} mmHg, vượt ngưỡng tiêu chuẩn an toàn (140/90 mmHg).`,
+                    time: timeStr,
+                    assignee: "@fullName" || "Nguyễn Thị Lan",
+                    vitalsSummary: `HA: ${sys}/${dia} mmHg · NT: ${hr} bpm`,
+                    sys: sys,
+                    dia: dia,
+                    hr: hr,
+                    temp: temp,
+                    isResolved: !!resState,
+                    resolvedAt: resState?.resolvedAt || null,
+                    resolvedNote: resState?.resolvedNote || null,
+                    resolvedBy: resState?.resolvedBy || null,
+                    aiRecommendation: `Chỉ số huyết áp ${sys}/${dia} mmHg thuộc nhóm tăng huyết áp độ ${isHighGrade ? "2" : "1"}. Đề xuất nhân viên kiểm tra lại sau 30 phút nghỉ ngơi, nhắc nhở uống thuốc hạ áp theo đơn và hạn chế muối trong bữa ăn.`
+                });
+            } else if ((sys < 90 && sys > 0) || (dia < 60 && dia > 0)) {
+                const alertKey = `alt-${res.id}-bp-low`;
+                const resState = resolvedMap[alertKey] || null;
+                generatedAlerts.push({
+                    id: alertKey,
+                    patientId: res.id,
+                    patientName: res.name,
+                    patientAge: res.age || 75,
+                    patientGender: res.gender || "---",
+                    patientBlood: res.blood || "O+",
+                    patientAdmission: res.admissionDate || "15/05/2024",
+                    patientNotes: resNotes || "Theo dõi huyết áp.",
+                    room: roomLabel,
+                    level: "medium",
+                    title: "Huyết áp thấp",
+                    description: `Huyết áp ghi nhận ở mức ${sys}/${dia} mmHg, thấp hơn ngưỡng chuẩn an toàn.`,
+                    time: timeStr,
+                    assignee: "@fullName" || "Nguyễn Thị Lan",
+                    vitalsSummary: `HA: ${sys}/${dia} mmHg · NT: ${hr} bpm`,
+                    sys: sys,
+                    dia: dia,
+                    hr: hr,
+                    temp: temp,
+                    isResolved: !!resState,
+                    resolvedAt: resState?.resolvedAt || null,
+                    resolvedNote: resState?.resolvedNote || null,
+                    resolvedBy: resState?.resolvedBy || null,
+                    aiRecommendation: "Cho người bệnh nằm nghỉ, nâng cao nhẹ chi dưới, bổ sung nước ấm và theo dõi sát tránh choáng ngất khi đổi tư thế."
+                });
+            }
+
+            // 2. EVALUATE HEART RATE
+            if (hr > 100) {
+                const alertKey = `alt-${res.id}-hr-high`;
+                const resState = resolvedMap[alertKey] || null;
+                generatedAlerts.push({
+                    id: alertKey,
+                    patientId: res.id,
+                    patientName: res.name,
+                    patientAge: res.age || 78,
+                    patientGender: res.gender || "Nam",
+                    patientBlood: res.blood || "A+",
+                    patientAdmission: res.admissionDate || "15/05/2024",
+                    patientNotes: resNotes || "Theo dõi nhịp tim.",
+                    room: roomLabel,
+                    level: "high",
+                    title: "Nhịp tim nhanh",
+                    description: `Nhịp tim ghi nhận ${hr} lần/phút (vượt ngưỡng bình thường 100 bpm).`,
+                    time: timeStr,
+                    assignee: "@fullName" || "Nguyễn Thị Lan",
+                    vitalsSummary: `NT: ${hr} bpm · HA: ${sys}/${dia} mmHg`,
+                    sys: sys,
+                    dia: dia,
+                    hr: hr,
+                    temp: temp,
+                    isResolved: !!resState,
+                    resolvedAt: resState?.resolvedAt || null,
+                    resolvedNote: resState?.resolvedNote || null,
+                    resolvedBy: resState?.resolvedBy || null,
+                    aiRecommendation: "Nhịp tim trên 100 bpm. Cho người bệnh nghỉ ngơi tại phòng thoáng mát, kiểm tra nhịp thở và nhiệt độ cơ thể."
+                });
+            } else if (hr < 60 && hr > 0) {
+                const alertKey = `alt-${res.id}-hr-low`;
+                const resState = resolvedMap[alertKey] || null;
+                generatedAlerts.push({
+                    id: alertKey,
+                    patientId: res.id,
+                    patientName: res.name,
+                    patientAge: res.age || 82,
+                    patientGender: res.gender || "Nam",
+                    patientBlood: res.blood || "B+",
+                    patientAdmission: res.admissionDate || "10/11/2023",
+                    patientNotes: resNotes || "Theo dõi nhịp tim chậm.",
+                    room: roomLabel,
+                    level: "medium",
+                    title: "Nhịp tim thấp",
+                    description: `Nhịp tim ghi nhận ${hr} lần/phút, thấp hơn mức chuẩn bình thường 60 lần/phút.`,
+                    time: timeStr,
+                    assignee: "@fullName" || "Nguyễn Thị Lan",
+                    vitalsSummary: `NT: ${hr} bpm · HA: ${sys}/${dia} mmHg`,
+                    sys: sys,
+                    dia: dia,
+                    hr: hr,
+                    temp: temp,
+                    isResolved: !!resState,
+                    resolvedAt: resState?.resolvedAt || null,
+                    resolvedNote: resState?.resolvedNote || null,
+                    resolvedBy: resState?.resolvedBy || null,
+                    aiRecommendation: "Nhịp chậm xoang. Khuyến nghị theo dõi điện tâm đồ nếu xuất hiện triệu chứng mệt mỏi, hoa mắt hoặc chóng mặt."
+                });
+            }
+
+            // 3. EVALUATE BODY TEMPERATURE
+            if (temp >= 38.5) {
+                const alertKey = `alt-${res.id}-temp-high`;
+                const resState = resolvedMap[alertKey] || null;
+                generatedAlerts.push({
+                    id: alertKey,
+                    patientId: res.id,
+                    patientName: res.name,
+                    patientAge: res.age || 75,
+                    patientGender: res.gender || "Nữ",
+                    patientBlood: res.blood || "O+",
+                    patientAdmission: res.admissionDate || "20/02/2024",
+                    patientNotes: resNotes || "Theo dõi thân nhiệt.",
+                    room: roomLabel,
+                    level: "high",
+                    title: "Sốt cao bất thường",
+                    description: `Thân nhiệt đo được ${temp}°C, người bệnh đang trong tình trạng sốt cao cần hạ sốt khẩn cấp.`,
+                    time: timeStr,
+                    assignee: "@fullName" || "Nguyễn Thị Lan",
+                    vitalsSummary: `NĐ: ${temp}°C · HA: ${sys}/${dia} mmHg`,
+                    sys: sys,
+                    dia: dia,
+                    hr: hr,
+                    temp: temp,
+                    isResolved: !!resState,
+                    resolvedAt: resState?.resolvedAt || null,
+                    resolvedNote: resState?.resolvedNote || null,
+                    resolvedBy: resState?.resolvedBy || null,
+                    aiRecommendation: "Sốt cao. Cho dùng hạ sốt theo chỉ định bác sĩ, lau mát vùng nách/bẹn bằng nước ấm và bổ sung dung dịch bù điện giải Oresol."
+                });
+            } else if (temp >= 37.2 && temp < 38.5) {
+                const alertKey = `alt-${res.id}-temp-mild`;
+                const resState = resolvedMap[alertKey] || null;
+                generatedAlerts.push({
+                    id: alertKey,
+                    patientId: res.id,
+                    patientName: res.name,
+                    patientAge: res.age || 75,
+                    patientGender: res.gender || "Nữ",
+                    patientBlood: res.blood || "O+",
+                    patientAdmission: res.admissionDate || "20/02/2024",
+                    patientNotes: resNotes || "Theo dõi thân nhiệt.",
+                    room: roomLabel,
+                    level: "medium",
+                    title: "Nhiệt độ tăng",
+                    description: `Thân nhiệt tăng nhẹ, ${temp}°C, cần theo dõi diễn tiến nhiệt độ.`,
+                    time: timeStr,
+                    assignee: "@fullName" || "Nguyễn Thị Lan",
+                    vitalsSummary: `NĐ: ${temp}°C · HA: ${sys}/${dia} mmHg`,
+                    sys: sys,
+                    dia: dia,
+                    hr: hr,
+                    temp: temp,
+                    isResolved: !!resState,
+                    resolvedAt: resState?.resolvedAt || null,
+                    resolvedNote: resState?.resolvedNote || null,
+                    resolvedBy: resState?.resolvedBy || null,
+                    aiRecommendation: "Thân nhiệt sốt nhẹ. Cho uống nhiều nước ấm, duy trì phòng thoáng mát và theo dõi đo lại nhiệt độ sau mỗi 2 giờ."
+                });
+            } else if (temp < 35.5 && temp > 0) {
+                const alertKey = `alt-${res.id}-temp-low`;
+                const resState = resolvedMap[alertKey] || null;
+                generatedAlerts.push({
+                    id: alertKey,
+                    patientId: res.id,
+                    patientName: res.name,
+                    patientAge: res.age || 78,
+                    patientGender: res.gender || "Nam",
+                    patientBlood: res.blood || "A+",
+                    patientAdmission: res.admissionDate || "15/05/2024",
+                    patientNotes: resNotes || "Theo dõi thân nhiệt.",
+                    room: roomLabel,
+                    level: "high",
+                    title: "Hạ thân nhiệt",
+                    description: `Thân nhiệt đo được ${temp}°C, thấp hơn ngưỡng sinh lý an toàn.`,
+                    time: timeStr,
+                    assignee: "@fullName" || "Nguyễn Thị Lan",
+                    vitalsSummary: `NĐ: ${temp}°C · HA: ${sys}/${dia} mmHg`,
+                    sys: sys,
+                    dia: dia,
+                    hr: hr,
+                    temp: temp,
+                    isResolved: !!resState,
+                    resolvedAt: resState?.resolvedAt || null,
+                    resolvedNote: resState?.resolvedNote || null,
+                    resolvedBy: resState?.resolvedBy || null,
+                    aiRecommendation: "Ủ ấm bằng chăn ấm, kiểm tra nhiệt độ phòng và cho uống sữa hoặc nước trà gừng ấm."
+                });
+            }
+
+            // 4. EVALUATE PATIENT PROFILE MEDICAL CONDITIONS & NOTES
+            if (resNotes.toLowerCase().includes("đường huyết") && !generatedAlerts.some(a => a.patientId === res.id && a.title.includes("đường huyết"))) {
+                const alertKey = `alt-${res.id}-glucose`;
+                const resState = resolvedMap[alertKey] || null;
+                generatedAlerts.push({
+                    id: alertKey,
+                    patientId: res.id,
+                    patientName: res.name,
+                    patientAge: res.age || 75,
+                    patientGender: res.gender || "Nữ",
+                    patientBlood: res.blood || "O+",
+                    patientAdmission: res.admissionDate || "20/02/2024",
+                    patientNotes: resNotes,
+                    room: roomLabel,
+                    level: "medium",
+                    title: "Lưu ý đường huyết & Dinh dưỡng",
+                    description: `Hồ sơ bệnh án: "${resNotes}". Nhắc nhở kiểm tra đường huyết trước bữa ăn chính và tuân thủ chế độ ăn giảm tinh bột.`,
+                    time: "Hôm nay",
+                    assignee: "@fullName" || "Nguyễn Thị Lan",
+                    vitalsSummary: `Bệnh lý: Tiểu đường/Đường huyết`,
+                    sys: sys,
+                    dia: dia,
+                    hr: hr,
+                    temp: temp,
+                    isResolved: !!resState,
+                    resolvedAt: resState?.resolvedAt || null,
+                    resolvedNote: resState?.resolvedNote || null,
+                    resolvedBy: resState?.resolvedBy || null,
+                    aiRecommendation: "Đo đường huyết mao mạch định kỳ theo phác đồ, theo dõi phản ứng hạ đường huyết (vã mồ hôi, run tay)."
+                });
+            } else if (resNotes.toLowerCase().includes("khớp") && !generatedAlerts.some(a => a.patientId === res.id && a.title.includes("khớp"))) {
+                const alertKey = `alt-${res.id}-joints`;
+                const resState = resolvedMap[alertKey] || null;
+                generatedAlerts.push({
+                    id: alertKey,
+                    patientId: res.id,
+                    patientName: res.name,
+                    patientAge: res.age || 82,
+                    patientGender: res.gender || "Nam",
+                    patientBlood: res.blood || "B+",
+                    patientAdmission: res.admissionDate || "10/11/2023",
+                    patientNotes: resNotes,
+                    room: roomLabel,
+                    level: "low",
+                    title: "Hỗ trợ vận động & Vật lý trị liệu",
+                    description: `Hồ sơ bệnh án: "${resNotes}". Nhắc nhở hỗ trợ người bệnh đi lại nhẹ nhàng và tập phục hồi chức năng khớp gối.`,
+                    time: "Hôm nay",
+                    assignee: "@fullName" || "Nguyễn Thị Lan",
+                    vitalsSummary: `Bệnh lý: Thoái hóa khớp gối`,
+                    sys: sys,
+                    dia: dia,
+                    hr: hr,
+                    temp: temp,
+                    isResolved: !!resState,
+                    resolvedAt: resState?.resolvedAt || null,
+                    resolvedNote: resState?.resolvedNote || null,
+                    resolvedBy: resState?.resolvedBy || null,
+                    aiRecommendation: "Hỗ trợ di chuyển an toàn bằng gậy/khung tập đi, kết hợp xoa bóp nhẹ nhàng giảm cứng khớp vào buổi sáng."
+                });
+            }
+        });
+
+        // Sort: Unresolved high priority first, then medium, then low, then resolved
+        generatedAlerts.sort((a, b) => {
+            if (a.isResolved !== b.isResolved) return a.isResolved ? 1 : -1;
+            const weight = { "high": 3, "medium": 2, "low": 1 };
+            return (weight[b.level] || 0) - (weight[a.level] || 0);
+        });
+
+        alertsData = generatedAlerts;
+        renderAlerts();
+
+        if (showToastFeedback) {
+            const count = alertsData.filter(a => !a.isResolved).length;
+            showToast(`Hệ thống AI đã quét và đồng bộ dữ liệu từ ${residentsList.length} hồ sơ sức khỏe (${count} cảnh báo đang hoạt động).`);
+        }
+    }
+
+    // ==========================================================================
+    // 3. RENDER ALERTS LIST & BADGES
+    // ==========================================================================
+    function renderAlerts() {
+        // Calculate counters
+        const totalCount = alertsData.length;
+        const highCount = alertsData.filter(a => !a.isResolved && a.level === "high").length;
+        const mediumCount = alertsData.filter(a => !a.isResolved && a.level === "medium").length;
+        const lowCount = alertsData.filter(a => !a.isResolved && a.level === "low").length;
+        const resolvedCount = alertsData.filter(a => a.isResolved).length;
+
+        if (badgeAll) badgeAll.innerText = totalCount;
+        if (badgeHigh) badgeHigh.innerText = highCount;
+        if (badgeMedium) badgeMedium.innerText = mediumCount;
+        if (badgeLow) badgeLow.innerText = lowCount;
+        if (badgeResolved) badgeResolved.innerText = resolvedCount;
+
+        // Filter items
+        let filtered = alertsData.filter(item => {
+            // Tab filter
+            if (currentFilter === "high") {
+                if (item.isResolved || item.level !== "high") return false;
+            } else if (currentFilter === "medium") {
+                if (item.isResolved || item.level !== "medium") return false;
+            } else if (currentFilter === "low") {
+                if (item.isResolved || item.level !== "low") return false;
+            } else if (currentFilter === "resolved") {
+                if (!item.isResolved) return false;
+            }
+
+            // Search query filter
+            if (searchQuery.trim() !== "") {
+                const q = searchQuery.toLowerCase();
+                const matchName = item.patientName.toLowerCase().includes(q);
+                const matchRoom = item.room.toLowerCase().includes(q);
+                const matchTitle = item.title.toLowerCase().includes(q);
+                const matchDesc = item.description.toLowerCase().includes(q);
+                if (!matchName && !matchRoom && !matchTitle && !matchDesc) return false;
+            }
+
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            alertsListContainer.innerHTML = "";
+            alertsEmptyState.style.display = "flex";
+            return;
+        }
+
+        alertsEmptyState.style.display = "none";
+        alertsListContainer.innerHTML = "";
+
+        filtered.forEach(alert => {
+            const itemEl = document.createElement("div");
+            itemEl.className = `alert-row-item ${alert.isResolved ? "is-resolved" : ""}`;
+
+            // Priority config
+            let iconBoxClass = "icon-box-medium";
+            let badgeClass = "badge-level-medium";
+            let badgeText = "Trung bình";
+            let iconSvg = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+            `;
+
+            if (alert.isResolved) {
+                iconBoxClass = "icon-box-resolved";
+                badgeClass = "badge-level-resolved";
+                badgeText = "Đã xử lý";
+                iconSvg = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                `;
+            } else if (alert.level === "high") {
+                iconBoxClass = "icon-box-high";
+                badgeClass = "badge-level-high";
+                badgeText = "Cao";
+                iconSvg = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                `;
+            } else if (alert.level === "low") {
+                iconBoxClass = "icon-box-low";
+                badgeClass = "badge-level-low";
+                badgeText = "Thấp";
+                iconSvg = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                `;
+            }
+
+            // Action Buttons
+            let resolveButtonHtml = "";
+            if (alert.isResolved) {
+                resolveButtonHtml = `
+                    <button class="btn-alert-link btn-alert-resolved-done" title="Đã xử lý lúc ${alert.resolvedAt || ''}">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Đã xong</span>
+                    </button>
+                `;
+            } else {
+                resolveButtonHtml = `
+                    <button class="btn-alert-link btn-alert-resolve" onclick="openResolveModal('${alert.id}')" title="Ghi nhận can thiệp xử lý cảnh báo">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Xử lý</span>
+                    </button>
+                `;
+            }
+
+            itemEl.innerHTML = `
+                <div class="alert-icon-box ${iconBoxClass}">
+                    ${iconSvg}
+                </div>
+                <div class="alert-content-wrapper">
+                    <div class="alert-header-line">
+                        <span class="alert-level-badge ${badgeClass}">${badgeText}</span>
+                        <span class="alert-patient-name" onclick="openDetailModal('${alert.id}')">${alert.patientName}</span>
+                        <span class="alert-patient-room">${alert.room}</span>
+                        ${alert.isResolved ? `<span class="badge-resolved-status">✓ Đã xử lý</span>` : ""}
+                    </div>
+                    <h3 class="alert-title-text">${alert.title}</h3>
+                    <p class="alert-description-text">${alert.description}</p>
+                    <div class="alert-meta-line">
+                        <span class="alert-meta-time">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            ${alert.time}
+                        </span>
+                        <span class="alert-meta-assignee">Phụ trách: ${alert.assignee || 'Nguyễn Thị Lan'}</span>
+                        ${alert.vitalsSummary ? `<span class="vital-pill-highlight">${alert.vitalsSummary}</span>` : ''}
+                    </div>
+                </div>
+                <div class="alert-actions-col">
+                    <button class="btn-alert-link btn-alert-detail" onclick="openDetailModal('${alert.id}')" title="Xem phân tích y tế AI & hồ sơ">
+                        Chi tiết
+                    </button>
+                    <a href="@Url.Action("Health", "Home")?residentId=${encodeURIComponent(alert.patientId)}&name=${encodeURIComponent(alert.patientName)}" class="btn-alert-link btn-alert-profile" title="Xem biểu đồ & nhật ký sức khỏe">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                        <span>Hồ sơ</span>
+                    </a>
+                    ${resolveButtonHtml}
+                </div>
+            `;
+
+            alertsListContainer.appendChild(itemEl);
+        });
+    }
+
+    // ==========================================================================
+    // 4. EVENT HANDLERS & MODAL ACTIONS
+    // ==========================================================================
+
+    // Tab buttons click
+    tabButtons.forEach(btn => {
+        btn.addEventListener("click", function () {
+            tabButtons.forEach(b => b.classList.remove("active"));
+            this.classList.add("active");
+            currentFilter = this.getAttribute("data-filter");
+            renderAlerts();
+        });
+    });
+
+    // Search input
+    if (searchInput) {
+        searchInput.addEventListener("input", function (e) {
+            searchQuery = e.target.value;
+            renderAlerts();
+        });
+    }
+
+    // Button Quét AI
+    const btnSyncAi = document.getElementById("btn-sync-ai");
+    if (btnSyncAi) {
+        btnSyncAi.addEventListener("click", function () {
+            this.style.transform = "rotate(180deg)";
+            setTimeout(() => {
+                this.style.transform = "none";
+                generateAlertsFromHealthRecords(true);
+            }, 300);
+        });
+    }
+
+    // Button Resolve All
+    const btnResolveAll = document.getElementById("btn-resolve-all");
+    if (btnResolveAll) {
+        btnResolveAll.addEventListener("click", function () {
+            const unresolved = alertsData.filter(a => !a.isResolved);
+            if (unresolved.length === 0) {
+                showToast("Tất cả các cảnh báo đã được xử lý trước đó!");
+                return;
+            }
+            if (confirm(`Bạn có chắc chắn muốn ghi nhận xử lý toàn bộ ${unresolved.length} cảnh báo sức khỏe?`)) {
+                let resolvedMap = {};
+                try {
+                    const raw = localStorage.getItem(RESOLVED_STORAGE_KEY);
+                    if (raw) resolvedMap = JSON.parse(raw);
+                } catch(e) { resolvedMap = {}; }
+
+                const timeStr = "Hôm nay " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                unresolved.forEach(a => {
+                    a.isResolved = true;
+                    a.resolvedAt = timeStr;
+                    a.resolvedNote = "Xử lý hàng loạt bởi nhân viên ca trực.";
+                    a.resolvedBy = "@fullName" || "Nguyễn Thị Lan";
+
+                    resolvedMap[a.id] = {
+                        resolvedAt: a.resolvedAt,
+                        resolvedNote: a.resolvedNote,
+                        resolvedBy: a.resolvedBy
+                    };
+                });
+
+                localStorage.setItem(RESOLVED_STORAGE_KEY, JSON.stringify(resolvedMap));
+                renderAlerts();
+                showToast(`Đã ghi nhận xử lý toàn bộ ${unresolved.length} cảnh báo.`);
+            }
+        });
+    }
+
+    // Global Modal Functions
+    window.openDetailModal = function (alertId) {
+        const item = alertsData.find(a => a.id === alertId);
+        if (!item) return;
+        activeAlertId = alertId;
+
+        detailPatientName.innerText = item.patientName;
+        detailPatientMeta.innerText = `${item.room} · ${item.time}`;
+        detailPatientId.innerText = item.patientId;
+        detailPatientAge.innerText = item.patientAge || 75;
+        detailPatientGender.innerText = item.patientGender || "Nam";
+        detailPatientBlood.innerText = item.patientBlood || "A+";
+        detailPatientNotes.innerText = item.patientNotes || "Theo dõi định kỳ.";
+
+        detailAlertTitle.innerText = item.title;
+        detailAlertDesc.innerText = item.description;
+        
+        detailValBp.innerText = item.sys && item.dia ? `${item.sys}/${item.dia} mmHg` : "--/-- mmHg";
+        detailValHr.innerText = item.hr ? `${item.hr} bpm` : "-- bpm";
+        detailValTemp.innerText = item.temp ? `${item.temp} °C` : "-- °C";
+        detailValStaff.innerText = item.assignee || "Nguyễn Thị Lan";
+        detailAiRecommendation.innerText = item.aiRecommendation || "Chỉ số cần được theo dõi định kỳ và can thiệp kịp thời nếu bất thường.";
+
+        // Badge styling
+        detailBadgeLevel.className = `alert-level-badge ${item.isResolved ? 'badge-level-resolved' : (item.level === 'high' ? 'badge-level-high' : (item.level === 'low' ? 'badge-level-low' : 'badge-level-medium'))}`;
+        detailBadgeLevel.innerText = item.isResolved ? 'Đã xử lý' : (item.level === 'high' ? 'Cao' : (item.level === 'low' ? 'Thấp' : 'Trung bình'));
+
+        if (detailIconBox) {
+            detailIconBox.className = `modal-header-icon ${item.isResolved ? 'icon-box-resolved' : (item.level === 'high' ? 'icon-box-high' : 'icon-box-medium')}`;
+        }
+
+        if (item.isResolved) {
+            detailResolvedSection.style.display = "block";
+            detailResolvedText.innerText = `${item.resolvedNote || 'Đã can thiệp và hoàn tất xử lý.'} (Bởi ${item.resolvedBy || 'Nhân viên'} lúc ${item.resolvedAt || 'hôm nay'})`;
+            btnModalQuickResolve.style.display = "none";
+        } else {
+            detailResolvedSection.style.display = "none";
+            btnModalQuickResolve.style.display = "inline-flex";
+        }
+
+        btnModalViewRecord.onclick = function () {
+            window.location.href = `@Url.Action("Health", "Home")?residentId=${encodeURIComponent(item.patientId)}&name=${encodeURIComponent(item.patientName)}`;
+        };
+
+        btnModalViewResident.onclick = function () {
+            window.location.href = `@Url.Action("Residents", "Home")?residentId=${encodeURIComponent(item.patientId)}`;
+        };
+
+        btnModalQuickResolve.onclick = function () {
+            closeModal(modalDetailOverlay);
+            openResolveModal(item.id);
+        };
+
+        openModal(modalDetailOverlay);
+    };
+
+    window.openResolveModal = function (alertId) {
+        const item = alertsData.find(a => a.id === alertId);
+        if (!item) return;
+        activeAlertId = alertId;
+
+        resolveModalTitle.innerText = `Xử lý cảnh báo - ${item.patientName}`;
+        resolveNoteInput.value = `Đã can thiệp kiểm tra cho bệnh nhân ${item.patientName} (${item.title}), các dấu hiệu ổn định.`;
+        openModal(modalResolveOverlay);
+    };
+
+    function openModal(modal) {
+        if (!modal) return;
+        modal.classList.add("active");
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeModal(modal) {
+        if (!modal) return;
+        modal.classList.remove("active");
+        document.body.style.overflow = "";
+    }
+
+    if (btnCloseDetail) btnCloseDetail.onclick = () => closeModal(modalDetailOverlay);
+    if (btnCloseResolve) btnCloseResolve.onclick = () => closeModal(modalResolveOverlay);
+    if (btnCancelResolve) btnCancelResolve.onclick = () => closeModal(modalResolveOverlay);
+
+    // Click outside modal to close
+    modalDetailOverlay.addEventListener("click", function (e) {
+        if (e.target === modalDetailOverlay) closeModal(modalDetailOverlay);
+    });
+    modalResolveOverlay.addEventListener("click", function (e) {
+        if (e.target === modalResolveOverlay) closeModal(modalResolveOverlay);
+    });
+
+    // Confirm Resolve
+    if (btnConfirmResolve) {
+        btnConfirmResolve.addEventListener("click", function () {
+            if (!activeAlertId) return;
+            const item = alertsData.find(a => a.id === activeAlertId);
+            if (!item) return;
+
+            const actionSelect = resolveActionSelect.value;
+            const noteText = resolveNoteInput.value.trim() || actionSelect;
+            const staffName = resolveStaffName.value.trim() || "@fullName" || "Nguyễn Thị Lan";
+            const timeStr = "Hôm nay " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            item.isResolved = true;
+            item.resolvedAt = timeStr;
+            item.resolvedNote = `${actionSelect}. ${noteText}`;
+            item.resolvedBy = staffName;
+
+            // Save to persistent resolved storage
+            let resolvedMap = {};
+            try {
+                const raw = localStorage.getItem(RESOLVED_STORAGE_KEY);
+                if (raw) resolvedMap = JSON.parse(raw);
+            } catch(e) { resolvedMap = {}; }
+
+            resolvedMap[item.id] = {
+                resolvedAt: item.resolvedAt,
+                resolvedNote: item.resolvedNote,
+                resolvedBy: item.resolvedBy
+            };
+            localStorage.setItem(RESOLVED_STORAGE_KEY, JSON.stringify(resolvedMap));
+
+            // Log activity to recent activities for Dashboard
+            try {
+                let acts = [];
+                const rawActs = localStorage.getItem(ACTIVITY_STORAGE_KEY);
+                if (rawActs) acts = JSON.parse(rawActs);
+                acts.unshift({
+                    id: `act-${Date.now()}`,
+                    title: `Xử lý cảnh báo: ${item.title} - ${item.patientName}`,
+                    time: "Vừa xong",
+                    type: "health",
+                    staff: staffName
+                });
+                localStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(acts.slice(0, 30)));
+            } catch(e) {}
+
+            renderAlerts();
+            closeModal(modalResolveOverlay);
+            showToast(`Đã ghi nhận xử lý thành công cho bệnh nhân ${item.patientName}!`);
+        });
+    }
+
+    // Initial load pure from Health records
+    generateAlertsFromHealthRecords(false);
+});
+</script>
+}

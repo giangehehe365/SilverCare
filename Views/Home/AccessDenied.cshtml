@@ -1,0 +1,243 @@
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewData["Title"] = "Không có quyền truy cập";
+
+    var featureName = ViewBag.FeatureName as string ?? "Chức năng được yêu cầu";
+    var role = ViewBag.Role as string ?? "Nhân viên";
+}
+
+<style>
+    .access-denied-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: calc(100vh - 200px);
+        padding: 20px;
+    }
+
+    .access-denied-card {
+        background: #ffffff;
+        border-radius: 20px;
+        border: 1px solid #eaecf0;
+        box-shadow: 0 4px 20px rgba(16, 24, 40, 0.06);
+        max-width: 560px;
+        width: 100%;
+        padding: 40px;
+        text-align: center;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    @@keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .denied-icon-container {
+        width: 72px;
+        height: 72px;
+        background-color: #fef3f2;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+        box-shadow: 0 0 0 8px #fffbfa;
+    }
+
+    .denied-icon-container svg {
+        width: 36px;
+        height: 36px;
+        stroke: #f04438;
+        stroke-width: 2;
+        fill: none;
+    }
+
+    .denied-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0 0 10px 0;
+        letter-spacing: -0.02em;
+    }
+
+    .denied-desc {
+        font-size: 15px;
+        color: #475467;
+        line-height: 1.6;
+        margin: 0 0 24px 0;
+    }
+
+    .denied-role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background-color: #f2f4f7;
+        color: #344054;
+        font-size: 13.5px;
+        font-weight: 600;
+        padding: 6px 14px;
+        border-radius: 20px;
+        margin-bottom: 24px;
+    }
+
+    .denied-permissions-box {
+        background-color: #f8fafd;
+        border: 1px solid #eaecf0;
+        border-radius: 12px;
+        padding: 16px 20px;
+        text-align: left;
+        margin-bottom: 28px;
+    }
+
+    .denied-permissions-header {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #344054;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .denied-permissions-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .denied-permissions-item {
+        font-size: 13.5px;
+        color: #475467;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .denied-permissions-item svg {
+        width: 16px;
+        height: 16px;
+        stroke: #12b76a;
+        stroke-width: 2.5;
+        fill: none;
+        flex-shrink: 0;
+    }
+
+    .denied-actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .btn-denied-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: #0ba5ec;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 10px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    }
+
+    .btn-denied-primary:hover {
+        background-color: #0284c7;
+        box-shadow: 0 4px 12px rgba(11, 165, 236, 0.25);
+    }
+
+    .btn-denied-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: #ffffff;
+        color: #344054;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 10px;
+        border: 1px solid #d0d5dd;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .btn-denied-secondary:hover {
+        background-color: #f9fafb;
+        color: #101828;
+    }
+</style>
+
+<div class="access-denied-wrapper">
+    <div class="access-denied-card">
+        <div class="denied-icon-container">
+            <!-- Shield Alert Icon -->
+            <svg viewBox="0 0 24 24">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        </div>
+
+        <h1 class="denied-title">Truy cập bị từ chối</h1>
+        <p class="denied-desc">
+            Tài khoản của bạn không có quyền thực hiện hoặc xem <strong>@featureName</strong>. Vui lòng liên hệ Quản trị viên hệ thống để được cấp thêm quyền nếu cần thiết.
+        </p>
+
+        <div>
+            <span class="denied-role-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                Vai trò hiện tại: @role
+            </span>
+        </div>
+
+        <div class="denied-permissions-box">
+            <div class="denied-permissions-header">
+                <span>Danh sách quyền hạn của bạn:</span>
+            </div>
+            <ul class="denied-permissions-list">
+                <li class="denied-permissions-item">
+                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>Xem hồ sơ người cao tuổi</span>
+                </li>
+                <li class="denied-permissions-item">
+                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>Tạo và chỉnh sửa hồ sơ</span>
+                </li>
+                <li class="denied-permissions-item">
+                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>Nhập chỉ số sức khỏe</span>
+                </li>
+                <li class="denied-permissions-item">
+                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>Xác nhận cấp thuốc</span>
+                </li>
+                <li class="denied-permissions-item">
+                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>Xuất báo cáo PDF</span>
+                </li>
+            </ul>
+        </div>
+
+        <div class="denied-actions">
+            <a href="@Url.Action("Profile", "Home", new { tab = "permissions" })" class="btn-denied-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+                <span>Xem Phân quyền tài khoản</span>
+            </a>
+            <a href="@Url.Action("Dashboard", "Home")" class="btn-denied-secondary">
+                <span>Quay lại Dashboard</span>
+            </a>
+        </div>
+    </div>
+</div>

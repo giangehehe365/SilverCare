@@ -1,0 +1,1382 @@
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewData["Title"] = "Lịch chăm sóc";
+
+    // Dynamic date in Vietnamese formatting
+    var now = DateTime.Now;
+    var dayOfWeekVi = now.DayOfWeek switch
+    {
+        DayOfWeek.Sunday => "Chủ Nhật",
+        DayOfWeek.Monday => "Thứ Hai",
+        DayOfWeek.Tuesday => "Thứ Ba",
+        DayOfWeek.Wednesday => "Thứ Tư",
+        DayOfWeek.Thursday => "Thứ Năm",
+        DayOfWeek.Friday => "Thứ Sáu",
+        DayOfWeek.Saturday => "Thứ Bảy",
+        _ => ""
+    };
+    var dateString = $"{dayOfWeekVi}, {now.Day} tháng {now.Month} năm {now.Year}";
+
+    // Capture logged-in user profile name
+    var fullName = TempData["FullName"] as string ?? "Nguyễn Thị Lan";
+    TempData.Keep("FullName");
+}
+
+<!-- Custom Styles for Schedule Page -->
+<style>
+    .schedule-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .schedule-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0;
+    }
+
+    .btn-create-schedule {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: var(--color-primary);
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+        text-decoration: none;
+    }
+
+    .btn-create-schedule:hover {
+        background-color: var(--color-primary-hover);
+        transform: translateY(-1px);
+    }
+
+    .btn-create-schedule svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        stroke-width: 2.5;
+        fill: none;
+    }
+
+    /* Filters Section */
+    .schedule-filters-card {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 24px;
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+    }
+
+    /* Toggle Group */
+    .view-toggle-group {
+        display: flex;
+        background-color: #f2f4f7;
+        padding: 4px;
+        border-radius: 8px;
+        border: 1px solid #e4e7ec;
+    }
+
+    .view-toggle-btn {
+        background: none;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .view-toggle-btn.active {
+        background-color: #ffffff;
+        color: #101828;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.1), 0 1px 2px rgba(16, 24, 40, 0.06);
+        font-weight: 600;
+    }
+
+    .view-toggle-btn:hover:not(.active) {
+        color: #101828;
+    }
+
+    /* Custom Select Style */
+    .filter-select {
+        background-color: #ffffff;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        padding: 10px 32px 10px 14px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #344054;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.2s ease;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23667085' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 16px;
+        min-width: 150px;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    }
+
+    .filter-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(11, 165, 236, 0.12);
+    }
+
+    /* Schedule Content Section */
+    .schedule-main-card {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+        overflow: hidden;
+    }
+
+    .schedule-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border-color);
+        background-color: #fafbfc;
+    }
+
+    .schedule-day-title-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #101828;
+    }
+
+    .schedule-day-icon {
+        width: 20px;
+        height: 20px;
+        stroke: var(--color-primary);
+        stroke-width: 2;
+        fill: none;
+    }
+
+    .schedule-day-title {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .schedule-count-text {
+        font-size: 14px;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    /* List Items */
+    .schedule-list {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .schedule-item {
+        display: grid;
+        grid-template-columns: 80px 8px 1fr auto;
+        align-items: center;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color 0.15s ease;
+    }
+
+    .schedule-item:last-child {
+        border-bottom: none;
+    }
+
+    .schedule-item:hover {
+        background-color: #f9fafb;
+    }
+
+    .schedule-time {
+        font-size: 15px;
+        font-weight: 700;
+        color: #101828;
+    }
+
+    /* Vertical Indicator Bar */
+    .status-indicator {
+        width: 3px;
+        height: 38px;
+        border-radius: 4px;
+    }
+
+    .indicator-gray {
+        background-color: #d0d5dd;
+    }
+
+    .indicator-yellow {
+        background-color: #f79009;
+    }
+
+    .indicator-green {
+        background-color: #12b76a;
+    }
+
+    /* Info Column */
+    .schedule-info {
+        padding-left: 16px;
+    }
+
+    .schedule-task-name {
+        font-size: 15px;
+        font-weight: 600;
+        color: #101828;
+        margin: 0 0 4px 0;
+    }
+
+    .schedule-patient-meta {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    /* Action Column */
+    .schedule-actions {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    /* Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .badge-todo {
+        background-color: #f2f4f7;
+        color: #344054;
+    }
+
+    .badge-pending {
+        background-color: #fffaeb;
+        color: #b54708;
+    }
+
+    .badge-done {
+        background-color: #ecfdf3;
+        color: #027a48;
+    }
+
+    /* Action buttons & links */
+    .btn-detail {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--color-primary);
+        text-decoration: none;
+        transition: color 0.15s ease;
+    }
+
+    .btn-detail:hover {
+        color: var(--color-primary-hover);
+        text-decoration: underline;
+    }
+
+    .btn-complete {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: none;
+        border: none;
+        font-size: 14px;
+        font-weight: 600;
+        color: #12b76a;
+        cursor: pointer;
+        padding: 0;
+        transition: color 0.15s ease;
+    }
+
+    .btn-complete:hover {
+        color: #027a48;
+        text-decoration: underline;
+    }
+
+    .btn-complete svg {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        stroke-width: 2.5;
+        fill: none;
+    }
+
+    /* Toast Notification */
+    .toast-notification {
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        background-color: #ffffff;
+        border: 1px solid #d0d5dd;
+        border-radius: 10px;
+        padding: 14px 20px;
+        box-shadow: 0 4px 15px rgba(16, 24, 40, 0.08);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transform: translateX(120%);
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        z-index: 1000;
+    }
+
+    .toast-notification.active {
+        transform: translateX(0);
+    }
+
+    .toast-icon-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background-color: #f2f4f7;
+    }
+
+    .toast-icon-wrapper svg {
+        width: 12px;
+        height: 12px;
+        stroke: #101828;
+        stroke-width: 3;
+        fill: none;
+    }
+
+    .toast-text {
+        font-size: 14px;
+        font-weight: 600;
+        color: #101828;
+    }
+
+    /* Empty state layout */
+    .empty-schedule {
+        padding: 48px 24px;
+        text-align: center;
+        color: var(--text-secondary);
+        display: none;
+    }
+
+    .empty-schedule svg {
+        width: 48px;
+        height: 48px;
+        stroke: var(--text-muted);
+        stroke-width: 1.5;
+        fill: none;
+        margin-bottom: 12px;
+    }
+
+    .empty-schedule-text {
+        font-size: 15px;
+        font-weight: 500;
+        margin: 0;
+    }
+
+    /* Style cho Modal "Tạo lịch chăm sóc" */
+    .schedule-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(29, 41, 57, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1100;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+
+    .schedule-modal-overlay.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .schedule-modal-container {
+        background-color: #ffffff;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 480px;
+        box-shadow: 0 20px 24px -4px rgba(16, 24, 40, 0.08), 0 8px 8px -4px rgba(16, 24, 40, 0.03);
+        overflow: hidden;
+        transform: translateY(20px);
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        padding: 24px;
+        position: relative;
+    }
+
+    .schedule-modal-overlay.active .schedule-modal-container {
+        transform: translateY(0);
+    }
+
+    .schedule-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .schedule-modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0;
+    }
+
+    .schedule-modal-close-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #667085;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.15s ease;
+    }
+
+    .schedule-modal-close-btn:hover {
+        color: #101828;
+    }
+
+    .schedule-modal-close-btn svg {
+        width: 20px;
+        height: 20px;
+        stroke: currentColor;
+        stroke-width: 2;
+        fill: none;
+    }
+
+    /* Modal Form fields */
+    .schedule-form-group {
+        margin-bottom: 16px;
+    }
+
+    .schedule-form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .schedule-form-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #344054;
+        margin-bottom: 6px;
+    }
+
+    .schedule-form-label .required-asterisk {
+        color: #f04438;
+        margin-left: 2px;
+    }
+
+    .schedule-form-input, .schedule-form-select, .schedule-form-textarea {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-family: inherit;
+        color: #101828;
+        background-color: #ffffff;
+        outline: none;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    }
+
+    .schedule-form-input::placeholder, .schedule-form-textarea::placeholder {
+        color: #667085;
+        opacity: 0.5;
+    }
+
+    .schedule-form-input:focus, .schedule-form-select:focus, .schedule-form-textarea:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(11, 165, 236, 0.12);
+    }
+
+    .schedule-form-textarea {
+        height: 80px;
+        resize: none;
+    }
+
+    .schedule-form-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23667085' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        background-size: 16px;
+        padding-right: 36px;
+    }
+
+    .schedule-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 24px;
+    }
+
+    .btn-modal-cancel {
+        flex: 1;
+        background-color: #ffffff;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #344054;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+        text-align: center;
+    }
+
+    .btn-modal-cancel:hover {
+        background-color: #f9fafb;
+    }
+
+    .btn-modal-save {
+        flex: 1;
+        background-color: var(--color-primary);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #ffffff;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+        text-align: center;
+    }
+
+    .btn-modal-save:hover {
+        background-color: var(--color-primary-hover);
+    }
+
+    /* Detail Modal Specific Styling */
+    .detail-modal-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px dashed #eaecf0;
+    }
+    .detail-modal-row:last-child {
+        border-bottom: none;
+    }
+    .detail-modal-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #667085;
+    }
+    .detail-modal-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: #101828;
+    }
+    .detail-modal-note-section {
+        margin-top: 16px;
+    }
+    .detail-modal-note-box {
+        background-color: #f9fafb;
+        border: 1px solid #eaecf0;
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 8px;
+        font-size: 13.5px;
+        color: #344054;
+        line-height: 1.6;
+        min-height: 60px;
+    }
+</style>
+
+<!-- Header Title & Action button -->
+<div class="schedule-header">
+    <h1 class="schedule-title">Lịch chăm sóc</h1>
+    <button class="btn-create-schedule" id="btn-open-create-modal">
+        <svg viewBox="0 0 24 24">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>Tạo lịch chăm sóc</span>
+    </button>
+</div>
+
+<!-- Filters Panel -->
+<div class="schedule-filters-card">
+    <!-- View Switcher -->
+    <div class="view-toggle-group">
+        <button class="view-toggle-btn active" data-view="day">Ngày</button>
+        <button class="view-toggle-btn" data-view="week" onclick="alert('Bộ lọc hiển thị theo Tuần đang được xây dựng.')">Tuần</button>
+        <button class="view-toggle-btn" data-view="month" onclick="alert('Bộ lọc hiển thị theo Tháng đang được xây dựng.')">Tháng</button>
+    </div>
+
+    <!-- Room Filter -->
+    <select class="filter-select" id="room-filter">
+        <option value="all">Tất cả phòng</option>
+        <option value="201">Phòng 201</option>
+        <option value="102">Phòng 102</option>
+        <option value="305">Phòng 305</option>
+    </select>
+
+    <!-- Status Filter -->
+    <select class="filter-select" id="status-filter">
+        <option value="all">Tất cả</option>
+        <option value="todo">Chưa thực hiện</option>
+        <option value="pending">Đang chờ</option>
+        <option value="done">Hoàn thành</option>
+    </select>
+</div>
+
+<!-- Main Care List -->
+<div class="schedule-main-card">
+    <div class="schedule-card-header">
+        <div class="schedule-day-title-wrapper">
+            <svg viewBox="0 0 24 24" class="schedule-day-icon">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <h2 class="schedule-day-title" id="schedule-date-header">@dateString</h2>
+        </div>
+        <span class="schedule-count-text" id="schedule-count">0 lịch</span>
+    </div>
+
+    <!-- Items List -->
+    <div class="schedule-list" id="schedule-items-container">
+        
+    </div>
+
+    <!-- Empty List State -->
+    <div class="empty-schedule" id="empty-state" style="display: block;">
+        <svg viewBox="0 0 24 24">
+            <path d="M9 11l3 3L22 4"></path>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+        </svg>
+        <p class="empty-schedule-text" id="empty-schedule-msg">Không có công việc cần thực hiện hôm nay.</p>
+    </div>
+</div>
+
+<!-- Complete Confirmation Toast -->
+<div class="toast-notification" id="toast-complete">
+    <div class="toast-icon-wrapper">
+        <svg viewBox="0 0 24 24">
+            <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+    </div>
+    <span class="toast-text" id="toast-message-text">Đã đánh dấu hoàn thành!</span>
+</div>
+
+<!-- Create Schedule Modal -->
+<div class="schedule-modal-overlay" id="create-schedule-modal-overlay">
+    <div class="schedule-modal-container">
+        <!-- Header -->
+        <div class="schedule-modal-header">
+            <h2 class="schedule-modal-title">Tạo lịch chăm sóc</h2>
+            <button class="schedule-modal-close-btn" id="btn-create-modal-close" title="Đóng">
+                <svg viewBox="0 0 24 24">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="schedule-modal-body">
+            <!-- Tên lịch chăm sóc -->
+            <div class="schedule-form-group">
+                <label class="schedule-form-label" for="schedule-input-name">Tên lịch chăm sóc <span class="required-asterisk">*</span></label>
+                <input type="text" class="schedule-form-input" id="schedule-input-name" placeholder="VD: Uống thuốc sáng" required />
+            </div>
+
+            <!-- Người cao tuổi -->
+            <div class="schedule-form-group">
+                <label class="schedule-form-label" for="schedule-select-patient">Người cao tuổi <span class="required-asterisk">*</span></label>
+                <select class="schedule-form-select" id="schedule-select-patient" required>
+                    <option value="" disabled selected>-- Chọn --</option>
+                    <option value="Nguyễn Văn An-201">Nguyễn Văn An - Phòng 201</option>
+                    <option value="Lê Văn Bình-102">Lê Văn Bình - Phòng 102</option>
+                    <option value="Phạm Thị Cúc-305">Phạm Thị Cúc - Phòng 305</option>
+                </select>
+            </div>
+
+            <!-- Ngày & Giờ -->
+            <div class="schedule-form-row">
+                <div class="schedule-form-group">
+                    <label class="schedule-form-label" for="schedule-input-date">Ngày <span class="required-asterisk">*</span></label>
+                    <input type="date" class="schedule-form-input" id="schedule-input-date" required />
+                </div>
+                <div class="schedule-form-group">
+                    <label class="schedule-form-label" for="schedule-input-time">Giờ <span class="required-asterisk">*</span></label>
+                    <input type="time" class="schedule-form-input" id="schedule-input-time" required />
+                </div>
+            </div>
+
+            <!-- Loại -->
+            <div class="schedule-form-group">
+                <label class="schedule-form-label" for="schedule-select-type">Loại</label>
+                <select class="schedule-form-select" id="schedule-select-type">
+                    <option value="Chăm sóc" selected>Chăm sóc</option>
+                    <option value="Y tế">Y tế</option>
+                    <option value="Khác">Khác</option>
+                </select>
+            </div>
+
+            <!-- Ghi chú -->
+            <div class="schedule-form-group" style="margin-bottom: 0;">
+                <label class="schedule-form-label" for="schedule-textarea-note">Ghi chú</label>
+                <textarea class="schedule-form-textarea" id="schedule-textarea-note" placeholder="Nhập ghi chú..."></textarea>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="schedule-modal-footer">
+            <button class="btn-modal-cancel" id="btn-create-modal-cancel">Hủy</button>
+            <button class="btn-modal-save" id="btn-create-modal-save">Lưu lịch</button>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Schedule Modal -->
+<div class="schedule-modal-overlay" id="detail-schedule-modal-overlay">
+    <div class="schedule-modal-container" style="max-width: 440px;">
+        <!-- Header -->
+        <div class="schedule-modal-header">
+            <h2 class="schedule-modal-title">Chi tiết lịch chăm sóc</h2>
+            <button class="schedule-modal-close-btn" id="btn-detail-modal-close" title="Đóng">
+                <svg viewBox="0 0 24 24">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="schedule-modal-body" style="padding-top: 8px;">
+            <div class="detail-modal-row">
+                <span class="detail-modal-label">Công việc</span>
+                <span class="detail-modal-value" id="detail-val-name">-</span>
+            </div>
+            <div class="detail-modal-row">
+                <span class="detail-modal-label">Thời gian</span>
+                <span class="detail-modal-value" id="detail-val-time">-</span>
+            </div>
+            <div class="detail-modal-row">
+                <span class="detail-modal-label">Người cao tuổi</span>
+                <span class="detail-modal-value" id="detail-val-patient">-</span>
+            </div>
+            <div class="detail-modal-row">
+                <span class="detail-modal-label">Phòng</span>
+                <span class="detail-modal-value" id="detail-val-room">-</span>
+            </div>
+            <div class="detail-modal-row">
+                <span class="detail-modal-label">Trạng thái</span>
+                <span class="detail-modal-value" id="detail-val-status">-</span>
+            </div>
+            <div class="detail-modal-note-section" id="detail-row-note">
+                <span class="detail-modal-label">Ghi chú</span>
+                <div class="detail-modal-note-box" id="detail-val-note">-</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="schedule-modal-footer">
+            <button class="btn-modal-cancel" id="btn-detail-modal-close-footer" style="flex: 1;">Đóng</button>
+            <button class="btn-modal-save" id="btn-detail-modal-complete" style="flex: 1.5; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background-color: #0ba5ec;">
+                <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; stroke-width: 2.5; fill: none;">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>Đánh dấu hoàn thành</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Default static schedule items matching nguoinha.sql
+        const defaultTasks = [
+            {
+                id: "task-1",
+                name: "Uống thuốc sáng",
+                time: "08:00",
+                patientName: "Nguyễn Văn An",
+                patientRoom: "201",
+                status: "todo",
+                type: "Chăm sóc",
+                note: "Uống thuốc sau khi ăn no"
+            },
+            {
+                id: "task-2",
+                name: "Vật lý trị liệu",
+                time: "10:00",
+                patientName: "Lê Văn Bình",
+                patientRoom: "102",
+                status: "pending",
+                type: "Y tế",
+                note: "Tập phục hồi chức năng khớp gối"
+            },
+            {
+                id: "task-3",
+                name: "Đo huyết áp & khám định kỳ",
+                time: "14:00",
+                patientName: "Phạm Thị Cúc",
+                patientRoom: "305",
+                status: "todo",
+                type: "Y tế",
+                note: "Kiểm tra huyết áp và chỉ số sức khỏe chiều"
+            },
+            {
+                id: "task-4",
+                name: "Chăm sóc cá nhân",
+                time: "16:00",
+                patientName: "Nguyễn Văn An",
+                patientRoom: "201",
+                status: "todo",
+                type: "Chăm sóc",
+                note: "Hỗ trợ vận động nhẹ ngoài sân vườn"
+            },
+            {
+                id: "task-5",
+                name: "Uống thuốc tối",
+                time: "20:00",
+                patientName: "Lê Văn Bình",
+                patientRoom: "102",
+                status: "done",
+                type: "Chăm sóc",
+                note: "Uống thuốc theo đơn bác sĩ trước khi ngủ"
+            }
+        ];
+
+        let currentTasks = [];
+
+        // Helper to construct item HTML
+        function createTaskHtml(task) {
+            let indicatorClass = "indicator-gray";
+            if (task.type === "Y tế") {
+                indicatorClass = "indicator-yellow";
+            } else if (task.type === "Chăm sóc") {
+                indicatorClass = "indicator-green";
+            }
+
+            let actionsHtml = "";
+            if (task.status === "done") {
+                actionsHtml = `
+                    <span class="status-badge badge-done">Hoàn thành</span>
+                    <a href="#" class="btn-detail">Chi tiết</a>
+                `;
+            } else {
+                let badgeClass = "badge-todo";
+                let badgeText = "Chưa thực hiện";
+                if (task.status === "pending") {
+                    badgeClass = "badge-pending";
+                    badgeText = "Đang chờ";
+                }
+                
+                actionsHtml = `
+                    <span class="status-badge ${badgeClass}" id="badge-${task.id}">${badgeText}</span>
+                    <a href="#" class="btn-detail">Chi tiết</a>
+                    <button class="btn-complete" onclick="markCompleted('${task.id}')">
+                        <svg viewBox="0 0 24 24">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Hoàn thành</span>
+                    </button>
+                `;
+            }
+
+            return `
+            <div class="schedule-item" data-room="${task.patientRoom}" data-status="${task.status}" id="task-${task.id}" data-id="${task.id}" data-name="${task.name}" data-time="${task.time}" data-patient="${task.patientName}" data-note="${task.note || ""}">
+                <span class="schedule-time">${task.time}</span>
+                <div class="status-indicator ${indicatorClass}" id="indicator-${task.id}"></div>
+                <div class="schedule-info">
+                    <h3 class="schedule-task-name">${task.name}</h3>
+                    <p class="schedule-patient-meta">${task.patientName} - Phòng ${task.patientRoom}</p>
+                </div>
+                <div class="schedule-actions">
+                    ${actionsHtml}
+                </div>
+            </div>
+            `;
+        }
+
+        // Load and render
+        function loadAndRenderTasks() {
+            const saved = localStorage.getItem("silvercare_schedules_v2");
+            if (saved) {
+                currentTasks = JSON.parse(saved);
+            } else {
+                currentTasks = [...defaultTasks];
+                localStorage.setItem("silvercare_schedules_v2", JSON.stringify(currentTasks));
+            }
+
+            const container = document.getElementById("schedule-items-container");
+            if (container) {
+                container.innerHTML = "";
+                const sorted = [...currentTasks].sort((a, b) => a.time.localeCompare(b.time));
+                sorted.forEach(task => {
+                    container.insertAdjacentHTML("beforeend", createTaskHtml(task));
+                });
+            }
+        }
+
+        // Store total count of items visible under active filters
+        function updateCountText() {
+            const visibleItems = document.querySelectorAll(".schedule-item[style*='display: grid']").length 
+                + document.querySelectorAll(".schedule-item:not([style*='display: none'])").length 
+                - document.querySelectorAll(".schedule-item[style*='display: none']").length;
+            
+            const countText = document.getElementById("schedule-count");
+            if (countText) {
+                countText.innerText = `${visibleItems} lịch`;
+            }
+
+            const emptyState = document.getElementById("empty-state");
+            const emptyMsg = document.getElementById("empty-schedule-msg");
+            if (emptyState) {
+                if (visibleItems === 0) {
+                    emptyState.style.display = "block";
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const paramName = urlParams.get('name');
+                    const selectedRoom = roomFilter ? roomFilter.value : 'all';
+                    if (paramName) {
+                        if (emptyMsg) emptyMsg.innerText = `Chưa có lịch chăm sóc của ${paramName}`;
+                    } else if (selectedRoom !== 'all') {
+                        if (emptyMsg) emptyMsg.innerText = `Chưa có lịch chăm sóc của Phòng ${selectedRoom}`;
+                    } else {
+                        if (emptyMsg) emptyMsg.innerText = "Không có công việc cần thực hiện hôm nay.";
+                    }
+                } else {
+                    emptyState.style.display = "none";
+                }
+            }
+        }
+
+        // Complete action
+        window.markCompleted = function(taskId) {
+            const taskItem = document.getElementById(`task-${taskId}`);
+            if (!taskItem) return;
+
+            // Update status attribute for filtering
+            taskItem.setAttribute("data-status", "done");
+
+            // Change indicator bar to green
+            const indicator = document.getElementById(`indicator-${taskId}`);
+            if (indicator) {
+                indicator.className = "status-indicator indicator-green";
+            }
+
+            // Change badge and action buttons
+            const actionsDiv = taskItem.querySelector(".schedule-actions");
+            if (actionsDiv) {
+                actionsDiv.innerHTML = `
+                    <span class="status-badge badge-done">Hoàn thành</span>
+                    <a href="#" class="btn-detail">Chi tiết</a>
+                `;
+            }
+
+            // Update local state and localStorage
+            const task = currentTasks.find(t => t.id === taskId);
+            if (task) {
+                task.status = "done";
+                localStorage.setItem("silvercare_schedules_v2", JSON.stringify(currentTasks));
+
+                // Log recent activity to shared storage
+                try {
+                    const rawActs = localStorage.getItem("silvercare_recent_activities_v2");
+                    let acts = rawActs ? JSON.parse(rawActs) : [];
+                    const nowD = new Date();
+                    const curH = String(nowD.getHours()).padStart(2, '0');
+                    const curM = String(nowD.getMinutes()).padStart(2, '0');
+                    const taskTitle = task.name.startsWith("Đã") ? task.name : `Đã hoàn thành ${task.name}`;
+
+                    acts.unshift({
+                        id: "act-" + Date.now(),
+                        taskId: taskId,
+                        type: "care_complete",
+                        title: taskTitle,
+                        patientName: task.patientName,
+                        staffName: "@fullName" || "Nguyễn Thị Lan",
+                        time: `${curH}:${curM}`,
+                        iconType: "check",
+                        iconColor: "green"
+                    });
+                    localStorage.setItem("silvercare_recent_activities_v2", JSON.stringify(acts.slice(0, 30)));
+                } catch (e) {}
+            }
+
+            showToast("Đã đánh dấu hoàn thành!");
+            applyFilters();
+        };
+
+        // Filtering logic
+        const roomFilter = document.getElementById("room-filter");
+        const statusFilter = document.getElementById("status-filter");
+
+        function applyFilters() {
+            const selectedRoom = roomFilter.value;
+            const selectedStatus = statusFilter.value;
+
+            document.querySelectorAll(".schedule-item").forEach(item => {
+                const room = item.getAttribute("data-room");
+                const status = item.getAttribute("data-status");
+
+                const matchesRoom = (selectedRoom === "all" || room === selectedRoom);
+                const matchesStatus = (selectedStatus === "all" || status === selectedStatus);
+
+                if (matchesRoom) {
+                    if (matchesStatus) {
+                        item.style.display = "grid";
+                    } else {
+                        item.style.display = "none";
+                    }
+                } else {
+                    item.style.display = "none";
+                }
+            });
+
+            updateCountText();
+        }
+
+        if (roomFilter) roomFilter.addEventListener("change", applyFilters);
+        if (statusFilter) statusFilter.addEventListener("change", applyFilters);
+
+        // ==========================================
+        // CREATE SCHEDULE MODAL LOGIC
+        // ==========================================
+        const openModalBtn = document.getElementById("btn-open-create-modal");
+        const modalOverlay = document.getElementById("create-schedule-modal-overlay");
+        const closeModalBtn = document.getElementById("btn-create-modal-close");
+        const cancelModalBtn = document.getElementById("btn-create-modal-cancel");
+        const saveModalBtn = document.getElementById("btn-create-modal-save");
+
+        const inputName = document.getElementById("schedule-input-name");
+        const selectPatient = document.getElementById("schedule-select-patient");
+        const inputDate = document.getElementById("schedule-input-date");
+        const inputTime = document.getElementById("schedule-input-time");
+        const selectType = document.getElementById("schedule-select-type");
+        const textareaNote = document.getElementById("schedule-textarea-note");
+
+        // Helper to show custom toast message
+        function showToast(message) {
+            const toast = document.getElementById("toast-complete");
+            const toastText = document.getElementById("toast-message-text");
+            if (toast) {
+                if (toastText) {
+                    toastText.innerText = message;
+                    toast.classList.add("active");
+                    setTimeout(() => {
+                        toast.classList.remove("active");
+                    }, 3000);
+                }
+            }
+        }
+
+        if (openModalBtn) {
+            if (modalOverlay) {
+                // Open Modal
+                function populateSchedulePatients() {
+                    const raw = localStorage.getItem("silvercare_elderly_profiles_v3");
+                    let list = [
+                        { name: "Nguyễn Văn An", room: "201" },
+                        { name: "Lê Văn Bình", room: "102" },
+                        { name: "Phạm Thị Cúc", room: "305" }
+                    ];
+                    if (raw) {
+                        try {
+                            const parsed = JSON.parse(raw);
+                            if (Array.isArray(parsed) && parsed.length > 0) list = parsed;
+                        } catch(e) {}
+                    }
+                    if (selectPatient) {
+                        selectPatient.innerHTML = `<option value="" disabled selected>-- Chọn --</option>` + list.map(r => {
+                            const roomClean = r.room ? r.room.replace(/^Phòng\s*/i, "") : "---";
+                            return `<option value="${r.name}-${roomClean}">${r.name} - Phòng ${roomClean}</option>`;
+                        }).join("");
+                    }
+                }
+
+                populateSchedulePatients();
+
+                openModalBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+
+                    populateSchedulePatients();
+                    // Reset form values
+                    inputName.value = "";
+                    selectPatient.selectedIndex = 0;
+                    selectType.selectedIndex = 0;
+                    textareaNote.value = "";
+
+                    // Set current date and time
+                    const today = new Date();
+                    const yyyy = today.getFullYear();
+                    const mm = String(today.getMonth() + 1).padStart(2, '0');
+                    const dd = String(today.getDate()).padStart(2, '0');
+                    inputDate.value = `${yyyy}-${mm}-${dd}`;
+
+                    const hh = String(today.getHours()).padStart(2, '0');
+                    const min = String(today.getMinutes()).padStart(2, '0');
+                    inputTime.value = `${hh}:${min}`;
+
+                    // Show Modal
+                    modalOverlay.classList.add("active");
+                });
+
+                // Close Modal helpers
+                function closeCreateModal() {
+                    modalOverlay.classList.remove("active");
+                }
+
+                if (closeModalBtn) closeModalBtn.addEventListener("click", closeCreateModal);
+                if (cancelModalBtn) cancelModalBtn.addEventListener("click", closeCreateModal);
+
+                modalOverlay.addEventListener("click", function(e) {
+                    if (e.target === modalOverlay) {
+                        closeCreateModal();
+                    }
+                });
+
+                // Save Schedule
+                if (saveModalBtn) {
+                    saveModalBtn.addEventListener("click", function() {
+                        const name = inputName.value.trim();
+                        const patientVal = selectPatient.value;
+                        const date = inputDate.value;
+                        const time = inputTime.value;
+                        const type = selectType.value;
+                        const note = textareaNote.value.trim();
+
+                        if (!name || !patientVal || !date || !time) {
+                            alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
+                            return;
+                        }
+
+                        // Extract name and room
+                        const parts = patientVal.split("-");
+                        const patientName = parts[0];
+                        const patientRoom = parts[1];
+
+                        // Generate task ID
+                        const newTaskId = "task-" + Date.now();
+
+                        // Add to currentTasks array
+                        const newTaskObj = {
+                            id: newTaskId,
+                            name: name,
+                            time: time,
+                            patientName: patientName,
+                            patientRoom: patientRoom,
+                            status: "todo",
+                            type: type,
+                            note: note
+                        };
+                        currentTasks.push(newTaskObj);
+                        localStorage.setItem("silvercare_schedules_v2", JSON.stringify(currentTasks));
+
+                        // Render and sort all tasks
+                        loadAndRenderTasks();
+
+                        // Close Modal
+                        closeCreateModal();
+
+                        // Show success notification toast
+                        showToast("Đã lưu lịch chăm sóc!");
+
+                        // Re-apply filters to show new task and update counters
+                        applyFilters();
+                    });
+                }
+            }
+        }
+
+        // ==========================================
+        // DETAIL SCHEDULE MODAL LOGIC
+        // ==========================================
+        let activeDetailTaskId = null;
+
+        function showDetailModal(taskId) {
+            const taskItem = document.getElementById(`task-${taskId}`);
+            if (!taskItem) return;
+
+            activeDetailTaskId = taskId;
+
+            const name = taskItem.getAttribute("data-name") || taskItem.querySelector(".schedule-task-name").innerText;
+            const time = taskItem.getAttribute("data-time") || taskItem.querySelector(".schedule-time").innerText;
+            
+            // Extract patient name and room
+            let patientMeta = taskItem.getAttribute("data-patient") || taskItem.querySelector(".schedule-patient-meta").innerText;
+            let patientName = patientMeta;
+            let patientRoom = taskItem.getAttribute("data-room") || "";
+            if (patientMeta.includes(" - Phòng ")) {
+                const parts = patientMeta.split(" - Phòng ");
+                patientName = parts[0];
+                patientRoom = parts[1];
+            } else if (patientMeta.includes("- Phòng ")) {
+                const parts = patientMeta.split("- Phòng ");
+                patientName = parts[0];
+                patientRoom = parts[1];
+            } else if (patientMeta.includes(" Phòng ")) {
+                const parts = patientMeta.split(" Phòng ");
+                patientName = parts[0];
+                patientRoom = parts[1];
+            }
+
+            const status = taskItem.getAttribute("data-status");
+            const note = taskItem.getAttribute("data-note") || "Không có";
+
+            // Map status text
+            let statusText = "Chưa thực hiện";
+            if (status === "done") {
+                statusText = "Hoàn thành";
+            } else if (status === "pending") {
+                statusText = "Đang chờ";
+            }
+
+            // Populate elements
+            document.getElementById("detail-val-name").innerText = name;
+            document.getElementById("detail-val-time").innerText = time;
+            document.getElementById("detail-val-patient").innerText = patientName;
+            document.getElementById("detail-val-room").innerText = patientRoom;
+            document.getElementById("detail-val-status").innerText = statusText;
+            document.getElementById("detail-val-note").innerText = note;
+
+            // Show or hide Note row based on content
+            const noteSection = document.getElementById("detail-row-note");
+            if (noteSection) {
+                if (note && note !== "Không có" && note !== "") {
+                    noteSection.style.display = "block";
+                } else {
+                    noteSection.style.display = "none";
+                }
+            }
+
+            // Show or hide Complete button depending on status
+            const completeBtn = document.getElementById("btn-detail-modal-complete");
+            if (completeBtn) {
+                if (status === "done") {
+                    completeBtn.style.display = "none";
+                } else {
+                    completeBtn.style.display = "inline-flex";
+                }
+            }
+
+            // Show modal
+            const detailModal = document.getElementById("detail-schedule-modal-overlay");
+            if (detailModal) {
+                detailModal.classList.add("active");
+            }
+        }
+
+        function closeDetailModal() {
+            const detailModal = document.getElementById("detail-schedule-modal-overlay");
+            if (detailModal) {
+                detailModal.classList.remove("active");
+            }
+            activeDetailTaskId = null;
+        }
+
+        const closeDetailBtn = document.getElementById("btn-detail-modal-close");
+        const closeDetailFooterBtn = document.getElementById("btn-detail-modal-close-footer");
+        const detailModalOverlay = document.getElementById("detail-schedule-modal-overlay");
+        const completeDetailBtn = document.getElementById("btn-detail-modal-complete");
+
+        if (closeDetailBtn) closeDetailBtn.addEventListener("click", closeDetailModal);
+        if (closeDetailFooterBtn) closeDetailFooterBtn.addEventListener("click", closeDetailModal);
+        if (detailModalOverlay) {
+            detailModalOverlay.addEventListener("click", function(e) {
+                if (e.target === detailModalOverlay) {
+                    closeDetailModal();
+                }
+            });
+        }
+
+        if (completeDetailBtn) {
+            completeDetailBtn.addEventListener("click", function() {
+                if (activeDetailTaskId) {
+                    markCompleted(activeDetailTaskId);
+                    closeDetailModal();
+                }
+            });
+        }
+
+        // Event delegation for "Chi tiết" button
+        document.addEventListener("click", function(e) {
+            if (e.target.classList.contains("btn-detail")) {
+                e.preventDefault();
+                const item = e.target.closest(".schedule-item");
+                if (item) {
+                    const id = item.getAttribute("data-id") || item.getAttribute("id").replace("task-", "");
+                    showDetailModal(id);
+                }
+            }
+        });
+
+        // Initial check
+        document.addEventListener("DOMContentLoaded", function() {
+            loadAndRenderTasks();
+
+            // Populate room filter dynamically with all resident rooms
+            const rawResidents = localStorage.getItem("silvercare_elderly_profiles_v3");
+            if (rawResidents && roomFilter) {
+                try {
+                    const parsed = JSON.parse(rawResidents);
+                    if (Array.isArray(parsed)) {
+                        const existingRooms = new Set(["201", "102", "305"]);
+                        parsed.forEach(r => {
+                            if (r.room) {
+                                const clean = r.room.replace(/\D/g, '');
+                                if (clean && !existingRooms.has(clean)) {
+                                    existingRooms.add(clean);
+                                    const opt = document.createElement("option");
+                                    opt.value = clean;
+                                    opt.innerText = `Phòng ${clean}`;
+                                    roomFilter.appendChild(opt);
+                                }
+                            }
+                        });
+                    }
+                } catch(e) {}
+            }
+
+            // Check URL parameters for initial room filtering
+            const urlParams = new URLSearchParams(window.location.search);
+            const paramRoom = urlParams.get('room');
+            if (paramRoom && roomFilter) {
+                const clean = paramRoom.replace(/\D/g, '');
+                roomFilter.value = clean;
+            }
+
+            applyFilters();
+        });
+    </script>
+}

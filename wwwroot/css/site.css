@@ -1,0 +1,677 @@
+/* =========================
+   GENERAL
+========================= */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    color: #172b4d;
+}
+
+
+/* =========================
+   PAGE
+========================= */
+
+.role-selection-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient( 110deg, #f4fbff 0%, #ffffff 55%, #f5fffd 100% );
+    padding-top: 44px;
+}
+
+
+/* =========================
+   HEADER
+========================= */
+
+.silvercare-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.brand-icon {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 18px;
+    background: #0ba5ec;
+    box-shadow: 0 8px 18px rgba(0, 150, 220, 0.22);
+}
+
+.brand-name {
+    font-size: 38px;
+    font-weight: 700;
+    color: #14284c;
+}
+
+.brand-slogan {
+    margin-top: 20px;
+    margin-bottom: 0;
+    font-size: 22px;
+    color: #607ca2;
+}
+
+
+/* =========================
+   MAIN
+========================= */
+
+.role-content {
+    width: 100%;
+    max-width: 840px;
+    margin-top: 67px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+    .role-content h1 {
+        margin: 0 0 40px 0;
+        font-size: 30px;
+        font-weight: 600;
+        color: #253b59;
+    }
+
+
+/* =========================
+   CARDS
+========================= */
+
+.role-container {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 28px;
+}
+
+.role-card {
+    min-height: 375px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #e5eaf0;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 38px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04), 0 8px 20px rgba(0, 0, 0, 0.03);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+    .role-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.09);
+    }
+
+
+/* =========================
+   ICONS
+========================= */
+
+.role-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 28px;
+}
+
+.staff-icon {
+    background: #dff3ff;
+    color: #06a4ee;
+}
+
+.family-icon {
+    background: #d0fbf3;
+    color: #00bda8;
+}
+
+
+/* =========================
+   TEXT
+========================= */
+
+.role-card h2 {
+    margin: 0 0 14px 0;
+    font-size: 25px;
+    font-weight: 600;
+    color: #111f38;
+}
+
+.role-card p {
+    margin: 0;
+    max-width: 300px;
+    text-align: center;
+    line-height: 1.55;
+    font-size: 17px;
+    font-weight: 500;
+    color: #607da4;
+}
+
+
+/* =========================
+   BUTTON
+========================= */
+
+.continue-button {
+    margin-top: auto;
+    min-width: 133px;
+    padding: 14px 25px;
+    border-radius: 15px;
+    text-decoration: none;
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+    .continue-button:hover {
+        color: white;
+        transform: translateY(-2px);
+    }
+
+.staff-button {
+    background: #09a5ed;
+}
+
+    .staff-button:hover {
+        background: #0799dc;
+        box-shadow: 0 6px 14px rgba(9, 165, 237, 0.25);
+    }
+
+.family-button {
+    background: #08bdaa;
+}
+
+    .family-button:hover {
+        background: #06ae9c;
+        box-shadow: 0 6px 14px rgba(8, 189, 170, 0.25);
+    }
+
+
+/* =========================
+   FOOTER
+========================= */
+
+.silvercare-footer {
+    margin-top: auto;
+    padding: 50px 20px 38px;
+    font-size: 16px;
+    color: #91a5c6;
+    text-align: center;
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 900px) {
+
+    .role-selection-page {
+        padding-left: 25px;
+        padding-right: 25px;
+    }
+
+    .role-container {
+        grid-template-columns: 1fr;
+        max-width: 450px;
+    }
+
+    .role-card {
+        min-height: 350px;
+    }
+}
+
+
+@media (max-width: 550px) {
+
+    .role-selection-page {
+        padding-top: 30px;
+    }
+
+    .brand-icon {
+        width: 50px;
+        height: 50px;
+    }
+
+    .brand-name {
+        font-size: 30px;
+    }
+
+    .brand-slogan {
+        font-size: 17px;
+        text-align: center;
+    }
+
+    .role-content {
+        margin-top: 50px;
+    }
+
+        .role-content h1 {
+            font-size: 25px;
+        }
+
+    .role-card {
+        padding: 32px 20px;
+    }
+
+        .role-card h2 {
+            font-size: 22px;
+        }
+
+        .role-card p {
+            font-size: 16px;
+        }
+}
+
+/* =========================
+   LOGIN PAGE
+========================= */
+
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient(110deg, #f4fbff 0%, #ffffff 55%, #f5fffd 100%);
+    padding: 36px 20px 40px;
+    position: relative;
+    box-sizing: border-box;
+}
+
+/* Back Navigation */
+.back-navigation {
+    width: 100%;
+    max-width: 520px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #4a5568;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.back-link:hover {
+    color: #1a202c;
+    text-decoration: none;
+}
+
+/* Header adaptation for login */
+.silvercare-header-login {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.silvercare-header-login .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.silvercare-header-login .brand-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 12px;
+    background: #0ba5ec;
+    box-shadow: 0 6px 14px rgba(0, 150, 220, 0.2);
+}
+
+.silvercare-header-login .brand-name {
+    font-size: 32px;
+    font-weight: 700;
+    color: #14284c;
+}
+
+.silvercare-header-login .brand-slogan {
+    margin-top: 10px;
+    margin-bottom: 0;
+    font-size: 16px;
+    color: #607ca2;
+}
+
+/* Login Card Container */
+.login-card-container {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.login-card {
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid #eef2f6;
+    border-radius: 24px;
+    padding: 40px 48px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.01);
+}
+
+.login-card h2 {
+    margin: 0 0 32px;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a202c;
+    text-align: left;
+}
+
+/* Form Styles */
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #4a5568;
+    text-align: left;
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"] {
+    width: 100%;
+    height: 48px;
+    padding: 12px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background-color: #f8fafc;
+    font-size: 15px;
+    color: #1a202c;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.form-group input[type="text"]::placeholder,
+.form-group input[type="password"]::placeholder {
+    color: #a0aec0;
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="password"]:focus {
+    border-color: #0ba5ec;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(11, 165, 236, 0.15);
+}
+
+/* Password Input Wrapper */
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrapper input {
+    padding-right: 48px;
+}
+
+.toggle-password-btn {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    color: #718096;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 50%;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.toggle-password-btn:hover {
+    color: #4a5568;
+    background-color: #edf2f7;
+}
+
+/* Options (Remember & Forgot) */
+.form-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.remember-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #4a5568;
+    cursor: pointer;
+    user-select: none;
+}
+
+.remember-checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    accent-color: #0ba5ec;
+    cursor: pointer;
+}
+
+.forgot-password-link {
+    color: #0ba5ec;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+.forgot-password-link:hover {
+    color: #0588c4;
+    text-decoration: underline;
+}
+
+/* Submit Button */
+.login-submit-btn {
+    width: 100%;
+    height: 48px;
+    background-color: #0ba5ec;
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(11, 165, 236, 0.15);
+}
+
+.login-submit-btn:hover {
+    background-color: #0994d4;
+    box-shadow: 0 6px 16px rgba(11, 165, 236, 0.25);
+    transform: translateY(-1px);
+}
+
+.login-submit-btn:active {
+    transform: translateY(0);
+}
+
+/* Login Page Footer */
+.login-footer {
+    margin-top: auto;
+    font-size: 13px;
+    color: #718096;
+    text-align: center;
+    padding-top: 20px;
+}
+
+/* Help Support Button */
+.help-support-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 100;
+}
+
+.help-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.help-btn:hover {
+    background-color: #f7fafc;
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* Responsive Styles */
+@media (max-width: 576px) {
+    .login-card {
+        padding: 30px 24px;
+        border-radius: 20px;
+    }
+    
+    .back-navigation {
+        margin-bottom: 15px;
+    }
+    
+    .login-card h2 {
+        font-size: 20px;
+        margin-bottom: 24px;
+    }
+    
+    .help-support-container {
+        bottom: 16px;
+        right: 16px;
+    }
+}
+
+/* Subtitle for login page */
+.login-subtitle {
+    margin: -24px 0 32px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #607ca4;
+    text-align: left;
+}
+
+/* Helper class for alignment */
+.form-options.justify-end {
+    justify-content: flex-end;
+}
+
+/* =========================
+   FAMILY THEME OVERRIDES
+========================= */
+
+.family-theme .brand-icon {
+    background: #08bdaa;
+    box-shadow: 0 6px 14px rgba(8, 189, 170, 0.2);
+}
+
+.family-theme .form-group input[type="text"]:focus,
+.family-theme .form-group input[type="password"]:focus {
+    border-color: #08bdaa;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(8, 189, 170, 0.15);
+}
+
+.family-theme .forgot-password-link {
+    color: #08bdaa;
+}
+
+.family-theme .forgot-password-link:hover {
+    color: #069e8f;
+}
+
+.family-theme .login-submit-btn {
+    background-color: #08bdaa;
+    box-shadow: 0 4px 12px rgba(8, 189, 170, 0.15);
+}
+
+.family-theme .login-submit-btn:hover {
+    background-color: #069e8f;
+    box-shadow: 0 6px 16px rgba(8, 189, 170, 0.25);
+}
+
+/* Alert Box for validation error */
+.alert-danger {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: #fff5f5;
+    border: 1px solid #feb2b2;
+    color: #c53030;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 24px;
+    text-align: left;
+    box-sizing: border-box;
+}
+
+.alert-icon {
+    flex-shrink: 0;
+    color: #e53e3e;
+}
+
+/* Success Page icon container */
+.success-icon-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 24px;
+}

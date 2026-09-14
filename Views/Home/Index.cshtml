@@ -1,0 +1,143 @@
+@{
+    ViewData["Title"] = "SilverCare";
+}
+
+<div class="role-selection-page">
+
+    <!-- Logo -->
+    <header class="silvercare-header">
+        <div class="brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="white">
+                    <path d="M12 21s-7-4.35-9.33-8.36C.5 8.9 2.11 5 5.7 5
+                    7.65 5 9.03 6.06 12 9
+                    14.97 6.06 16.35 5 18.3 5
+                    21.89 5 23.5 8.9 21.33 12.64
+                    19 16.65 12 21 12 21z" />
+                </svg>
+            </div>
+
+            <span class="brand-name">SilverCare</span>
+        </div>
+
+        <p class="brand-slogan">
+            "Chăm sóc bằng sự tận tâm"
+        </p>
+    </header>
+
+
+    <!-- Main content -->
+    <main class="role-content">
+
+        <h1>Chọn vai trò của bạn</h1>
+
+        <div class="role-container">
+
+            <!-- Staff -->
+            <div class="role-card" onclick="location.href='@Url.Action("Staff", "Home")'" style="cursor: pointer;">
+
+                <div class="role-icon staff-icon">
+                    <svg viewBox="0 0 24 24"
+                         width="40"
+                         height="40"
+                         fill="none"
+                         stroke="currentColor"
+                         stroke-width="1.8">
+
+                        <path d="M12 3
+                        C14 5 16 5 18 5
+                        V11
+                        C18 15 15.5 18 12 19
+                        C8.5 18 6 15 6 11
+                        V5
+                        C8 5 10 5 12 3Z" />
+                    </svg>
+                </div>
+
+                <h2>Nhân viên trung tâm</h2>
+
+                <p>
+                    Truy cập hệ thống quản lý, theo dõi sức
+                    khỏe và chăm sóc người cao tuổi
+                </p>
+
+                <a asp-controller="Home"
+                   asp-action="Staff"
+                   class="continue-button staff-button">
+                    Tiếp tục
+                </a>
+
+            </div>
+
+
+            <!-- Family -->
+            <div class="role-card" onclick="location.href='@Url.Action("Family", "Home")'" style="cursor: pointer;">
+
+                <div class="role-icon family-icon">
+                    <svg viewBox="0 0 24 24"
+                         width="42"
+                         height="42"
+                         fill="none"
+                         stroke="currentColor"
+                         stroke-width="1.8"
+                         stroke-linecap="round"
+                         stroke-linejoin="round">
+
+                        <circle cx="9" cy="8" r="3"></circle>
+
+                        <path d="M4 19v-2
+                            c0-3 2-5 5-5
+                            s5 2 5 5v2">
+                        </path>
+
+                        <path d="M16 5
+                            c2 0 3 1.5 3 3
+                            s-1 3-3 3">
+                        </path>
+
+                        <path d="M17 13
+                            c2 0 3 1.5 3 4v2">
+                        </path>
+                    </svg>
+                </div>
+
+                <h2>Người nhà</h2>
+
+                <p>
+                    Xem tình trạng sức khỏe và lịch chăm
+                    sóc của người thân tại trung tâm
+                </p>
+
+                <a asp-controller="Home"
+                   asp-action="Family"
+                   class="continue-button family-button">
+                    Tiếp tục
+                </a>
+
+            </div>
+
+        </div>
+
+    </main>
+
+
+    <!-- Footer -->
+    <footer class="silvercare-footer">
+        © 2024 SilverCare — Hệ thống quản lý chăm sóc người cao tuổi
+    </footer>
+
+</div>
+
+@section Scripts {
+    <script>
+        // Prevent navigating back to authenticated pages after logout
+        (function () {
+            if (window.history && window.history.pushState) {
+                window.history.pushState(null, "", window.location.href);
+                window.onpopstate = function () {
+                    window.history.pushState(null, "", window.location.href);
+                };
+            }
+        })();
+    </script>
+}
