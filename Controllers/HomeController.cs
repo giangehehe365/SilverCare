@@ -1,19 +1,18 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Http;
-using System.Text.Json;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using SilverCare.Data;
+using SilverCare.Helpers;
+using SilverCare.Models;
 
 namespace SilverCare.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly HttpClient _httpClient;
+        private readonly SilverCareDbContext _dbContext;
 
-        // Constructor injecting HttpClient
-        public HomeController(HttpClient httpClient)
+        public HomeController(SilverCareDbContext dbContext)
         {
-            _httpClient = httpClient;
+            _dbContext = dbContext;
         }
 
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
@@ -31,37 +30,56 @@ namespace SilverCare.Controllers
         [HttpPost]
         public async Task<IActionResult> Staff(string username, string password)
         {
-            var loginRequest = new { Username = username, Password = password };
-            var jsonContent = new StringContent(JsonSerializer.Serialize(loginRequest), Encoding.UTF8, "application/json");
-
-            try
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             {
-                var response = await _httpClient.PostAsync("http://localhost:5100/api/auth/login-staff", jsonContent);
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseString = await response.Content.ReadAsStringAsync();
-                    var loginResponse = JsonSerializer.Deserialize<LoginResponseModel>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                    
-                    var fullName = loginResponse?.FullName ?? "Nguyễn Văn A";
-                    var role = loginResponse?.Role ?? "Nhân viên";
-
-                    HttpContext.Session.SetString("IsLoggedIn", "true");
-                    HttpContext.Session.SetString("FullName", fullName);
-                    HttpContext.Session.SetString("Role", role);
-
-                    TempData["FullName"] = fullName;
-                    TempData["Role"] = role;
-
-                    return RedirectToAction("Dashboard");
-                }
-            }
-            catch (HttpRequestException)
-            {
-                ViewBag.Error = "Không thể kết nối đến máy chủ Backend. Vui lòng thử lại sau.";
+                ViewBag.Error = "Vui lòng nhập đầy đủ tài khoản và mật khẩu.";
                 return View();
             }
 
-            ViewBag.Error = "Email hoặc mật khẩu không hợp lệ, vui lòng nhập lại";
+            try
+            {
+                var user = await _dbContext.Accounts
+                    .Include(a => a.Role)
+                    .FirstOrDefaultAsync(a => 
+                        (a.Email == username || a.PhoneNumber == username) && a.IsActive);
+
+                if (user != null)
+                {
+                    // Allow Admin, Manager, and Staff roles
+                    if (user.Role?.RoleName == "Staff" || user.Role?.RoleName == "Admin" || user.Role?.RoleName == "Manager")
+                    {
+                        if (PasswordHelper.VerifyPassword(password, user.PasswordHash))
+                        {
+                            var fullName = user.FullName;
+                            var role = user.Role.RoleName switch
+                            {
+                                "Admin" => "Admin",
+                                "Manager" => "Quản lý",
+                                "Staff" => "Nhân viên",
+                                _ => user.Role.RoleName
+                            };
+
+                            HttpContext.Session.SetString("IsLoggedIn", "true");
+                            HttpContext.Session.SetInt32("AccountId", user.AccountId);
+                            HttpContext.Session.SetString("FullName", fullName);
+                            HttpContext.Session.SetString("Role", role);
+                            HttpContext.Session.SetString("Email", user.Email ?? "");
+
+                            TempData["FullName"] = fullName;
+                            TempData["Role"] = role;
+
+                            return RedirectToAction("Dashboard");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ViewBag.Error = "Không thể kết nối đến cơ sở dữ liệu SQL Server: " + ex.Message;
+                return View();
+            }
+
+            ViewBag.Error = "Email/Số điện thoại hoặc mật khẩu không hợp lệ, vui lòng nhập lại";
             return View();
         }
 
@@ -74,37 +92,50 @@ namespace SilverCare.Controllers
         [HttpPost]
         public async Task<IActionResult> Family(string username, string password)
         {
-            var loginRequest = new { Username = username, Password = password };
-            var jsonContent = new StringContent(JsonSerializer.Serialize(loginRequest), Encoding.UTF8, "application/json");
-
-            try
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             {
-                var response = await _httpClient.PostAsync("http://localhost:5100/api/auth/login-family", jsonContent);
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseString = await response.Content.ReadAsStringAsync();
-                    var loginResponse = JsonSerializer.Deserialize<LoginResponseModel>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                    
-                    var fullName = loginResponse?.FullName ?? "Nguyễn Văn Hải";
-                    var role = loginResponse?.Role ?? "Người nhà";
-
-                    HttpContext.Session.SetString("IsLoggedIn", "true");
-                    HttpContext.Session.SetString("FullName", fullName);
-                    HttpContext.Session.SetString("Role", role);
-
-                    TempData["FullName"] = fullName;
-                    TempData["Role"] = role;
-
-                    return RedirectToAction("Dashboard");
-                }
-            }
-            catch (HttpRequestException)
-            {
-                ViewBag.Error = "Không thể kết nối đến máy chủ Backend. Vui lòng thử lại sau.";
+                ViewBag.Error = "Vui lòng nhập đầy đủ tài khoản và mật khẩu.";
                 return View();
             }
 
-            ViewBag.Error = "Email hoặc mật khẩu không hợp lệ, vui lòng nhập lại";
+            try
+            {
+                var user = await _dbContext.Accounts
+                    .Include(a => a.Role)
+                    .FirstOrDefaultAsync(a => 
+                        (a.Email == username || a.PhoneNumber == username) && a.IsActive);
+
+                if (user != null)
+                {
+                    // Allow Family and Admin
+                    if (user.Role?.RoleName == "Family" || user.Role?.RoleName == "Admin")
+                    {
+                        if (PasswordHelper.VerifyPassword(password, user.PasswordHash))
+                        {
+                            var fullName = user.FullName;
+                            var role = user.Role.RoleName == "Admin" ? "Admin" : "Người nhà";
+
+                            HttpContext.Session.SetString("IsLoggedIn", "true");
+                            HttpContext.Session.SetInt32("AccountId", user.AccountId);
+                            HttpContext.Session.SetString("FullName", fullName);
+                            HttpContext.Session.SetString("Role", role);
+                            HttpContext.Session.SetString("Email", user.Email ?? "");
+
+                            TempData["FullName"] = fullName;
+                            TempData["Role"] = role;
+
+                            return RedirectToAction("Dashboard");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ViewBag.Error = "Không thể kết nối đến cơ sở dữ liệu SQL Server: " + ex.Message;
+                return View();
+            }
+
+            ViewBag.Error = "Email/Số điện thoại hoặc mật khẩu không hợp lệ, vui lòng nhập lại";
             return View();
         }
 
@@ -124,7 +155,7 @@ namespace SilverCare.Controllers
 
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
         [HttpGet]
-        public IActionResult Dashboard()
+        public async Task<IActionResult> Dashboard()
         {
             if (string.IsNullOrEmpty(HttpContext.Session.GetString("IsLoggedIn")))
             {
@@ -135,6 +166,18 @@ namespace SilverCare.Controllers
             var role = HttpContext.Session.GetString("Role");
             if (!string.IsNullOrEmpty(fullName)) TempData["FullName"] = fullName;
             if (!string.IsNullOrEmpty(role)) TempData["Role"] = role;
+
+            try
+            {
+                ViewBag.TotalResidents = await _dbContext.Residents.CountAsync(r => r.IsActive);
+                ViewBag.StableResidents = await _dbContext.Residents.CountAsync(r => r.IsActive && r.Status == "Đang ổn định");
+                ViewBag.MonitoringResidents = await _dbContext.Residents.CountAsync(r => r.IsActive && r.Status == "Cần theo dõi");
+                ViewBag.TotalAlerts = await _dbContext.HealthAlerts.CountAsync(a => a.Status == "Chưa xử lý");
+            }
+            catch
+            {
+                // Fallback if DB query fails
+            }
 
             return View();
         }
@@ -192,70 +235,91 @@ namespace SilverCare.Controllers
 
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
         [HttpGet]
-        public IActionResult Profile(string? tab = "profile")
+        public async Task<IActionResult> Profile(string? tab = "profile")
         {
             if (string.IsNullOrEmpty(HttpContext.Session.GetString("IsLoggedIn")))
             {
                 return RedirectToAction("Index", "Home");
             }
 
-            var fullName = HttpContext.Session.GetString("FullName") ?? "Nguyễn Thị Lan";
-            var role = HttpContext.Session.GetString("Role") ?? "Nhân viên";
-            
+            var accountId = HttpContext.Session.GetInt32("AccountId");
+            Account? account = null;
+
+            if (accountId.HasValue)
+            {
+                account = await _dbContext.Accounts.Include(a => a.Role).FirstOrDefaultAsync(a => a.AccountId == accountId.Value);
+            }
+            if (account == null)
+            {
+                var sessionEmail = HttpContext.Session.GetString("Email");
+                if (!string.IsNullOrEmpty(sessionEmail))
+                {
+                    account = await _dbContext.Accounts.Include(a => a.Role).FirstOrDefaultAsync(a => a.Email == sessionEmail);
+                }
+            }
+
+            var fullName = account?.FullName ?? HttpContext.Session.GetString("FullName") ?? "Nguyễn Thị Lan";
+            var role = account?.Role?.RoleName ?? HttpContext.Session.GetString("Role") ?? "Nhân viên";
+            var email = account?.Email ?? "ntlan@silvercare.vn";
+            var phone = account?.PhoneNumber ?? "0901 234 567";
+            var department = account?.Department ?? "Phòng chăm sóc A";
+
             TempData["FullName"] = fullName;
             TempData["Role"] = role;
 
             ViewBag.FullName = fullName;
             ViewBag.Role = role;
+            ViewBag.Email = email;
+            ViewBag.Phone = phone;
+            ViewBag.Department = department;
             ViewBag.ActiveTab = tab ?? "profile";
-
-            // Determine email, phone, department based on user
-            if (fullName == "Nguyễn Văn A" || fullName == "Nguyễn Thị Lan")
-            {
-                ViewBag.Email = fullName == "Nguyễn Văn A" ? "a.nguyen@silvercare.vn" : "ntlan@silvercare.vn";
-                ViewBag.Phone = "0901 234 567";
-                ViewBag.Department = "Phòng chăm sóc A";
-            }
-            else if (fullName == "Trần Thị B")
-            {
-                ViewBag.Email = "b.tran@silvercare.vn";
-                ViewBag.Phone = "0912 345 678";
-                ViewBag.Department = "Phòng chăm sóc B";
-            }
-            else if (fullName == "Lê Hoàng C")
-            {
-                ViewBag.Email = "c.le@silvercare.vn";
-                ViewBag.Phone = "0987 654 321";
-                ViewBag.Department = "Phòng chăm sóc C";
-            }
-            else if (role == "Người nhà")
-            {
-                ViewBag.Email = "example@email.com";
-                ViewBag.Phone = "0909 090 909";
-                ViewBag.Department = "Thân nhân cư dân";
-            }
-            else
-            {
-                ViewBag.Email = "ntlan@silvercare.vn";
-                ViewBag.Phone = "0901 234 567";
-                ViewBag.Department = "Phòng chăm sóc A";
-            }
 
             return View();
         }
 
         [HttpPost]
-        public IActionResult Profile(string fullName, string email, string phone, string department, string? tab = "profile")
+        public async Task<IActionResult> Profile(string fullName, string email, string phone, string department, string? tab = "profile")
         {
             if (string.IsNullOrEmpty(HttpContext.Session.GetString("IsLoggedIn")))
             {
                 return RedirectToAction("Index", "Home");
+            }
+
+            var accountId = HttpContext.Session.GetInt32("AccountId");
+            Account? account = null;
+
+            if (accountId.HasValue)
+            {
+                account = await _dbContext.Accounts.FirstOrDefaultAsync(a => a.AccountId == accountId.Value);
+            }
+            if (account == null)
+            {
+                var sessionEmail = HttpContext.Session.GetString("Email");
+                if (!string.IsNullOrEmpty(sessionEmail))
+                {
+                    account = await _dbContext.Accounts.FirstOrDefaultAsync(a => a.Email == sessionEmail);
+                }
+            }
+
+            if (account != null)
+            {
+                account.FullName = fullName;
+                account.Email = email;
+                account.PhoneNumber = phone;
+                account.Department = department;
+                account.UpdatedAt = DateTime.UtcNow;
+                await _dbContext.SaveChangesAsync();
             }
 
             if (!string.IsNullOrEmpty(fullName))
             {
                 HttpContext.Session.SetString("FullName", fullName);
                 TempData["FullName"] = fullName;
+            }
+
+            if (!string.IsNullOrEmpty(email))
+            {
+                HttpContext.Session.SetString("Email", email);
             }
 
             var role = HttpContext.Session.GetString("Role") ?? "Nhân viên";
@@ -267,7 +331,7 @@ namespace SilverCare.Controllers
             ViewBag.Phone = phone;
             ViewBag.Department = department;
             ViewBag.ActiveTab = tab ?? "profile";
-            ViewBag.SuccessMessage = "Lưu thay đổi thông tin cá nhân thành công!";
+            ViewBag.SuccessMessage = "Lưu thay đổi thông tin cá nhân vào cơ sở dữ liệu thành công!";
 
             return View();
         }
@@ -385,14 +449,5 @@ namespace SilverCare.Controllers
             ViewBag.Role = role;
             return View();
         }
-
-        private class LoginResponseModel
-        {
-            public bool IsSuccess { get; set; }
-            public string Message { get; set; } = string.Empty;
-            public string FullName { get; set; } = string.Empty;
-            public string Role { get; set; } = string.Empty;
-        }
     }
 }
-
