@@ -38,20 +38,17 @@
         <div class="login-card">
             <h2>Đăng nhập người nhà</h2>
             <p class="login-subtitle">Theo dõi tình trạng sức khỏe của người thân</p>
-            
-            @if (ViewBag.Error != null)
-            {
-                <div class="alert-danger">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="alert-icon">
-                        <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <span>@ViewBag.Error</span>
-                </div>
-            }
-            
-            <form class="login-form" method="post" asp-action="Family">
+
+            <div class="alert-danger" id="loginErrorBox" style="display:none;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="alert-icon">
+                    <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span id="loginErrorText">Email hoặc mật khẩu không đúng.</span>
+            </div>
+
+            <form class="login-form" id="familyLoginForm">
                 <div class="form-group">
                     <label for="username">Email / Số điện thoại</label>
                     <input type="text" id="username" name="username" placeholder="example@email.com" required />
@@ -104,5 +101,57 @@
                 eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
             }
         }
+
+        function showLoginError(message) {
+            var box = document.getElementById("loginErrorBox");
+            var text = document.getElementById("loginErrorText");
+            text.textContent = message;
+            box.style.display = "flex";
+        }
+
+        document.getElementById("familyLoginForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+            var submitBtn = this.querySelector(".login-submit-btn");
+            var email = document.getElementById("username").value.trim();
+            var password = document.getElementById("password").value;
+
+            document.getElementById("loginErrorBox").style.display = "none";
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Đang đăng nhập...";
+
+            try {
+                var { data, error } = await window.sb.auth.signInWithPassword({ email: email, password: password });
+                if (error || !data.session) {
+                    showLoginError("Email hoặc mật khẩu không hợp lệ, vui lòng nhập lại");
+                    return;
+                }
+
+                var { data: profile, error: profileError } = await window.sb
+                    .from("profiles")
+                    .select("role, is_active")
+                    .eq("id", data.user.id)
+                    .single();
+
+                if (profileError || !profile || profile.is_active === false) {
+                    await window.sb.auth.signOut();
+                    showLoginError("Tài khoản không tồn tại hoặc đã bị khóa.");
+                    return;
+                }
+
+                if (profile.role !== "family") {
+                    await window.sb.auth.signOut();
+                    showLoginError("Tài khoản nhân viên vui lòng đăng nhập ở trang \"Nhân viên trung tâm\".");
+                    return;
+                }
+
+                window.location.href = "/Home/Dashboard";
+            } catch (err) {
+                console.error(err);
+                showLoginError("Không thể kết nối tới máy chủ. Vui lòng thử lại sau.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Đăng nhập";
+            }
+        });
     </script>
 }

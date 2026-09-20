@@ -1,30 +1,4 @@
-@{
-    var fullName = Context.Session.GetString("FullName") ?? TempData["FullName"] as string ?? "Nguyễn Thị Lan";
-    var role = Context.Session.GetString("Role") ?? TempData["Role"] as string ?? "Nhân viên";
-    
-    // Compute initials for avatar (e.g., "Nguyễn Thị Lan" -> "NTL")
-    string initials = "NTL";
-    if (!string.IsNullOrEmpty(fullName))
-    {
-        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length >= 3)
-        {
-            initials = $"{parts[0][0]}{parts[parts.Length-2][0]}{parts[parts.Length-1][0]}".ToUpper();
-        }
-        else if (parts.Length > 0)
-        {
-            initials = string.Join("", parts.Select(p => p[0])).ToUpper();
-            if (initials.Length > 3) initials = initials.Substring(0, 3);
-        }
-    }
-
-    var roleSubtitle = role == "Nhân viên" ? "Nhân viên chăm sóc" : (role == "Người nhà" ? "Người nhà thân nhân" : role);
-    
-    // Keep TempData values for the next request in case of redirects/refreshes
-    TempData.Keep("FullName");
-    TempData.Keep("Role");
-}
-
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -33,13 +7,22 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
+    <meta name="allowed-roles" content="@ViewData["AllowedRoles"]" />
+    <meta name="feature-name" content="@ViewData["Title"]" />
     <title>@ViewData["Title"] - SilverCare</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+
+    <script>
+        window.__SUPABASE_URL__ = "@Configuration["Supabase:Url"]";
+        window.__SUPABASE_ANON_KEY__ = "@Configuration["Supabase:AnonKey"]";
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@@supabase/supabase-js@@2/dist/umd/supabase.js"></script>
+    <script src="~/js/supabase-client.js" asp-append-version="true"></script>
 </head>
 <body>
 
-    <div class="dashboard-wrapper">
+    <div class="dashboard-wrapper" id="app-root" style="visibility:hidden;">
         <!-- SIDEBAR -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -71,7 +54,7 @@
                 </li>
 
                 <!-- Hồ sơ người cao tuổi -->
-                <li class="sidebar-menu-item @(currentAction == "Residents" ? "active" : "")">
+                <li class="sidebar-menu-item @(currentAction == "Residents" ? "active" : "")" data-roles="admin,manager,staff">
                     <a href="@Url.Action("Residents", "Home")" class="sidebar-menu-link">
                         <!-- Users Icon -->
                         <svg viewBox="0 0 24 24">
@@ -133,7 +116,7 @@
                 </li>
 
                 <!-- Báo cáo -->
-                <li class="sidebar-menu-item @(currentAction == "Report" ? "active" : "")">
+                <li class="sidebar-menu-item @(currentAction == "Report" ? "active" : "")" data-roles="admin,manager,staff">
                     <a href="@Url.Action("Report", "Home")" class="sidebar-menu-link">
                         <!-- File Text Icon -->
                         <svg viewBox="0 0 24 24">
@@ -168,6 +151,32 @@
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                         </svg>
                         <span>Cài đặt</span>
+                    </a>
+                </li>
+
+                <!-- Quản lý tài khoản (Admin) -->
+                <li class="sidebar-menu-item @(currentAction == "UserManagement" ? "active" : "")" data-roles="admin">
+                    <a href="@Url.Action("UserManagement", "Home")" class="sidebar-menu-link">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <line x1="19" y1="8" x2="19" y2="14" />
+                            <line x1="22" y1="11" x2="16" y2="11" />
+                        </svg>
+                        <span>Quản lý tài khoản</span>
+                    </a>
+                </li>
+
+                <!-- Cấu hình hệ thống (Admin) -->
+                <li class="sidebar-menu-item @(currentAction == "SystemSettings" ? "active" : "")" data-roles="admin">
+                    <a href="@Url.Action("SystemSettings", "Home")" class="sidebar-menu-link">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="3" y="3" width="7" height="7" rx="1" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" />
+                        </svg>
+                        <span>Cấu hình hệ thống</span>
                     </a>
                 </li>
             </ul>
@@ -220,8 +229,8 @@
                     <!-- Profile Dropdown -->
                     <div class="topbar-profile-wrapper" id="userProfileWrapper">
                         <div class="topbar-profile" id="userProfileDropdown" role="button" aria-haspopup="true" aria-expanded="false" tabindex="0">
-                            <div class="profile-avatar">@initials</div>
-                            <span class="profile-name">@fullName</span>
+                            <div class="profile-avatar" data-user-initials>SC</div>
+                            <span class="profile-name" data-user-fullname>—</span>
                             <span class="profile-chevron">
                                 <svg viewBox="0 0 24 24">
                                     <polyline points="6 9 12 15 18 9" />
@@ -232,8 +241,8 @@
                         <!-- Dropdown Menu -->
                         <div class="profile-dropdown-menu" id="userProfileMenu">
                             <div class="profile-dropdown-header">
-                                <div class="dropdown-user-name">@fullName</div>
-                                <div class="dropdown-user-role">@roleSubtitle</div>
+                                <div class="dropdown-user-name" data-user-fullname>—</div>
+                                <div class="dropdown-user-role" data-user-role-label>—</div>
                             </div>
                             <div class="profile-dropdown-divider"></div>
                             <ul class="profile-dropdown-list">
@@ -265,7 +274,7 @@
                                     </a>
                                 </li>
                                 <li>
-                                    <a href="@Url.Action("Logout", "Home")" class="profile-dropdown-item logout-item" id="logoutBtn" onclick="handleLogout(event, '@Url.Action("Logout", "Home")')">
+                                    <a href="#" class="profile-dropdown-item logout-item" id="logoutBtn">
                                         <svg class="dropdown-item-icon logout-icon" viewBox="0 0 24 24">
                                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                                             <polyline points="16 17 21 12 16 7"></polyline>
@@ -289,6 +298,8 @@
             <button type="button" class="floating-help-btn" title="Trợ giúp & Hỗ trợ">?</button>
         </main>
     </div>
+
+    <script src="~/js/auth-guard.js" asp-append-version="true"></script>
 
     <!-- Scripts Section -->
     <script>
@@ -331,20 +342,6 @@
                 });
             }
         });
-
-        // Logout handler function
-        function handleLogout(event, logoutUrl) {
-            if (event) event.preventDefault();
-            try {
-                sessionStorage.clear();
-                localStorage.removeItem('silvercare_session');
-            } catch (e) {}
-
-            if (window.history && window.history.replaceState) {
-                window.history.replaceState(null, '', '@Url.Action("Index", "Home")');
-            }
-            window.location.replace(logoutUrl || '@Url.Action("Logout", "Home")');
-        }
 
         // Prevent restoring page from browser cache (bfcache) on Back button
         window.addEventListener('pageshow', function (event) {

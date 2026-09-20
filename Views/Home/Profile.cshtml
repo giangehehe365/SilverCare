@@ -1,32 +1,7 @@
 @{
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewData["Title"] = "Cài đặt - Hồ sơ cá nhân";
-
-    var fullName = ViewBag.FullName as string ?? TempData["FullName"] as string ?? "Nguyễn Thị Lan";
-    var role = ViewBag.Role as string ?? TempData["Role"] as string ?? "Nhân viên";
-    var email = ViewBag.Email as string ?? "ntlan@silvercare.vn";
-    var phone = ViewBag.Phone as string ?? "0901 234 567";
-    var department = ViewBag.Department as string ?? "Phòng chăm sóc A";
     var activeTab = ViewBag.ActiveTab as string ?? "profile";
-    var successMsg = ViewBag.SuccessMessage as string;
-
-    var roleSubtitle = role == "Nhân viên" ? "Nhân viên chăm sóc" : (role == "Người nhà" ? "Người nhà thân nhân" : role);
-
-    // Compute initials for avatar (e.g., "Nguyễn Thị Lan" -> "NTL")
-    string initials = "NTL";
-    if (!string.IsNullOrEmpty(fullName))
-    {
-        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length >= 3)
-        {
-            initials = $"{parts[0][0]}{parts[parts.Length-2][0]}{parts[parts.Length-1][0]}".ToUpper();
-        }
-        else if (parts.Length > 0)
-        {
-            initials = string.Join("", parts.Select(p => p[0])).ToUpper();
-            if (initials.Length > 3) initials = initials.Substring(0, 3);
-        }
-    }
 }
 
 <style>
@@ -438,16 +413,13 @@
 
     <!-- Right Content Card -->
     <main class="settings-content-card">
-        @if (!string.IsNullOrEmpty(successMsg))
-        {
-            <div class="settings-alert-success" id="settingsAlert">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-                <span>@successMsg</span>
-            </div>
-        }
+        <div class="settings-alert-success" id="settingsAlert" style="display:none;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <span id="settingsAlertText">Đã lưu thay đổi.</span>
+        </div>
 
         <!-- 1. Tab Hồ sơ cá nhân -->
         <div class="settings-tab-pane @(activeTab == "profile" ? "active" : "")" id="tab-profile">
@@ -455,35 +427,34 @@
 
             <!-- Avatar & Profile info header -->
             <div class="settings-profile-header">
-                <div class="settings-profile-avatar">@initials</div>
+                <div class="settings-profile-avatar" data-user-initials>—</div>
                 <div class="settings-profile-info">
-                    <div class="settings-profile-name">@fullName</div>
-                    <div class="settings-profile-role">@roleSubtitle</div>
+                    <div class="settings-profile-name" data-user-fullname>—</div>
+                    <div class="settings-profile-role" data-user-role-label>—</div>
                 </div>
             </div>
 
             <!-- Profile Form -->
-            <form method="post" asp-action="Profile">
-                <input type="hidden" name="tab" value="profile" />
+            <form id="profileForm">
                 <div class="settings-form-grid">
                     <div class="settings-form-group">
                         <label class="settings-form-label" for="fullName">Họ tên</label>
-                        <input type="text" id="fullName" name="fullName" class="settings-form-input" value="@fullName" required />
+                        <input type="text" id="fullName" name="fullName" class="settings-form-input" required />
                     </div>
 
                     <div class="settings-form-group">
                         <label class="settings-form-label" for="email">Email</label>
-                        <input type="email" id="email" name="email" class="settings-form-input" value="@email" required />
+                        <input type="email" id="email" name="email" class="settings-form-input" disabled />
                     </div>
 
                     <div class="settings-form-group">
                         <label class="settings-form-label" for="phone">Số điện thoại</label>
-                        <input type="text" id="phone" name="phone" class="settings-form-input" value="@phone" required />
+                        <input type="text" id="phone" name="phone" class="settings-form-input" />
                     </div>
 
                     <div class="settings-form-group">
                         <label class="settings-form-label" for="department">Phòng ban</label>
-                        <input type="text" id="department" name="department" class="settings-form-input" value="@department" required />
+                        <input type="text" id="department" name="department" class="settings-form-input" />
                     </div>
                 </div>
 
@@ -598,65 +569,37 @@
                 <!-- 2. Tạo và chỉnh sửa hồ sơ -->
                 <div class="permission-row-item">
                     <span class="permission-title">Tạo và chỉnh sửa hồ sơ</span>
-                    @if (role == "Nhân viên")
-                    {
-                        <span class="permission-status-badge badge-granted">Có quyền</span>
-                    }
-                    else
-                    {
-                        <span class="permission-status-badge badge-denied">Không có quyền</span>
-                    }
+                    <span class="permission-status-badge" data-permission="edit_residents">—</span>
                 </div>
 
                 <!-- 3. Nhập chỉ số sức khỏe -->
                 <div class="permission-row-item">
                     <span class="permission-title">Nhập chỉ số sức khỏe</span>
-                    @if (role == "Nhân viên")
-                    {
-                        <span class="permission-status-badge badge-granted">Có quyền</span>
-                    }
-                    else
-                    {
-                        <span class="permission-status-badge badge-denied">Không có quyền</span>
-                    }
+                    <span class="permission-status-badge" data-permission="edit_health">—</span>
                 </div>
 
                 <!-- 4. Xác nhận cấp thuốc -->
                 <div class="permission-row-item">
                     <span class="permission-title">Xác nhận cấp thuốc</span>
-                    @if (role == "Nhân viên")
-                    {
-                        <span class="permission-status-badge badge-granted">Có quyền</span>
-                    }
-                    else
-                    {
-                        <span class="permission-status-badge badge-denied">Không có quyền</span>
-                    }
+                    <span class="permission-status-badge" data-permission="edit_medication">—</span>
                 </div>
 
                 <!-- 5. Xuất báo cáo PDF -->
                 <div class="permission-row-item">
                     <span class="permission-title">Xuất báo cáo PDF</span>
-                    @if (role == "Nhân viên")
-                    {
-                        <span class="permission-status-badge badge-granted">Có quyền</span>
-                    }
-                    else
-                    {
-                        <span class="permission-status-badge badge-denied">Không có quyền</span>
-                    }
+                    <span class="permission-status-badge" data-permission="reports">—</span>
                 </div>
 
                 <!-- 6. Quản lý tài khoản người dùng -->
                 <div class="permission-row-item">
                     <span class="permission-title">Quản lý tài khoản người dùng</span>
-                    <span class="permission-status-badge badge-denied">Không có quyền</span>
+                    <span class="permission-status-badge" data-permission="user_management">—</span>
                 </div>
 
                 <!-- 7. Cấu hình hệ thống -->
                 <div class="permission-row-item">
                     <span class="permission-title">Cấu hình hệ thống</span>
-                    <span class="permission-status-badge badge-denied">Không có quyền</span>
+                    <span class="permission-status-badge" data-permission="system_settings">—</span>
                 </div>
             </div>
         </div>
@@ -694,8 +637,9 @@
             }
         }
 
-        function handlePasswordChange(e) {
+        async function handlePasswordChange(e) {
             e.preventDefault();
+            const currentPass = document.getElementById('currentPassword').value;
             const newPass = document.getElementById('newPassword').value;
             const confirmPass = document.getElementById('confirmPassword').value;
 
@@ -703,11 +647,91 @@
                 alert('Mật khẩu xác nhận không khớp! Vui lòng kiểm tra lại.');
                 return;
             }
+            if (!window.currentUser) {
+                alert('Không xác định được người dùng hiện tại. Vui lòng tải lại trang.');
+                return;
+            }
 
-            alert('Đổi mật khẩu thành công!');
+            const { error: verifyError } = await window.sb.auth.signInWithPassword({
+                email: window.currentUser.email,
+                password: currentPass
+            });
+            if (verifyError) {
+                alert('Mật khẩu hiện tại không đúng.');
+                return;
+            }
+
+            const { error: updateError } = await window.sb.auth.updateUser({ password: newPass });
+            if (updateError) {
+                alert('Không thể đổi mật khẩu: ' + updateError.message);
+                return;
+            }
+
+            showSettingsAlert('Đổi mật khẩu thành công!');
             document.getElementById('currentPassword').value = '';
             document.getElementById('newPassword').value = '';
             document.getElementById('confirmPassword').value = '';
         }
+
+        function showSettingsAlert(message) {
+            const alertBox = document.getElementById('settingsAlert');
+            const alertText = document.getElementById('settingsAlertText');
+            alertText.textContent = message;
+            alertBox.style.display = 'flex';
+            setTimeout(() => { alertBox.style.display = 'none'; }, 4000);
+        }
+
+        // Quyền hiển thị ở tab "Phân quyền tài khoản" — khớp với RLS trong supabase/schema.sql
+        const PERMISSION_MATRIX = {
+            edit_residents:   ["admin", "manager", "staff"],
+            edit_health:      ["admin", "manager", "staff"],
+            edit_medication:  ["admin", "manager", "staff"],
+            reports:          ["admin", "manager", "staff"],
+            user_management:  ["admin"],
+            system_settings:  ["admin"]
+        };
+
+        function renderPermissions(role) {
+            document.querySelectorAll("[data-permission]").forEach(el => {
+                const key = el.getAttribute("data-permission");
+                const allowed = (PERMISSION_MATRIX[key] || []).indexOf(role) !== -1;
+                el.textContent = allowed ? "Có quyền" : "Không có quyền";
+                el.classList.toggle("badge-granted", allowed);
+                el.classList.toggle("badge-denied", !allowed);
+            });
+        }
+
+        document.addEventListener("silvercare:auth-ready", async function (e) {
+            const user = e.detail;
+            document.getElementById("fullName").value = user.fullName || "";
+            document.getElementById("email").value = user.email || "";
+            document.getElementById("phone").value = user.phone || "";
+            document.getElementById("department").value = user.department || "";
+            renderPermissions(user.role);
+        });
+
+        document.getElementById("profileForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+            if (!window.currentUser) return;
+
+            const { error } = await window.sb
+                .from("profiles")
+                .update({
+                    full_name: document.getElementById("fullName").value.trim(),
+                    phone: document.getElementById("phone").value.trim(),
+                    department: document.getElementById("department").value.trim()
+                })
+                .eq("id", window.currentUser.id);
+
+            if (error) {
+                alert("Không thể lưu hồ sơ: " + error.message);
+                return;
+            }
+
+            document.querySelectorAll("[data-user-fullname]").forEach(el => {
+                el.textContent = document.getElementById("fullName").value.trim();
+            });
+            showSettingsAlert("Lưu thay đổi thông tin cá nhân thành công!");
+        });
     </script>
 }

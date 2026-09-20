@@ -1,6 +1,7 @@
 @{
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewData["Title"] = "Hồ sơ người cao tuổi";
+    ViewData["AllowedRoles"] = "admin,manager,staff";
 }
 
 <!-- Custom Styles for Residents Page -->
@@ -757,7 +758,9 @@
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="inp-room">Phòng <span style="color: #f04438;">*</span></label>
-                    <input type="text" class="form-input" id="inp-room" placeholder="VD: 201" required />
+                    <select class="form-select" id="inp-room" required>
+                        <option value="">Đang tải danh sách phòng...</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="inp-blood">Nhóm máu</label>
@@ -1003,61 +1006,39 @@
 
 @section Scripts {
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            // Default baseline data strictly synchronized with health measurements (Image 2)
-            const defaultResidents = [
-                {
-                    id: "NCT001",
-                    initials: "NVA",
-                    name: "Nguyễn Văn An",
-                    age: 78,
-                    gender: "Nam",
-                    room: "201",
-                    blood: "A+",
-                    status: "Trung bình",
-                    familyName: "Nguyễn Văn Hải",
-                    familyPhone: "0909090909",
-                    familyRel: "Con trai",
-                    familyAddress: "123 Nguyễn Trãi, Quận 1, TP. HCM",
-                    admissionDate: "15/05/2024",
-                    notes: "Theo dõi huyết áp định kỳ mỗi sáng, chế độ ăn giảm muối."
-                },
-                {
-                    id: "NCT002",
-                    initials: "LVB",
-                    name: "Lê Văn Bình",
-                    age: 82,
-                    gender: "Nam",
-                    room: "102",
-                    blood: "B+",
-                    status: "Trung bình",
-                    familyName: "Lê Thị Mai",
-                    familyPhone: "0918888888",
-                    familyRel: "Con gái",
-                    familyAddress: "456 Lê Lợi, Quận Gò Vấp, TP. HCM",
-                    admissionDate: "10/11/2023",
-                    notes: "Thoái hóa khớp gối, cần hỗ trợ vận động và vật lý trị liệu."
-                },
-                {
-                    id: "NCT003",
-                    initials: "PTC",
-                    name: "Phạm Thị Cúc",
-                    age: 75,
-                    gender: "Nữ",
-                    room: "305",
-                    blood: "O+",
-                    status: "Trung bình",
-                    familyName: "Trần Minh Hoàng",
-                    familyPhone: "0989999999",
-                    familyRel: "Chồng",
-                    familyAddress: "789 Cách Mạng Tháng 8, Quận 3, TP. HCM",
-                    admissionDate: "20/02/2024",
-                    notes: "Tiền sử đường huyết dao động, kiểm tra sức khỏe hàng ngày."
-                }
-            ];
-
-            const STORAGE_KEY = "silvercare_elderly_profiles_v3";
+        document.addEventListener("DOMContentLoaded", async function () {
+            // Dữ liệu cư dân giờ lấy thật từ Supabase (bảng residents/rooms/family_members).
+            // Row Level Security quyết định ai thấy dòng nào — Family chỉ thấy resident liên kết với mình.
             let currentResidents = [];
+
+            function formatDateVN(iso) {
+                if (!iso) return "";
+                const parts = iso.split("-");
+                if (parts.length !== 3) return iso;
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+
+            function mapResidentRow(row) {
+                const contacts = row.family_members || [];
+                const primary = contacts.find(f => f.is_primary_contact) || contacts[0] || {};
+                return {
+                    residentId: row.resident_id,
+                    id: row.resident_code,
+                    initials: computeInitials(row.full_name),
+                    name: row.full_name,
+                    age: row.age,
+                    gender: row.gender,
+                    room: row.rooms ? row.rooms.room_code : "",
+                    blood: row.blood_type,
+                    status: row.status,
+                    familyName: primary.full_name,
+                    familyPhone: primary.phone,
+                    familyRel: primary.relationship,
+                    familyAddress: primary.address,
+                    admissionDate: formatDateVN(row.admission_date),
+                    notes: row.notes
+                };
+            }
 
             // Sync resident status with health vitals from Health tracking
             // Mapping: Bình thường --> Đang ổn định, Trung bình --> Trung bình, Cao --> Cần theo dõi
@@ -1100,29 +1081,91 @@
                 return defaultStatus;
             }
 
-            // Load residents from storage or fallback to default
-            function loadResidents() {
-                localStorage.removeItem("silvercare_elderly_profiles_v2");
-                const raw = localStorage.getItem(STORAGE_KEY);
-                if (raw) {
-                    try {
-                        currentResidents = JSON.parse(raw);
-                    } catch (e) {
-                        currentResidents = [...defaultResidents];
-                    }
-                } else {
-                    currentResidents = [...defaultResidents];
+            // Tải danh sách cư dân thật từ Supabase (kèm phòng + người liên hệ chính)
+            async function loadResidents() {
+                const { data, error } = await window.sb
+                    .from("residents")
+                    .select(
+                        "resident_id, resident_code, full_name, age, gender, blood_type, status, admission_date, notes, room_id, rooms(room_code, room_name), family_members(full_name, relationship, phone, address, is_primary_contact)"
+                    )
+                    .eq("is_active", true)
+                    .order("resident_id");
+
+                if (error) {
+                    console.error(error);
+                    showToast("Không tải được danh sách cư dân: " + error.message);
+                    currentResidents = [];
+                    return;
                 }
 
-                // Sync status from today's health measurements
+                currentResidents = (data || []).map(mapResidentRow);
+
+                // Trạng thái hiển thị có thể bị ghi đè tạm thời bởi chỉ số sức khỏe
+                // trong localStorage cho tới khi module Sức khỏe được chuyển sang Supabase.
                 currentResidents.forEach(res => {
                     res.status = getUpdatedStatusFromHealth(res.id, res.status);
                 });
-                saveResidents();
             }
 
-            function saveResidents() {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(currentResidents));
+            // Danh sách phòng còn chỗ trống, dùng cho dropdown ở modal Thêm hồ sơ
+            async function loadAvailableRooms() {
+                const { data: rooms, error: roomsError } = await window.sb
+                    .from("rooms")
+                    .select("room_id, room_code, room_name, capacity")
+                    .eq("is_active", true)
+                    .order("room_code");
+
+                if (roomsError) {
+                    console.error(roomsError);
+                    return [];
+                }
+
+                const { data: occupants, error: occError } = await window.sb
+                    .from("residents")
+                    .select("room_id")
+                    .eq("is_active", true);
+
+                if (occError) console.error(occError);
+
+                const occupancy = {};
+                (occupants || []).forEach(r => {
+                    if (r.room_id) occupancy[r.room_id] = (occupancy[r.room_id] || 0) + 1;
+                });
+
+                return (rooms || []).filter(r => (occupancy[r.room_id] || 0) < r.capacity);
+            }
+
+            // Tạo hồ sơ cư dân mới + người liên hệ chính (2 lệnh ghi, cùng một giao dịch nghiệp vụ)
+            async function createResident(payload) {
+                const { data: resident, error } = await window.sb
+                    .from("residents")
+                    .insert({
+                        full_name: payload.name,
+                        age: payload.age,
+                        gender: payload.gender,
+                        room_id: payload.roomId,
+                        blood_type: payload.blood,
+                        status: payload.status,
+                        admission_date: payload.admissionIso || null,
+                        notes: payload.notes || null
+                    })
+                    .select("resident_id, resident_code")
+                    .single();
+
+                if (error) throw error;
+
+                const { error: famError } = await window.sb.from("family_members").insert({
+                    resident_id: resident.resident_id,
+                    full_name: payload.familyName,
+                    relationship: payload.familyRel,
+                    phone: payload.familyPhone,
+                    address: payload.familyAddress || null,
+                    is_primary_contact: true
+                });
+
+                if (famError) throw famError;
+
+                return resident;
             }
 
             // Helper to get initials
@@ -1440,12 +1483,11 @@
             const btnCancelCreate = document.getElementById("btn-cancel-create-modal");
             const btnSaveResident = document.getElementById("btn-save-new-resident");
 
-            function openCreateModal() {
+            async function openCreateModal() {
                 // Reset form
                 document.getElementById("inp-fullname").value = "";
                 document.getElementById("inp-age").value = "";
                 document.getElementById("inp-gender").value = "Nam";
-                document.getElementById("inp-room").value = "";
                 document.getElementById("inp-blood").value = "O+";
                 document.getElementById("inp-status").value = "Đang ổn định";
                 document.getElementById("inp-family-name").value = "";
@@ -1455,7 +1497,19 @@
                 document.getElementById("inp-admission").valueAsDate = new Date();
                 document.getElementById("inp-notes").value = "";
 
+                const roomSelect = document.getElementById("inp-room");
+                roomSelect.innerHTML = '<option value="">Đang tải danh sách phòng...</option>';
+
                 createModal.classList.add("active");
+
+                const rooms = await loadAvailableRooms();
+                if (rooms.length === 0) {
+                    roomSelect.innerHTML = '<option value="">Không còn phòng trống</option>';
+                } else {
+                    roomSelect.innerHTML = rooms
+                        .map(r => `<option value="${r.room_id}">${r.room_code}${r.room_name ? " - " + r.room_name : ""} (còn trống)</option>`)
+                        .join("");
+                }
             }
 
             function closeCreateModal() {
@@ -1472,11 +1526,11 @@
             }
 
             if (btnSaveResident) {
-                btnSaveResident.addEventListener("click", function () {
+                btnSaveResident.addEventListener("click", async function () {
                     const name = document.getElementById("inp-fullname").value.trim();
                     const age = parseInt(document.getElementById("inp-age").value);
                     const gender = document.getElementById("inp-gender").value;
-                    const room = document.getElementById("inp-room").value.trim();
+                    const roomId = document.getElementById("inp-room").value;
                     const blood = document.getElementById("inp-blood").value;
                     const status = document.getElementById("inp-status").value;
                     const familyName = document.getElementById("inp-family-name").value.trim();
@@ -1486,54 +1540,41 @@
                     const admissionVal = document.getElementById("inp-admission").value;
                     const notes = document.getElementById("inp-notes").value.trim();
 
-                    if (!name || isNaN(age) || !room || !familyName || !familyPhone) {
+                    if (!name || isNaN(age) || !roomId || !familyName || !familyPhone) {
                         alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
                         return;
                     }
 
-                    // Format date
-                    let formattedAdmission = "Hôm nay";
-                    if (admissionVal) {
-                        const parts = admissionVal.split("-");
-                        if (parts.length === 3) {
-                            formattedAdmission = `${parts[2]}/${parts[1]}/${parts[0]}`;
-                        }
+                    btnSaveResident.disabled = true;
+                    btnSaveResident.textContent = "Đang lưu...";
+
+                    try {
+                        await createResident({
+                            name,
+                            age,
+                            gender,
+                            roomId: parseInt(roomId, 10),
+                            blood,
+                            status,
+                            familyName,
+                            familyPhone,
+                            familyRel,
+                            familyAddress,
+                            admissionIso: admissionVal,
+                            notes
+                        });
+
+                        closeCreateModal();
+                        await loadResidents();
+                        renderTable();
+                        showToast(`Đã thêm hồ sơ thành công cho: ${name}`);
+                    } catch (err) {
+                        console.error(err);
+                        alert("Không thể lưu hồ sơ: " + err.message);
+                    } finally {
+                        btnSaveResident.disabled = false;
+                        btnSaveResident.textContent = "Lưu hồ sơ";
                     }
-
-                    // Generate next NCT id
-                    let maxNum = 0;
-                    currentResidents.forEach(r => {
-                        if (r.id && r.id.startsWith("NCT")) {
-                            const n = parseInt(r.id.substring(3));
-                            if (!isNaN(n) && n > maxNum) maxNum = n;
-                        }
-                    });
-                    const nextNum = Math.max(maxNum + 1, currentResidents.length + 1);
-                    const newId = `NCT${String(nextNum).padStart(3, '0')}`;
-
-                    const newResident = {
-                        id: newId,
-                        initials: computeInitials(name),
-                        name: name,
-                        age: age,
-                        gender: gender,
-                        room: room,
-                        blood: blood,
-                        status: status,
-                        familyName: familyName,
-                        familyPhone: familyPhone,
-                        familyRel: familyRel,
-                        familyAddress: familyAddress,
-                        admissionDate: formattedAdmission,
-                        notes: notes
-                    };
-
-                    currentResidents.push(newResident);
-                    saveResidents();
-
-                    closeCreateModal();
-                    renderTable();
-                    showToast(`Đã thêm hồ sơ thành công cho: ${name}`);
                 });
             }
 
@@ -1603,7 +1644,7 @@
             }
 
             // Initialize
-            loadResidents();
+            await loadResidents();
             renderTable();
 
             // Auto-open detail modal if navigated with residentId/id

@@ -1,0 +1,140 @@
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewData["Title"] = "Cấu hình hệ thống";
+    ViewData["AllowedRoles"] = "admin";
+}
+
+<style>
+    .ss-header { margin-bottom: 24px; }
+    .ss-title { font-size: 24px; font-weight: 700; color: #101828; margin: 0 0 4px; }
+    .ss-subtitle { font-size: 14px; color: #667085; margin: 0; }
+
+    .ss-card {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 28px 32px;
+        max-width: 640px;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+    }
+
+    .ss-section-title { font-size: 16px; font-weight: 700; color: #101828; margin: 0 0 18px; }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+    .form-label { font-size: 13px; font-weight: 600; color: #344054; }
+    .form-input {
+        width: 100%; padding: 10px 14px; border: 1px solid #d0d5dd; border-radius: 8px;
+        font-size: 14px; box-sizing: border-box;
+    }
+
+    .btn-primary-action {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: var(--color-primary); color: #fff; border: none; border-radius: 8px;
+        padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+
+    .ss-roadmap {
+        max-width: 640px;
+        margin-top: 24px;
+        background: #f9fafb;
+        border: 1px solid #eaecf0;
+        border-radius: 12px;
+        padding: 18px 22px;
+        font-size: 13.5px;
+        color: #475467;
+        line-height: 1.6;
+    }
+    .ss-roadmap b { color: #101828; }
+
+    .toast-popup {
+        position: fixed; bottom: 28px; right: 28px; background: #101828; color: #fff;
+        padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500;
+        z-index: 1000; opacity: 0; transform: translateY(20px); transition: all .3s ease; pointer-events: none;
+    }
+    .toast-popup.show { opacity: 1; transform: translateY(0); }
+</style>
+
+<div class="ss-header">
+    <h1 class="ss-title">Cấu hình hệ thống</h1>
+    <p class="ss-subtitle">Thông tin chung của trung tâm, hiển thị trên báo cáo và thông báo gửi cho gia đình.</p>
+</div>
+
+<div class="ss-card">
+    <h2 class="ss-section-title">Thông tin trung tâm</h2>
+    <form id="settingsForm">
+        <div class="form-group">
+            <label class="form-label" for="org-name">Tên trung tâm</label>
+            <input type="text" id="org-name" class="form-input" required />
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="org-address">Địa chỉ</label>
+            <input type="text" id="org-address" class="form-input" />
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="org-hotline">Số hotline hỗ trợ</label>
+            <input type="text" id="org-hotline" class="form-input" />
+        </div>
+        <button type="submit" class="btn-primary-action">Lưu cấu hình</button>
+    </form>
+</div>
+
+<div class="ss-roadmap">
+    <b>Đang trong lộ trình phát triển:</b> quản lý ca trực nhân viên, nhật ký audit,
+    tích hợp gửi email/SMS thật, và tuỳ chỉnh ngưỡng cảnh báo sức khỏe sẽ được bổ
+    sung vào trang này ở các giai đoạn tiếp theo (xem tài liệu SilverCare Blueprint,
+    mục 3.3).
+</div>
+
+<div class="toast-popup" id="toast-notify"><span id="toast-text"></span></div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            function showToast(msg) {
+                const toast = document.getElementById("toast-notify");
+                document.getElementById("toast-text").innerText = msg;
+                toast.classList.add("show");
+                setTimeout(() => toast.classList.remove("show"), 3500);
+            }
+
+            async function loadSettings() {
+                const { data, error } = await window.sb
+                    .from("app_settings")
+                    .select("org_name, org_address, org_hotline")
+                    .eq("id", 1)
+                    .single();
+
+                if (error) {
+                    showToast("Không tải được cấu hình: " + error.message);
+                    return;
+                }
+
+                document.getElementById("org-name").value = data.org_name || "";
+                document.getElementById("org-address").value = data.org_address || "";
+                document.getElementById("org-hotline").value = data.org_hotline || "";
+            }
+
+            document.getElementById("settingsForm").addEventListener("submit", async function (e) {
+                e.preventDefault();
+                const { error } = await window.sb
+                    .from("app_settings")
+                    .update({
+                        org_name: document.getElementById("org-name").value.trim(),
+                        org_address: document.getElementById("org-address").value.trim(),
+                        org_hotline: document.getElementById("org-hotline").value.trim(),
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq("id", 1);
+
+                if (error) {
+                    alert("Không thể lưu cấu hình: " + error.message);
+                    return;
+                }
+                showToast("Đã lưu cấu hình hệ thống.");
+            });
+
+            document.addEventListener("silvercare:auth-ready", loadSettings);
+            if (window.currentUser) loadSettings();
+        });
+    </script>
+}

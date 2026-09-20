@@ -1,15 +1,9 @@
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+// Không còn dùng ASP.NET Session/HttpClient cho đăng nhập — xác thực và phiên
+// làm việc do Supabase Auth quản lý phía client (xem wwwroot/js/auth-guard.js).
 builder.Services.AddControllersWithViews();
-builder.Services.AddHttpClient();
-builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromHours(2);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-});
 
 var app = builder.Build();
 
@@ -26,7 +20,6 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-app.UseSession();
 app.UseAuthorization();
 
 app.MapControllerRoute(

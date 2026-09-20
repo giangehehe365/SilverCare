@@ -1,0 +1,321 @@
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewData["Title"] = "Quản lý tài khoản";
+    ViewData["AllowedRoles"] = "admin";
+}
+
+<style>
+    .um-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .um-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0;
+    }
+
+    .um-card {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+    }
+
+    .um-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    .um-table th {
+        background-color: #fafbfc;
+        padding: 14px 20px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #475467;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid var(--border-color);
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .um-table td {
+        padding: 14px 20px;
+        border-bottom: 1px solid #f2f4f7;
+        color: #344054;
+        vertical-align: middle;
+    }
+
+    .um-role-select, .um-status-select {
+        padding: 6px 10px;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        font-size: 13px;
+        background: #fff;
+    }
+
+    .um-empty { padding: 48px 24px; text-align: center; color: #667085; }
+
+    .res-modal-overlay {
+        position: fixed; inset: 0; background: rgba(16,24,40,.6);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 999; opacity: 0; visibility: hidden;
+        transition: opacity .2s ease, visibility .2s ease; padding: 20px; box-sizing: border-box;
+    }
+    .res-modal-overlay.active { opacity: 1; visibility: visible; }
+    .res-modal-container {
+        background: #fff; border-radius: 16px; width: 100%; max-width: 480px; max-height: 90vh;
+        display: flex; flex-direction: column; overflow: hidden;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,.1), 0 10px 10px -5px rgba(0,0,0,.04);
+    }
+    .res-modal-header { display:flex; justify-content:space-between; align-items:center; padding:20px 24px; border-bottom:1px solid var(--border-color); }
+    .res-modal-title { font-size:18px; font-weight:700; color:#101828; margin:0; }
+    .res-modal-body { padding:24px; overflow-y:auto; display:flex; flex-direction:column; gap:16px; }
+    .res-modal-footer { padding:16px 24px; border-top:1px solid var(--border-color); background:#fafbfc; display:flex; justify-content:flex-end; gap:12px; }
+    .form-group { display:flex; flex-direction:column; gap:6px; }
+    .form-label { font-size:13px; font-weight:600; color:#344054; }
+    .form-input, .form-select { width:100%; padding:10px 14px; border:1px solid #d0d5dd; border-radius:8px; font-size:14px; box-sizing:border-box; }
+    .btn-primary-action, .btn-secondary-action {
+        display:inline-flex; align-items:center; gap:8px; border-radius:8px; padding:10px 18px;
+        font-size:14px; font-weight:600; cursor:pointer; border:none;
+    }
+    .btn-primary-action { background: var(--color-primary); color:#fff; }
+    .btn-secondary-action { background:#fff; color:#344054; border:1px solid #d0d5dd; }
+
+    .toast-popup {
+        position: fixed; bottom: 28px; right: 28px; background: #101828; color: #fff;
+        padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500;
+        z-index: 1000; opacity: 0; transform: translateY(20px); transition: all .3s ease; pointer-events:none;
+    }
+    .toast-popup.show { opacity: 1; transform: translateY(0); }
+</style>
+
+<div class="um-header">
+    <h1 class="um-title">Quản lý tài khoản</h1>
+    <button class="btn-primary-action" id="btn-open-create-user">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>Thêm tài khoản</span>
+    </button>
+</div>
+
+<div class="um-card">
+    <table class="um-table">
+        <thead>
+            <tr>
+                <th>Họ tên</th>
+                <th>Email</th>
+                <th>Vai trò</th>
+                <th>Phòng ban</th>
+                <th>Trạng thái</th>
+                <th>Ngày tạo</th>
+            </tr>
+        </thead>
+        <tbody id="um-table-body"></tbody>
+    </table>
+    <div class="um-empty" id="um-empty" style="display:none;">Chưa có tài khoản nào.</div>
+</div>
+
+<!-- Modal: thêm tài khoản -->
+<div class="res-modal-overlay" id="create-user-modal">
+    <div class="res-modal-container">
+        <div class="res-modal-header">
+            <h2 class="res-modal-title">Thêm tài khoản mới</h2>
+            <button id="btn-close-create-user" style="background:none;border:none;cursor:pointer;">✕</button>
+        </div>
+        <div class="res-modal-body">
+            <div class="form-group">
+                <label class="form-label">Họ tên *</label>
+                <input type="text" class="form-input" id="cu-fullname" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email *</label>
+                <input type="email" class="form-input" id="cu-email" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mật khẩu tạm thời *</label>
+                <input type="password" class="form-input" id="cu-password" minlength="6" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Vai trò</label>
+                <select class="form-select" id="cu-role">
+                    <option value="staff">Nhân viên chăm sóc</option>
+                    <option value="manager">Quản lý trung tâm</option>
+                    <option value="admin">Quản trị viên</option>
+                    <option value="family">Người nhà</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phòng ban</label>
+                <input type="text" class="form-input" id="cu-department" />
+            </div>
+        </div>
+        <div class="res-modal-footer">
+            <button class="btn-secondary-action" id="btn-cancel-create-user">Hủy</button>
+            <button class="btn-primary-action" id="btn-submit-create-user">Tạo tài khoản</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-popup" id="toast-notify"><span id="toast-text"></span></div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let accounts = [];
+
+            function showToast(msg) {
+                const toast = document.getElementById("toast-notify");
+                document.getElementById("toast-text").innerText = msg;
+                toast.classList.add("show");
+                setTimeout(() => toast.classList.remove("show"), 3500);
+            }
+
+            const ROLE_LABELS = { admin: "Quản trị viên", manager: "Quản lý trung tâm", staff: "Nhân viên chăm sóc", family: "Người nhà" };
+
+            function formatDateVN(iso) {
+                if (!iso) return "";
+                const d = new Date(iso);
+                return d.toLocaleDateString("vi-VN");
+            }
+
+            async function loadAccounts() {
+                const { data, error } = await window.sb
+                    .from("profiles")
+                    .select("id, full_name, email, role, department, is_active, created_at")
+                    .order("created_at", { ascending: false });
+
+                if (error) {
+                    showToast("Không tải được danh sách tài khoản: " + error.message);
+                    return;
+                }
+                accounts = data || [];
+                renderTable();
+            }
+
+            function renderTable() {
+                const tbody = document.getElementById("um-table-body");
+                const empty = document.getElementById("um-empty");
+                tbody.innerHTML = "";
+
+                if (accounts.length === 0) {
+                    empty.style.display = "block";
+                    return;
+                }
+                empty.style.display = "none";
+
+                accounts.forEach(acc => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${acc.full_name || ""}</td>
+                        <td>${acc.email || ""}</td>
+                        <td>
+                            <select class="um-role-select" data-id="${acc.id}" data-field="role">
+                                ${Object.keys(ROLE_LABELS).map(r => `<option value="${r}" ${r === acc.role ? "selected" : ""}>${ROLE_LABELS[r]}</option>`).join("")}
+                            </select>
+                        </td>
+                        <td>${acc.department || ""}</td>
+                        <td>
+                            <select class="um-status-select" data-id="${acc.id}" data-field="is_active">
+                                <option value="true" ${acc.is_active ? "selected" : ""}>Đang hoạt động</option>
+                                <option value="false" ${!acc.is_active ? "selected" : ""}>Đã khóa</option>
+                            </select>
+                        </td>
+                        <td>${formatDateVN(acc.created_at)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                tbody.querySelectorAll("select").forEach(sel => {
+                    sel.addEventListener("change", async function () {
+                        const id = this.getAttribute("data-id");
+                        const field = this.getAttribute("data-field");
+                        let value = this.value;
+                        if (field === "is_active") value = value === "true";
+
+                        if (window.currentUser && id === window.currentUser.id && field === "role") {
+                            alert("Bạn không thể tự đổi vai trò của chính mình.");
+                            await loadAccounts();
+                            return;
+                        }
+
+                        const { error } = await window.sb.from("profiles").update({ [field]: value }).eq("id", id);
+                        if (error) {
+                            alert("Không thể cập nhật: " + error.message);
+                            await loadAccounts();
+                            return;
+                        }
+                        showToast("Đã cập nhật tài khoản.");
+                    });
+                });
+            }
+
+            // Modal tạo tài khoản
+            const modal = document.getElementById("create-user-modal");
+            document.getElementById("btn-open-create-user").addEventListener("click", () => {
+                document.getElementById("cu-fullname").value = "";
+                document.getElementById("cu-email").value = "";
+                document.getElementById("cu-password").value = "";
+                document.getElementById("cu-role").value = "staff";
+                document.getElementById("cu-department").value = "";
+                modal.classList.add("active");
+            });
+            document.getElementById("btn-close-create-user").addEventListener("click", () => modal.classList.remove("active"));
+            document.getElementById("btn-cancel-create-user").addEventListener("click", () => modal.classList.remove("active"));
+            modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("active"); });
+
+            document.getElementById("btn-submit-create-user").addEventListener("click", async function () {
+                const fullName = document.getElementById("cu-fullname").value.trim();
+                const email = document.getElementById("cu-email").value.trim();
+                const password = document.getElementById("cu-password").value;
+                const role = document.getElementById("cu-role").value;
+                const department = document.getElementById("cu-department").value.trim();
+
+                if (!fullName || !email || password.length < 6) {
+                    alert("Vui lòng điền đầy đủ họ tên, email và mật khẩu (tối thiểu 6 ký tự).");
+                    return;
+                }
+
+                this.disabled = true;
+                this.textContent = "Đang tạo...";
+
+                try {
+                    const { data: sessionData } = await window.sb.auth.getSession();
+                    const { data, error } = await window.sb.functions.invoke("create-user", {
+                        body: { email, password, full_name: fullName, role, department },
+                        headers: { Authorization: "Bearer " + sessionData.session.access_token }
+                    });
+
+                    if (error) throw error;
+                    if (data && data.error) throw new Error(data.error);
+
+                    modal.classList.remove("active");
+                    showToast("Đã tạo tài khoản cho " + fullName);
+                    await loadAccounts();
+                } catch (err) {
+                    console.error(err);
+                    alert(
+                        "Không thể tạo tài khoản: " + err.message +
+                        "\n\nLưu ý: cần deploy Edge Function 'create-user' trước " +
+                        "(xem supabase/functions/create-user và mục 1.6 trong tài liệu spec)."
+                    );
+                } finally {
+                    this.disabled = false;
+                    this.textContent = "Tạo tài khoản";
+                }
+            });
+
+            document.addEventListener("silvercare:auth-ready", loadAccounts);
+            // Phòng khi sự kiện đã bắn trước lúc script này gắn listener
+            if (window.currentUser) loadAccounts();
+        });
+    </script>
+}
