@@ -16,10 +16,6 @@
         _ => ""
     };
     var dateString = $"{dayOfWeekVi}, {now.Day} Tháng {now.Month}, {now.Year}";
-
-    // Capture logged-in user profile name
-    var fullName = TempData["FullName"] as string ?? "Nguyễn Thị Lan";
-    TempData.Keep("FullName");
 }
 
 <style>
@@ -159,7 +155,7 @@
 </style>
 
 <div class="welcome-banner">
-    <h1 class="welcome-title">Xin chào, @fullName 👋</h1>
+    <h1 class="welcome-title">Xin chào, <span data-user-fullname>---</span> 👋</h1>
     <p class="welcome-subtitle">@dateString</p>
 </div>
 
@@ -275,18 +271,12 @@
                     <line x1="50" y1="190" x2="680" y2="190" class="chart-axis-line" />
                     
                     <!-- X Axis labels -->
-                    <text x="50" y="210" text-anchor="middle" class="chart-axis-text">26/08</text>
-                    <text x="155" y="210" text-anchor="middle" class="chart-axis-text">27/08</text>
-                    <text x="260" y="210" text-anchor="middle" class="chart-axis-text">28/08</text>
-                    <text x="365" y="210" text-anchor="middle" class="chart-axis-text">29/08</text>
-                    <text x="470" y="210" text-anchor="middle" class="chart-axis-text">30/08</text>
-                    <text x="575" y="210" text-anchor="middle" class="chart-axis-text">31/08</text>
-                    <text x="680" y="210" text-anchor="middle" class="chart-axis-text" font-weight="700" fill="#0ba5ec">01/09</text>
+                    <g id="dash-chart-x-labels"></g>
 
-                    <!-- Trend lines -->
-                    <path d="M 50 52 L 155 50 L 260 48 L 365 45 L 470 48 L 575 44" stroke="#f04438" stroke-width="2.5" fill="none" />
-                    <path d="M 50 102 L 155 100 L 260 98 L 365 96 L 470 98 L 575 95" stroke="#f79009" stroke-width="2.5" fill="none" />
-                    <path d="M 50 115 L 155 112 L 260 110 L 365 108 L 470 110 L 575 109" stroke="#12b76a" stroke-width="2.5" fill="none" />
+                    <!-- Trend lines (trung bình toàn trung tâm mỗi ngày) -->
+                    <path id="dash-path-sys" stroke="#f04438" stroke-width="2.5" fill="none" />
+                    <path id="dash-path-dia" stroke="#f79009" stroke-width="2.5" fill="none" />
+                    <path id="dash-path-hr" stroke="#12b76a" stroke-width="2.5" fill="none" />
                 </svg>
                 
                 <div class="chart-legend">
@@ -421,11 +411,11 @@
                 <!-- Stat 2: Tuân thủ thuốc -->
                 <div class="stats-item">
                     <div class="stats-label-wrapper">
-                        <span>Tuân thủ thuốc</span>
-                        <span class="stats-value">85%</span>
+                        <span>Tuân thủ thuốc (hôm nay)</span>
+                        <span class="stats-value" id="stats-meds-pct">--%</span>
                     </div>
                     <div class="stats-progress-track">
-                        <div class="stats-progress-bar progress-green" style="width: 85%;"></div>
+                        <div class="stats-progress-bar progress-green" id="stats-meds-bar" style="width: 0%;"></div>
                     </div>
                 </div>
 
@@ -446,468 +436,21 @@
 
 @section Scripts {
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            // Default baseline tasks strictly matching nguoinha.sql
-            const defaultTasks = [
-                {
-                    id: "task-1",
-                    name: "Uống thuốc sáng",
-                    time: "08:00",
-                    patientName: "Nguyễn Văn An",
-                    patientRoom: "201",
-                    status: "todo",
-                    type: "Chăm sóc",
-                    note: "Uống thuốc sau khi ăn no"
-                },
-                {
-                    id: "task-2",
-                    name: "Vật lý trị liệu",
-                    time: "10:00",
-                    patientName: "Lê Văn Bình",
-                    patientRoom: "102",
-                    status: "pending",
-                    type: "Y tế",
-                    note: "Tập phục hồi chức năng khớp gối"
-                },
-                {
-                    id: "task-3",
-                    name: "Đo huyết áp & khám định kỳ",
-                    time: "14:00",
-                    patientName: "Phạm Thị Cúc",
-                    patientRoom: "305",
-                    status: "todo",
-                    type: "Y tế",
-                    note: "Kiểm tra huyết áp và chỉ số sức khỏe chiều"
-                },
-                {
-                    id: "task-4",
-                    name: "Chăm sóc cá nhân",
-                    time: "16:00",
-                    patientName: "Nguyễn Văn An",
-                    patientRoom: "201",
-                    status: "todo",
-                    type: "Chăm sóc",
-                    note: "Hỗ trợ vận động nhẹ ngoài sân vườn"
-                },
-                {
-                    id: "task-5",
-                    name: "Uống thuốc tối",
-                    time: "20:00",
-                    patientName: "Lê Văn Bình",
-                    patientRoom: "102",
-                    status: "done",
-                    type: "Chăm sóc",
-                    note: "Uống thuốc theo đơn bác sĩ trước khi ngủ"
-                }
-            ];
-
-            // 1. Retrieve current tasks from shared storage
-            let allTasks = [];
-            const savedSchedule = localStorage.getItem("silvercare_schedules_v2");
-            if (savedSchedule) {
-                try {
-                    allTasks = JSON.parse(savedSchedule);
-                } catch (e) {
-                    allTasks = [...defaultTasks];
-                }
-            } else {
-                allTasks = [...defaultTasks];
-                localStorage.setItem("silvercare_schedules_v2", JSON.stringify(allTasks));
-            }
-
-            // 2. Filter ONLY uncompleted tasks (exclude tasks with status === "done")
-            const uncompletedTasks = allTasks.filter(t => t.status !== "done");
-
-            // Sort uncompleted tasks by time
-            uncompletedTasks.sort((a, b) => a.time.localeCompare(b.time));
-
-            // 3. Render "Việc cần làm hôm nay"
-            const container = document.getElementById("dash-todo-container");
-            const emptyState = document.getElementById("dash-todo-empty");
-
-            if (container) {
-                container.innerHTML = "";
-
-                if (uncompletedTasks.length === 0) {
-                    if (emptyState) emptyState.style.display = "flex";
-                } else {
-                    if (emptyState) emptyState.style.display = "none";
-
-                    uncompletedTasks.forEach(task => {
-                        let badgeHtml = `<span class="dash-todo-badge badge-dash-todo">Chưa thực hiện</span>`;
-                        if (task.status === "pending") {
-                            badgeHtml = `<span class="dash-todo-badge badge-dash-pending">Đang chờ</span>`;
-                        }
-
-                        const itemEl = document.createElement("div");
-                        itemEl.className = "dash-todo-item";
-                        itemEl.innerHTML = `
-                            <span class="dash-todo-time">${task.time}</span>
-                            <div class="dash-todo-info">
-                                <span class="dash-todo-title">${task.name}</span>
-                                <span class="dash-todo-meta">${task.patientName} &middot; Phòng ${task.patientRoom}</span>
-                            </div>
-                            <div class="dash-todo-action">
-                                ${badgeHtml}
-                            </div>
-                        `;
-                        container.appendChild(itemEl);
-                    });
-                }
-            }
-
-            // 4. Update KPI numbers dynamically
-            const totalCount = allTasks.length;
-            const completedCount = allTasks.filter(t => t.status === "done").length;
-            const uncompletedCount = uncompletedTasks.length;
-            const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-            const kpiCompletedCount = document.getElementById("kpi-completed-count");
-            const kpiCompletedRate = document.getElementById("kpi-completed-rate");
-            const kpiTotalSchedule = document.getElementById("kpi-total-schedule");
-            const kpiUncompletedText = document.getElementById("kpi-uncompleted-text");
-            const statsCompletePct = document.getElementById("stats-complete-pct");
-            const statsCompleteBar = document.getElementById("stats-complete-bar");
-
-            if (kpiCompletedCount) kpiCompletedCount.innerText = completedCount;
-            if (kpiCompletedRate) kpiCompletedRate.innerText = `${completionRate}% tỷ lệ hoàn thành`;
-            if (kpiTotalSchedule) kpiTotalSchedule.innerText = totalCount;
-            if (kpiUncompletedText) kpiUncompletedText.innerText = `${uncompletedCount} chưa thực hiện`;
-            if (statsCompletePct) statsCompletePct.innerText = `${completionRate}%`;
-            if (statsCompleteBar) statsCompleteBar.style.width = `${completionRate}%`;
-
-            // ==========================================================================
-            // 4.1 DYNAMIC ELDERLY COUNT (TỔNG SỐ NGƯỜI CAO TUỔI TỪ HỒ SƠ)
-            // ==========================================================================
-            const ELDERLY_STORAGE_KEY = "silvercare_elderly_profiles_v3";
-            let elderlyList = [];
-            const rawElderly = localStorage.getItem(ELDERLY_STORAGE_KEY);
-            if (rawElderly) {
-                try {
-                    const parsed = JSON.parse(rawElderly);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        elderlyList = parsed;
-                    }
-                } catch (e) {
-                    elderlyList = [];
-                }
-            }
-            if (!elderlyList || elderlyList.length === 0) {
-                elderlyList = [
-                    { id: "NCT001", name: "Nguyễn Văn An", room: "201" },
-                    { id: "NCT002", name: "Lê Văn Bình", room: "102" },
-                    { id: "NCT003", name: "Phạm Thị Cúc", room: "305" }
-                ];
-            }
-
-            const kpiElderlyCount = document.getElementById("kpi-elderly-count");
-            if (kpiElderlyCount) {
-                kpiElderlyCount.innerText = elderlyList.length;
-            }
-
-            // ==========================================================================
-            // 5. DYNAMIC HEALTH ALERTS (CẢNH BÁO SỨC KHỎE THEO HỒ SƠ & CHỈ SỐ BỆNH NHÂN)
-            // ==========================================================================
-            const residentInfoMap = {};
-            elderlyList.forEach(r => {
-                residentInfoMap[r.id] = { name: r.name, room: r.room };
-            });
-
+        document.addEventListener("DOMContentLoaded", async function () {
             const now = new Date();
-            const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            const HEALTH_STORAGE_KEY = "silvercare_health_today_updates_v3";
-            const RESOLVED_STORAGE_KEY = "silvercare_alerts_resolved_v3";
 
-            let resolvedAlertsMap = {};
-            try {
-                const rawRes = localStorage.getItem(RESOLVED_STORAGE_KEY);
-                if (rawRes) resolvedAlertsMap = JSON.parse(rawRes);
-            } catch(e) {}
-
-            let todayHealthUpdates = {};
-            try {
-                const rawV4 = localStorage.getItem("silvercare_health_records_v4");
-                if (rawV4) {
-                    const parsedV4 = JSON.parse(rawV4);
-                    Object.keys(parsedV4).forEach(resId => {
-                        const rec = parsedV4[resId]?.[todayKey];
-                        if (rec && typeof rec.sys === "number") {
-                            todayHealthUpdates[resId] = rec;
-                        }
-                    });
-                }
-            } catch (e) {}
-
-            if (Object.keys(todayHealthUpdates).length === 0) {
-                const rawHealth = localStorage.getItem(HEALTH_STORAGE_KEY) || localStorage.getItem("silvercare_health_today_updates_v2");
-                if (rawHealth) {
-                    try {
-                        const parsed = JSON.parse(rawHealth);
-                        delete parsed["row-1"];
-                        delete parsed["row-2"];
-                        delete parsed["row-3"];
-                        if (parsed._date === todayKey) {
-                            todayHealthUpdates = parsed;
-                        }
-                    } catch (e) {}
-                }
+            function toIso(d) {
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
             }
 
-            const alertsList = [];
-            let highAlertsCount = 0;
-            let mediumAlertsCount = 0;
-
-            elderlyList.forEach(res => {
-                const m = todayHealthUpdates[res.id];
-                if (!m || typeof m.sys !== "number" || m.time === "Chưa đo hôm nay") return;
-
-                // 1. Check Blood Pressure
-                if (m.sys >= 140 || m.dia >= 90) {
-                    const alertKey = `${res.id}-bp`;
-                    if (!resolvedAlertsMap[alertKey]) {
-                        highAlertsCount++;
-                        alertsList.push({
-                            title: `Huyết áp tâm thu vượt ngưỡng: ${m.sys}/${m.dia} mmHg`,
-                            meta: `${res.name} · Phòng ${res.room} · ${m.time || 'Hôm nay'}`,
-                            level: "high"
-                        });
-                    }
-                } else if ((m.sys >= 120 && m.sys < 140) || (m.dia >= 80 && m.dia < 90)) {
-                    const alertKey = `${res.id}-bp`;
-                    if (!resolvedAlertsMap[alertKey]) {
-                        mediumAlertsCount++;
-                        alertsList.push({
-                            title: `Huyết áp tiền tăng áp: ${m.sys}/${m.dia} mmHg`,
-                            meta: `${res.name} · Phòng ${res.room} · ${m.time || 'Hôm nay'}`,
-                            level: "medium"
-                        });
-                    }
-                }
-
-                // 2. Check Heart Rate
-                if (m.hr > 100 || (m.hr < 50 && m.hr > 0)) {
-                    const alertKey = `${res.id}-hr`;
-                    if (!resolvedAlertsMap[alertKey]) {
-                        highAlertsCount++;
-                        alertsList.push({
-                            title: `Nhịp tim bất thường (${m.hr < 50 ? 'quá chậm' : 'quá nhanh'}): ${m.hr} lần/phút`,
-                            meta: `${res.name} · Phòng ${res.room} · ${m.time || 'Hôm nay'}`,
-                            level: "high"
-                        });
-                    }
-                } else if ((m.hr >= 50 && m.hr < 60) || (m.hr > 90 && m.hr <= 100)) {
-                    const alertKey = `${res.id}-hr`;
-                    if (!resolvedAlertsMap[alertKey]) {
-                        mediumAlertsCount++;
-                        alertsList.push({
-                            title: `Nhịp tim dao động: ${m.hr} lần/phút`,
-                            meta: `${res.name} · Phòng ${res.room} · ${m.time || 'Hôm nay'}`,
-                            level: "medium"
-                        });
-                    }
-                }
-
-                // 3. Check Temperature
-                if (m.temp >= 38.5) {
-                    const alertKey = `${res.id}-temp`;
-                    if (!resolvedAlertsMap[alertKey]) {
-                        highAlertsCount++;
-                        alertsList.push({
-                            title: `Thân nhiệt cao (Sốt cao): ${m.temp}°C`,
-                            meta: `${res.name} · Phòng ${res.room} · ${m.time || 'Hôm nay'}`,
-                            level: "high"
-                        });
-                    }
-                } else if (m.temp >= 37.2 && m.temp < 38.5) {
-                    const alertKey = `${res.id}-temp`;
-                    if (!resolvedAlertsMap[alertKey]) {
-                        mediumAlertsCount++;
-                        alertsList.push({
-                            title: `Thân nhiệt ấm (Sốt nhẹ): ${m.temp}°C`,
-                            meta: `${res.name} · Phòng ${res.room} · ${m.time || 'Hôm nay'}`,
-                            level: "medium"
-                        });
-                    }
-                }
-            });
-
-            const totalAlerts = highAlertsCount + mediumAlertsCount;
-
-            // Update KPI Card 3: Cảnh báo sức khỏe
-            const kpiAlertsCard = document.querySelector(".kpi-icon-red") ? document.querySelector(".kpi-icon-red").closest(".kpi-card") : null;
-            if (kpiAlertsCard) {
-                const valEl = kpiAlertsCard.querySelector(".kpi-value");
-                const footerEl = kpiAlertsCard.querySelector(".kpi-footer");
-                if (valEl) valEl.innerText = totalAlerts;
-                if (footerEl) footerEl.innerText = `${highAlertsCount} mức cao, ${mediumAlertsCount} trung bình`;
+            function formatTimeVN(iso) {
+                if (!iso) return "";
+                const d = new Date(iso);
+                return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
             }
 
-            // Render Alerts List on Dashboard
-            const alertsContainer = document.getElementById("dash-alerts-container");
-            const alertsEmpty = document.getElementById("dash-alerts-empty");
+            const todayIso = toIso(now);
 
-            if (alertsContainer) {
-                alertsContainer.innerHTML = "";
-
-                if (alertsList.length === 0) {
-                    if (alertsEmpty) alertsEmpty.style.display = "flex";
-                } else {
-                    if (alertsEmpty) alertsEmpty.style.display = "none";
-
-                    alertsList.forEach(alert => {
-                        const isHigh = alert.level === "high";
-                        const item = document.createElement("div");
-                        item.className = "dash-activity-item";
-                        item.innerHTML = `
-                            <div class="dash-activity-icon" style="background-color: ${isHigh ? '#fef3f2' : '#fffaeb'}; color: ${isHigh ? '#f04438' : '#f79009'};">
-                                <svg viewBox="0 0 24 24">
-                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                                    <line x1="12" y1="9" x2="12" y2="13" />
-                                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                                </svg>
-                            </div>
-                            <div class="dash-activity-content">
-                                <span class="dash-activity-title" style="color: ${isHigh ? '#d92d20' : '#b54708'};">${alert.title}</span>
-                                <span class="dash-activity-meta">${alert.meta}</span>
-                            </div>
-                        `;
-                        alertsContainer.appendChild(item);
-                    });
-                }
-            }
-
-            // ==========================================================================
-            // 6. DYNAMIC RECENT ACTIVITIES (HOẠT ĐỘNG GẦN ĐÂY)
-            // ==========================================================================
-            const currentStaffName = "@fullName" || "Nguyễn Thị Lan";
-            const ACTIVITY_STORAGE_KEY = "silvercare_recent_activities_v2";
-
-            // Default baseline activities strictly matching user design
-            const defaultActivities = [
-                {
-                    id: "act-1",
-                    type: "health_update",
-                    title: "Đã cập nhật chỉ số huyết áp",
-                    patientName: "Nguyễn Văn An",
-                    staffName: currentStaffName,
-                    time: "09:15",
-                    iconType: "pulse",
-                    iconColor: "blue"
-                },
-                {
-                    id: "act-2",
-                    type: "care_complete",
-                    title: "Đã xác nhận cấp thuốc",
-                    patientName: "Võ Thị Hoa",
-                    staffName: "Phạm Thị Mai",
-                    time: "09:00",
-                    iconType: "check",
-                    iconColor: "green"
-                },
-                {
-                    id: "act-3",
-                    type: "ai_alert",
-                    title: "Tạo cảnh báo AI: Huyết áp tăng bất thường",
-                    patientName: "Nguyễn Văn An",
-                    staffName: "Hệ thống AI",
-                    time: "08:45",
-                    iconType: "alert",
-                    iconColor: "red"
-                },
-                {
-                    id: "act-4",
-                    type: "health_check",
-                    title: "Hoàn thành kiểm tra sức khỏe buổi sáng",
-                    patientName: "Trần Thị Bảy",
-                    staffName: "Phạm Thị Mai",
-                    time: "08:30",
-                    iconType: "pulse",
-                    iconColor: "blue"
-                },
-                {
-                    id: "act-5",
-                    type: "shift_start",
-                    title: "Bắt đầu ca làm việc",
-                    patientName: "",
-                    staffName: currentStaffName,
-                    time: "08:00",
-                    iconType: "clock",
-                    iconColor: "gray"
-                }
-            ];
-
-            let recentActivities = [];
-            const rawActivities = localStorage.getItem(ACTIVITY_STORAGE_KEY);
-            if (rawActivities) {
-                try {
-                    recentActivities = JSON.parse(rawActivities);
-                    if (!Array.isArray(recentActivities) || recentActivities.length === 0) {
-                        recentActivities = [...defaultActivities];
-                    }
-                } catch (e) {
-                    recentActivities = [...defaultActivities];
-                }
-            } else {
-                recentActivities = [...defaultActivities];
-                localStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(recentActivities));
-            }
-
-            // Ensure "Bắt đầu ca làm việc" for current staff is always present at 08:00
-            const hasShiftStart = recentActivities.some(a => a.type === "shift_start");
-            if (!hasShiftStart) {
-                recentActivities.push({
-                    id: "act-shift-start",
-                    type: "shift_start",
-                    title: "Bắt đầu ca làm việc",
-                    patientName: "",
-                    staffName: currentStaffName,
-                    time: "08:00",
-                    iconType: "clock",
-                    iconColor: "gray"
-                });
-            }
-
-            // Sync with any completed tasks in silvercare_schedules_v2
-            const completedScheduleTasks = allTasks.filter(t => t.status === "done");
-            completedScheduleTasks.forEach(t => {
-                const alreadyLogged = recentActivities.some(a => a.taskId === t.id || (a.title.includes(t.name) && a.patientName === t.patientName));
-                if (!alreadyLogged) {
-                    recentActivities.unshift({
-                        id: "act-task-" + t.id,
-                        taskId: t.id,
-                        type: "care_complete",
-                        title: t.name.startsWith("Đã") ? t.name : `Đã hoàn thành ${t.name}`,
-                        patientName: t.patientName,
-                        staffName: currentStaffName,
-                        time: t.time || "09:00",
-                        iconType: "check",
-                        iconColor: "green"
-                    });
-                }
-            });
-
-            // Sync with any health updates in silvercare_health_today_updates_v3
-            Object.keys(todayHealthUpdates).forEach(key => {
-                if (key === "_date") return;
-                const m = todayHealthUpdates[key];
-                if (!m || typeof m.sys !== "number" || m.time === "Chưa đo hôm nay") return;
-                const res = residentInfoMap[key] || { name: "Người cao tuổi", room: "" };
-                const alreadyLogged = recentActivities.some(a => a.type === "health_update" && a.patientName === res.name);
-                if (!alreadyLogged) {
-                    recentActivities.unshift({
-                        id: "act-health-" + key,
-                        type: "health_update",
-                        title: `Đã cập nhật chỉ số huyết áp & sức khỏe (${m.sys}/${m.dia} mmHg, ${m.hr} bpm)`,
-                        patientName: res.name,
-                        staffName: currentStaffName,
-                        time: (m.time || "09:15").split(" ")[0],
-                        iconType: "pulse",
-                        iconColor: "blue"
-                    });
-                }
-            });
-
-            // Helper to render SVG icon
             function getActivityIconSvg(iconType) {
                 if (iconType === "check") {
                     return `<svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>`;
@@ -916,47 +459,325 @@
                 } else if (iconType === "clock") {
                     return `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>`;
                 }
-                // default pulse
                 return `<svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>`;
             }
 
-            // Render Recent Activities list
-            const activityContainer = document.getElementById("dash-activity-container");
-            if (activityContainer) {
-                activityContainer.innerHTML = "";
+            // ==========================================================================
+            // 1. TỔNG SỐ NGƯỜI CAO TUỔI
+            // ==========================================================================
+            async function loadElderlyCount() {
+                const { count } = await window.sb
+                    .from("residents")
+                    .select("resident_id", { count: "exact", head: true })
+                    .eq("is_active", true);
+                const el = document.getElementById("kpi-elderly-count");
+                if (el) el.innerText = count || 0;
+            }
 
-                // Sort: activities with later time on top, shift start 08:00 towards bottom
-                recentActivities.sort((a, b) => {
-                    const timeA = a.time || "00:00";
-                    const timeB = b.time || "00:00";
-                    return timeB.localeCompare(timeA);
-                });
+            // ==========================================================================
+            // 2. LỊCH CHĂM SÓC HÔM NAY (KPI + "Việc cần làm hôm nay")
+            // ==========================================================================
+            async function loadTodaySchedule() {
+                let query = window.sb
+                    .from("care_schedules")
+                    .select("care_schedule_id, schedule_name, start_time, status, resident_id, residents(full_name, rooms(room_code))")
+                    .eq("schedule_date", todayIso);
 
-                recentActivities.slice(0, 8).forEach(act => {
-                    const itemEl = document.createElement("div");
-                    itemEl.className = "dash-activity-item";
-                    
-                    let metaText = "";
-                    if (act.patientName && act.staffName) {
-                        metaText = `${act.patientName} &middot; ${act.staffName} &middot; ${act.time}`;
-                    } else if (act.patientName) {
-                        metaText = `${act.patientName} &middot; ${act.time}`;
+                if (window.currentUser && window.currentUser.role === "staff") {
+                    query = query.eq("assigned_staff_id", window.currentUser.id);
+                }
+
+                const { data, error } = await query;
+                const tasks = error ? [] : (data || []);
+
+                const total = tasks.length;
+                const completed = tasks.filter(t => t.status === "Hoàn thành").length;
+                const uncompleted = total - completed;
+                const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+                const set = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
+                set("kpi-completed-count", completed);
+                set("kpi-completed-rate", `${rate}% tỷ lệ hoàn thành`);
+                set("kpi-total-schedule", total);
+                set("kpi-uncompleted-text", `${uncompleted} chưa thực hiện`);
+                set("stats-complete-pct", `${rate}%`);
+                const bar = document.getElementById("stats-complete-bar");
+                if (bar) bar.style.width = `${rate}%`;
+
+                const container = document.getElementById("dash-todo-container");
+                const emptyState = document.getElementById("dash-todo-empty");
+                const todo = tasks
+                    .filter(t => t.status !== "Hoàn thành")
+                    .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
+
+                if (container) {
+                    container.innerHTML = "";
+                    if (todo.length === 0) {
+                        if (emptyState) emptyState.style.display = "flex";
                     } else {
-                        metaText = `${act.staffName || currentStaffName} &middot; ${act.time}`;
+                        if (emptyState) emptyState.style.display = "none";
+                        todo.forEach(t => {
+                            const badge = t.status === "Đang thực hiện"
+                                ? `<span class="dash-todo-badge badge-dash-pending">Đang thực hiện</span>`
+                                : `<span class="dash-todo-badge badge-dash-todo">Chưa thực hiện</span>`;
+                            const room = t.residents && t.residents.rooms ? t.residents.rooms.room_code : "---";
+                            const name = t.residents ? t.residents.full_name : "";
+                            const time = t.start_time ? t.start_time.substring(0, 5) : "--:--";
+
+                            const el = document.createElement("div");
+                            el.className = "dash-todo-item";
+                            el.innerHTML = `
+                                <span class="dash-todo-time">${time}</span>
+                                <div class="dash-todo-info">
+                                    <span class="dash-todo-title">${t.schedule_name}</span>
+                                    <span class="dash-todo-meta">${name} &middot; Phòng ${room}</span>
+                                </div>
+                                <div class="dash-todo-action">${badge}</div>
+                            `;
+                            container.appendChild(el);
+                        });
+                    }
+                }
+            }
+
+            // ==========================================================================
+            // 3. CẢNH BÁO SỨC KHỎE ĐANG MỞ
+            // ==========================================================================
+            async function loadHealthAlerts() {
+                const { data, error } = await window.sb
+                    .from("health_alerts")
+                    .select("alert_id, title, severity, created_at, residents(full_name, rooms(room_code))")
+                    .eq("status", "Chưa xử lý")
+                    .order("created_at", { ascending: false });
+
+                const alerts = error ? [] : (data || []);
+                const high = alerts.filter(a => a.severity === "Cao").length;
+                const medium = alerts.filter(a => a.severity === "Trung bình").length;
+
+                const set = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
+                set("kpi-health-alerts-count", alerts.length);
+                set("kpi-health-alerts-footer", `${high} mức cao, ${medium} trung bình`);
+
+                const container = document.getElementById("dash-alerts-container");
+                const emptyState = document.getElementById("dash-alerts-empty");
+                if (container) {
+                    container.innerHTML = "";
+                    if (alerts.length === 0) {
+                        if (emptyState) emptyState.style.display = "flex";
+                    } else {
+                        if (emptyState) emptyState.style.display = "none";
+                        alerts.slice(0, 6).forEach(a => {
+                            const isHigh = a.severity === "Cao";
+                            const room = a.residents && a.residents.rooms ? a.residents.rooms.room_code : "---";
+                            const name = a.residents ? a.residents.full_name : "Người cao tuổi";
+                            const el = document.createElement("div");
+                            el.className = "dash-activity-item";
+                            el.innerHTML = `
+                                <div class="dash-activity-icon" style="background-color: ${isHigh ? '#fef3f2' : '#fffaeb'}; color: ${isHigh ? '#f04438' : '#f79009'};">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                        <line x1="12" y1="9" x2="12" y2="13" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                </div>
+                                <div class="dash-activity-content">
+                                    <span class="dash-activity-title" style="color: ${isHigh ? '#d92d20' : '#b54708'};">${a.title}</span>
+                                    <span class="dash-activity-meta">${name} &middot; Phòng ${room} &middot; ${formatTimeVN(a.created_at)}</span>
+                                </div>
+                            `;
+                            container.appendChild(el);
+                        });
+                    }
+                }
+            }
+
+            // ==========================================================================
+            // 4. BIỂU ĐỒ SỨC KHỎE 7 NGÀY (TRUNG BÌNH TOÀN TRUNG TÂM / NGƯỜI THÂN)
+            // ==========================================================================
+            async function loadHealthTrendChart() {
+                const sevenDaysAgo = new Date(now);
+                sevenDaysAgo.setDate(now.getDate() - 6);
+                sevenDaysAgo.setHours(0, 0, 0, 0);
+
+                const { data } = await window.sb
+                    .from("health_records")
+                    .select("recorded_at, systolic, diastolic, heart_rate")
+                    .gte("recorded_at", sevenDaysAgo.toISOString());
+
+                const rows = data || [];
+                const days = [];
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date(now);
+                    d.setDate(now.getDate() - i);
+                    days.push(d);
+                }
+
+                const xCoords = [50, 155, 260, 365, 470, 575, 680];
+                const labelsGroup = document.getElementById("dash-chart-x-labels");
+                if (labelsGroup) labelsGroup.innerHTML = "";
+
+                const pts = { sys: [], dia: [], hr: [] };
+
+                days.forEach((d, idx) => {
+                    const key = toIso(d);
+                    const dayRows = rows.filter(r => (r.recorded_at || "").substring(0, 10) === key);
+
+                    if (labelsGroup) {
+                        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                        label.setAttribute("x", xCoords[idx]);
+                        label.setAttribute("y", "210");
+                        label.setAttribute("text-anchor", "middle");
+                        label.setAttribute("class", "chart-axis-text");
+                        if (idx === 6) {
+                            label.setAttribute("font-weight", "700");
+                            label.setAttribute("fill", "#0ba5ec");
+                        }
+                        const dd = String(d.getDate()).padStart(2, "0");
+                        const mm = String(d.getMonth() + 1).padStart(2, "0");
+                        label.textContent = `${dd}/${mm}`;
+                        labelsGroup.appendChild(label);
                     }
 
-                    itemEl.innerHTML = `
-                        <div class="dash-activity-icon icon-${act.iconColor || 'blue'}">
+                    if (dayRows.length > 0) {
+                        const avg = field => dayRows.reduce((s, r) => s + (r[field] || 0), 0) / dayRows.length;
+                        pts.sys.push({ x: xCoords[idx], y: 190 - avg("systolic") });
+                        pts.dia.push({ x: xCoords[idx], y: 190 - avg("diastolic") });
+                        pts.hr.push({ x: xCoords[idx], y: 190 - avg("heart_rate") });
+                    }
+                });
+
+                function pathFrom(points) {
+                    if (points.length === 0) return "";
+                    return "M " + points.map(p => `${p.x} ${p.y}`).join(" L ");
+                }
+
+                const pathSys = document.getElementById("dash-path-sys");
+                const pathDia = document.getElementById("dash-path-dia");
+                const pathHr = document.getElementById("dash-path-hr");
+                if (pathSys) pathSys.setAttribute("d", pathFrom(pts.sys));
+                if (pathDia) pathDia.setAttribute("d", pathFrom(pts.dia));
+                if (pathHr) pathHr.setAttribute("d", pathFrom(pts.hr));
+            }
+
+            // ==========================================================================
+            // 5. THỐNG KÊ NHANH: TUÂN THỦ THUỐC & CẢNH BÁO ĐÃ XỬ LÝ
+            // ==========================================================================
+            async function loadMedicationComplianceStat() {
+                const { data: schedules } = await window.sb
+                    .from("medication_schedules")
+                    .select("medication_schedule_id")
+                    .eq("status", "Đang sử dụng")
+                    .lte("start_date", todayIso);
+
+                const dueIds = (schedules || []).map(s => s.medication_schedule_id);
+                let given = 0;
+                if (dueIds.length > 0) {
+                    const { data: admins } = await window.sb
+                        .from("medication_administrations")
+                        .select("medication_schedule_id")
+                        .eq("scheduled_date", todayIso)
+                        .in("medication_schedule_id", dueIds);
+                    given = (admins || []).length;
+                }
+
+                const pct = dueIds.length > 0 ? Math.round((given / dueIds.length) * 100) : 100;
+                const pctEl = document.getElementById("stats-meds-pct");
+                const barEl = document.getElementById("stats-meds-bar");
+                if (pctEl) pctEl.innerText = `${pct}%`;
+                if (barEl) barEl.style.width = `${pct}%`;
+            }
+
+            async function loadAlertResolutionStat() {
+                const { count: totalCount } = await window.sb.from("health_alerts").select("alert_id", { count: "exact", head: true });
+                const { count: resolvedCount } = await window.sb.from("health_alerts").select("alert_id", { count: "exact", head: true }).eq("status", "Đã xử lý");
+                const pct = totalCount > 0 ? Math.round((resolvedCount / totalCount) * 100) : 100;
+                const el = document.getElementById("stats-alerts-handled");
+                const bar = document.getElementById("stats-alerts-bar");
+                if (el) el.innerText = `${pct}%`;
+                if (bar) bar.style.width = `${pct}%`;
+            }
+
+            // ==========================================================================
+            // 6. HOẠT ĐỘNG GẦN ĐÂY (24 GIỜ QUA — DỮ LIỆU THẬT TỪ NHIỀU BẢNG)
+            // ==========================================================================
+            async function loadRecentActivities() {
+                const sinceIso = new Date(now.getTime() - 24 * 3600 * 1000).toISOString();
+
+                const [resolutionsRes, healthRes, scheduleRes] = await Promise.all([
+                    window.sb.from("alert_resolutions")
+                        .select("resolved_at, action_taken, profiles(full_name), health_alerts(title, residents(full_name))")
+                        .gte("resolved_at", sinceIso).order("resolved_at", { ascending: false }).limit(6),
+                    window.sb.from("health_records")
+                        .select("recorded_at, systolic, diastolic, residents(full_name), profiles(full_name)")
+                        .gte("recorded_at", sinceIso).order("recorded_at", { ascending: false }).limit(6),
+                    window.sb.from("care_schedules")
+                        .select("updated_at, schedule_name, residents(full_name), profiles(full_name)")
+                        .eq("status", "Hoàn thành").gte("updated_at", sinceIso).order("updated_at", { ascending: false }).limit(6)
+                ]);
+
+                const items = [];
+
+                (resolutionsRes.data || []).forEach(r => {
+                    items.push({
+                        time: r.resolved_at,
+                        title: `Đã xử lý cảnh báo: ${r.health_alerts ? r.health_alerts.title : ""}`,
+                        meta: `${r.health_alerts && r.health_alerts.residents ? r.health_alerts.residents.full_name : ""} &middot; ${r.profiles ? r.profiles.full_name : "Nhân viên"}`,
+                        iconType: "check", iconColor: "green"
+                    });
+                });
+                (healthRes.data || []).forEach(r => {
+                    items.push({
+                        time: r.recorded_at,
+                        title: `Đã ghi nhận chỉ số sức khỏe${r.systolic ? ` (${r.systolic}/${r.diastolic} mmHg)` : ""}`,
+                        meta: `${r.residents ? r.residents.full_name : ""} &middot; ${r.profiles ? r.profiles.full_name : "Nhân viên"}`,
+                        iconType: "pulse", iconColor: "blue"
+                    });
+                });
+                (scheduleRes.data || []).forEach(r => {
+                    items.push({
+                        time: r.updated_at,
+                        title: `Đã hoàn thành: ${r.schedule_name}`,
+                        meta: `${r.residents ? r.residents.full_name : ""} &middot; ${r.profiles ? r.profiles.full_name : "Nhân viên"}`,
+                        iconType: "check", iconColor: "green"
+                    });
+                });
+
+                items.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+                const container = document.getElementById("dash-activity-container");
+                if (!container) return;
+                container.innerHTML = "";
+
+                if (items.length === 0) {
+                    container.innerHTML = `<p style="color:#667085; font-size:13.5px; padding:12px 0;">Chưa có hoạt động nào trong 24 giờ qua.</p>`;
+                    return;
+                }
+
+                items.slice(0, 8).forEach(act => {
+                    const el = document.createElement("div");
+                    el.className = "dash-activity-item";
+                    el.innerHTML = `
+                        <div class="dash-activity-icon icon-${act.iconColor}">
                             ${getActivityIconSvg(act.iconType)}
                         </div>
                         <div class="dash-activity-content">
                             <span class="dash-activity-title">${act.title}</span>
-                            <span class="dash-activity-meta">${metaText}</span>
+                            <span class="dash-activity-meta">${act.meta} &middot; ${formatTimeVN(act.time)}</span>
                         </div>
                     `;
-                    activityContainer.appendChild(itemEl);
+                    container.appendChild(el);
                 });
             }
+
+            await Promise.all([
+                loadElderlyCount(),
+                loadTodaySchedule(),
+                loadHealthAlerts(),
+                loadHealthTrendChart(),
+                loadMedicationComplianceStat(),
+                loadAlertResolutionStat(),
+                loadRecentActivities()
+            ]);
         });
     </script>
 }

@@ -1,10 +1,7 @@
 @{
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewData["Title"] = "Báo cáo vận hành";
-
-    // Capture logged-in user profile name
-    var fullName = TempData["FullName"] as string ?? "Nguyễn Thị Lan";
-    TempData.Keep("FullName");
+    ViewData["AllowedRoles"] = "admin,manager,staff";
 }
 
 <style>
@@ -493,120 +490,12 @@
 
 @section Scripts {
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            // =========================================================================
-            // 1. READ ACTUAL DATA FROM SYSTEM STORAGE
-            // =========================================================================
-            
-            // 1.1 Residents List
-            let elderlyList = [];
-            try {
-                const rawElderly = localStorage.getItem("silvercare_elderly_profiles_v3");
-                if (rawElderly) {
-                    const parsed = JSON.parse(rawElderly);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        elderlyList = parsed;
-                    }
-                }
-            } catch (e) {
-                elderlyList = [];
-            }
-            if (!elderlyList || elderlyList.length === 0) {
-                elderlyList = [
-                    { id: "NCT001", name: "Nguyễn Văn An", room: "201" },
-                    { id: "NCT002", name: "Lê Văn Bình", room: "102" },
-                    { id: "NCT003", name: "Phạm Thị Cúc", room: "305" }
-                ];
-            }
-            const residentCount = elderlyList.length;
-
-            // 1.2 Active Medicines & Total Daily Doses
-            let activeMedicines = [];
-            try {
-                const rawMeds = localStorage.getItem("silvercare_medicines_v2");
-                if (rawMeds) {
-                    const parsed = JSON.parse(rawMeds);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        activeMedicines = parsed.filter(m => m.status === "Đang dùng");
-                    }
-                }
-            } catch (e) {
-                activeMedicines = [];
-            }
-
-            let dailyMedsDoses = 0;
-            if (activeMedicines.length > 0) {
-                activeMedicines.forEach(m => {
-                    const freqStr = (m.frequency || "").toLowerCase();
-                    if (freqStr.includes("3")) dailyMedsDoses += 3;
-                    else if (freqStr.includes("2")) dailyMedsDoses += 2;
-                    else dailyMedsDoses += 1;
-                });
-            } else {
-                // Baseline default (3 residents, 6 active prescriptions): 10 doses/day
-                dailyMedsDoses = Math.max(3, residentCount * 3);
-            }
-
-            // 1.3 Today's Care Tasks
-            let liveTodayTasks = [];
-            try {
-                const rawSchedule = localStorage.getItem("silvercare_schedules_v2");
-                if (rawSchedule) {
-                    const parsed = JSON.parse(rawSchedule);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        liveTodayTasks = parsed;
-                    }
-                }
-            } catch (e) {
-                liveTodayTasks = [];
-            }
-
-            const todayScheduleCount = liveTodayTasks.length > 0 ? liveTodayTasks.length : Math.max(3, residentCount * 2 - 1);
-            const todayCompletedCount = liveTodayTasks.length > 0 ? liveTodayTasks.filter(t => t.status === "done").length : 1;
-
-            // 1.4 Today's Recorded Health Alerts
+        document.addEventListener("DOMContentLoaded", async function () {
             const now = new Date();
-            const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            let todayAlertsCount = 0;
-
-            try {
-                const rawHealth = localStorage.getItem("silvercare_health_today_updates_v3") || localStorage.getItem("silvercare_health_today_updates_v2");
-                if (rawHealth) {
-                    const parsed = JSON.parse(rawHealth);
-                    if (parsed && (parsed._date === todayKey || Object.keys(parsed).length > 0)) {
-                        Object.keys(parsed).forEach(k => {
-                            if (k === "_date") return;
-                            const m = parsed[k];
-                            if (!m || typeof m.sys !== "number" || m.time === "Chưa đo hôm nay") return;
-                            // Check BP, pulse, temp
-                            if (m.sys >= 140 || m.dia >= 90 || m.hr > 100 || m.hr < 50 || m.temp >= 38.5) {
-                                todayAlertsCount++;
-                            } else if ((m.sys >= 120 && m.sys < 140) || (m.dia >= 80 && m.dia < 90) || (m.temp >= 37.5 && m.temp < 38.5)) {
-                                todayAlertsCount++;
-                            }
-                        });
-                    }
-                }
-            } catch (e) {
-                todayAlertsCount = 0;
-            }
-
-            // =========================================================================
-            // 2. BUILD DYNAMIC WEEK DATA (CURRENT WEEK: MONDAY TO SUNDAY)
-            // =========================================================================
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
-            // Find Monday of the current week
-            const dayOfWeek = today.getDay(); // 0 is Sun, 1 is Mon, ... 6 is Sat
-            const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-            const monday = new Date(today);
-            monday.setDate(today.getDate() + diffToMonday);
 
-            const currentWeekDays = [];
-            for (let i = 0; i < 7; i++) {
-                const d = new Date(monday);
-                d.setDate(monday.getDate() + i);
-                currentWeekDays.push(d);
+            function toIso(d) {
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
             }
 
             function formatDDMM(dateObj) {
@@ -622,89 +511,92 @@
                 return `${dd}/${mm}/${yyyy}`;
             }
 
-            // Past day task patterns based on actual resident count
-            function getPastDayMetrics(index) {
-                const baseTasks = Math.max(3, residentCount * 2 - 1);
-                // Slight realistic variation for past days
-                const schedule = (index % 3 === 0) ? baseTasks : (index % 3 === 1 ? baseTasks + 1 : baseTasks);
-                const uncompleted = (index === 1 || index === 4) ? 1 : 0;
-                const completed = Math.max(1, schedule - uncompleted);
-                const alerts = (index === 2) ? 1 : 0;
-                const rate = Math.round((completed / schedule) * 1000) / 10;
+            // =========================================================================
+            // 1. TẢI DỮ LIỆU THẬT TỪ SUPABASE (residents / care_schedules /
+            //    medication_administrations / health_alerts)
+            // =========================================================================
+            let residentCount = 0;
+            let rawSchedules = [];
+            let rawMeds = [];
+            let rawAlerts = [];
 
+            async function loadResidentCount() {
+                const { count } = await window.sb.from("residents").select("resident_id", { count: "exact", head: true }).eq("is_active", true);
+                residentCount = count || 0;
+            }
+
+            // Tải toàn bộ dữ liệu vận hành trong một khoảng ngày [start, end] (yyyy-mm-dd)
+            async function loadOperationalData(start, end) {
+                const [schedulesRes, medsRes, alertsRes] = await Promise.all([
+                    window.sb.from("care_schedules").select("schedule_date, status").gte("schedule_date", start).lte("schedule_date", end),
+                    window.sb.from("medication_administrations").select("scheduled_date").gte("scheduled_date", start).lte("scheduled_date", end),
+                    window.sb.from("health_alerts").select("created_at").gte("created_at", start + "T00:00:00").lte("created_at", end + "T23:59:59")
+                ]);
+                rawSchedules = schedulesRes.data || [];
+                rawMeds = medsRes.data || [];
+                rawAlerts = alertsRes.data || [];
+            }
+
+            function countSchedules(start, end) {
+                const inRange = rawSchedules.filter(r => r.schedule_date >= start && r.schedule_date <= end);
                 return {
-                    schedule: schedule,
-                    completed: completed,
-                    meds: dailyMedsDoses,
-                    alerts: alerts,
-                    rate: rate
+                    total: inRange.length,
+                    completed: inRange.filter(r => r.status === "Hoàn thành").length
                 };
             }
 
-            let currentWeekData = [];
-            let totalMedsSum = 0;
-            let totalAlertsSum = 0;
-            let rateSum = 0;
-            let activeDaysCount = 0;
+            function countMeds(start, end) {
+                return rawMeds.filter(r => r.scheduled_date >= start && r.scheduled_date <= end).length;
+            }
 
-            currentWeekDays.forEach((dayDate, index) => {
-                const dayLabel = formatDDMM(dayDate);
-                const isPast = dayDate < today;
-                const isToday = dayDate.getTime() === today.getTime();
-                const isFuture = dayDate > today;
+            function countAlerts(start, end) {
+                return rawAlerts.filter(r => (r.created_at || "").substring(0, 10) >= start && (r.created_at || "").substring(0, 10) <= end).length;
+            }
 
+            function buildBucket(label, start, end, isFuture) {
                 if (isFuture) {
-                    // Future day: LEAVE EMPTY
-                    currentWeekData.push({
-                        dateObj: dayDate,
-                        dayName: dayLabel,
-                        isFuture: true,
-                        schedule: null,
-                        completed: null,
-                        meds: null,
-                        alerts: null,
-                        rate: null
-                    });
-                } else if (isToday) {
-                    // Today: EXACT LIVE METRICS
-                    const rate = todayScheduleCount > 0 ? ((todayCompletedCount / todayScheduleCount) * 100) : 100;
-                    const roundedRate = Math.round(rate * 10) / 10;
-
-                    currentWeekData.push({
-                        dateObj: dayDate,
-                        dayName: dayLabel,
-                        isFuture: false,
-                        schedule: todayScheduleCount,
-                        completed: todayCompletedCount,
-                        meds: dailyMedsDoses,
-                        alerts: todayAlertsCount,
-                        rate: roundedRate
-                    });
-
-                    totalMedsSum += dailyMedsDoses;
-                    totalAlertsSum += todayAlertsCount;
-                    rateSum += roundedRate;
-                    activeDaysCount++;
-                } else {
-                    // Past days: calculated strictly based on actual resident & meds count
-                    const past = getPastDayMetrics(index);
-                    currentWeekData.push({
-                        dateObj: dayDate,
-                        dayName: dayLabel,
-                        isFuture: false,
-                        schedule: past.schedule,
-                        completed: past.completed,
-                        meds: past.meds,
-                        alerts: past.alerts,
-                        rate: past.rate
-                    });
-
-                    totalMedsSum += past.meds;
-                    totalAlertsSum += past.alerts;
-                    rateSum += past.rate;
-                    activeDaysCount++;
+                    return { dayName: label, isFuture: true, schedule: null, completed: null, meds: null, alerts: null, rate: null };
                 }
-            });
+                const sched = countSchedules(start, end);
+                const meds = countMeds(start, end);
+                const alerts = countAlerts(start, end);
+                const rate = sched.total > 0 ? Math.round((sched.completed / sched.total) * 1000) / 10 : 0;
+                return { dayName: label, isFuture: false, schedule: sched.total, completed: sched.completed, meds: meds, alerts: alerts, rate: rate };
+            }
+
+            function summarize(dataList) {
+                let totalMedsSum = 0, totalAlertsSum = 0, rateSum = 0, activeDaysCount = 0;
+                dataList.forEach(d => {
+                    if (!d.isFuture) {
+                        totalMedsSum += d.meds;
+                        totalAlertsSum += d.alerts;
+                        rateSum += d.rate;
+                        activeDaysCount++;
+                    }
+                });
+                return { totalMedsSum, totalAlertsSum, rateSum, activeDaysCount };
+            }
+
+            // =========================================================================
+            // 2. XÂY DỰNG DỮ LIỆU TUẦN HIỆN TẠI (THỨ HAI -> CHỦ NHẬT)
+            // =========================================================================
+            const dayOfWeek = today.getDay();
+            const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+            const monday = new Date(today);
+            monday.setDate(today.getDate() + diffToMonday);
+
+            const currentWeekDays = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(monday);
+                d.setDate(monday.getDate() + i);
+                currentWeekDays.push(d);
+            }
+
+            await loadResidentCount();
+            await loadOperationalData(toIso(currentWeekDays[0]), toIso(currentWeekDays[6]));
+
+            let currentWeekData = currentWeekDays.map(d => buildBucket(formatDDMM(d), toIso(d), toIso(d), d > today));
+            let { totalMedsSum, totalAlertsSum, rateSum, activeDaysCount } = summarize(currentWeekData);
 
             // =========================================================================
             // 3. RENDER 4 KPI METRIC CARDS
@@ -938,8 +830,16 @@
             // =========================================================================
             // 6. PERIOD TOGGLE HANDLERS (Tuần, Tháng, Năm)
             // =========================================================================
+            function updateKpiCards(dataList) {
+                const s = summarize(dataList);
+                if (kpiMeds) kpiMeds.innerText = s.totalMedsSum;
+                if (kpiAlerts) kpiAlerts.innerText = s.totalAlertsSum;
+                const avg = s.activeDaysCount > 0 ? (s.rateSum / s.activeDaysCount).toFixed(1) : "0.0";
+                if (kpiAvgRate) kpiAvgRate.innerText = `${avg}%`;
+            }
+
             document.querySelectorAll(".period-toggle-btn").forEach(btn => {
-                btn.addEventListener("click", function () {
+                btn.addEventListener("click", async function () {
                     document.querySelectorAll(".period-toggle-btn").forEach(b => b.classList.remove("active"));
                     this.classList.add("active");
 
@@ -948,52 +848,47 @@
                         const monthName = `Tháng ${today.getMonth() + 1}/${today.getFullYear()}`;
                         if (dateRangeText) dateRangeText.innerText = monthName;
                         document.getElementById("report-chart-title").innerText = `Biểu đồ vận hành theo tuần — ${monthName}`;
-                        
-                        // Construct 4 weeks for current month
-                        const currentWeekIndex = Math.min(Math.floor(today.getDate() / 7), 3);
+
+                        const first = new Date(today.getFullYear(), today.getMonth(), 1);
+                        const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                        await loadOperationalData(toIso(first), toIso(last));
+
                         const monthWeeksData = [];
                         for (let w = 0; w < 4; w++) {
-                            const isFutureWeek = w > currentWeekIndex;
-                            if (isFutureWeek) {
-                                monthWeeksData.push({ dayName: `Tuần ${w + 1}`, isFuture: true, schedule: null, completed: null, meds: null, alerts: null, rate: null });
-                            } else {
-                                const wSchedule = todayScheduleCount * 7;
-                                const wCompleted = Math.round(wSchedule * 0.9);
-                                const wMeds = dailyMedsDoses * 7;
-                                const wAlerts = (w === currentWeekIndex) ? totalAlertsSum : 2;
-                                const wRate = Math.round((wCompleted / wSchedule) * 1000) / 10;
-                                monthWeeksData.push({ dayName: `Tuần ${w + 1}`, isFuture: false, schedule: wSchedule, completed: wCompleted, meds: wMeds, alerts: wAlerts, rate: wRate });
-                            }
+                            const wStart = new Date(today.getFullYear(), today.getMonth(), 1 + w * 7);
+                            const wEndDay = (w === 3) ? last.getDate() : Math.min((w + 1) * 7, last.getDate());
+                            const wEnd = new Date(today.getFullYear(), today.getMonth(), wEndDay);
+                            monthWeeksData.push(buildBucket(`Tuần ${w + 1}`, toIso(wStart), toIso(wEnd), wStart > today));
                         }
                         renderChart(monthWeeksData);
                         renderTable(monthWeeksData);
+                        updateKpiCards(monthWeeksData);
                     } else if (period === "year") {
                         const yearName = `Năm ${today.getFullYear()}`;
                         if (dateRangeText) dateRangeText.innerText = yearName;
                         document.getElementById("report-chart-title").innerText = `Biểu đồ vận hành theo tháng — ${yearName}`;
-                        
-                        const currentMonthIdx = today.getMonth();
+
+                        const yearStart = new Date(today.getFullYear(), 0, 1);
+                        const yearEnd = new Date(today.getFullYear(), 11, 31);
+                        await loadOperationalData(toIso(yearStart), toIso(yearEnd));
+
                         const yearMonthsData = [];
                         for (let m = 0; m < 12; m++) {
-                            const isFutureMonth = m > currentMonthIdx;
-                            if (isFutureMonth) {
-                                yearMonthsData.push({ dayName: `T${m + 1}`, isFuture: true, schedule: null, completed: null, meds: null, alerts: null, rate: null });
-                            } else {
-                                const mSchedule = todayScheduleCount * 30;
-                                const mCompleted = Math.round(mSchedule * 0.92);
-                                const mMeds = dailyMedsDoses * 30;
-                                const mAlerts = 5;
-                                const mRate = Math.round((mCompleted / mSchedule) * 1000) / 10;
-                                yearMonthsData.push({ dayName: `T${m + 1}`, isFuture: false, schedule: mSchedule, completed: mCompleted, meds: mMeds, alerts: mAlerts, rate: mRate });
-                            }
+                            const mStart = new Date(today.getFullYear(), m, 1);
+                            const mEnd = new Date(today.getFullYear(), m + 1, 0);
+                            yearMonthsData.push(buildBucket(`T${m + 1}`, toIso(mStart), toIso(mEnd), mStart > today));
                         }
                         renderChart(yearMonthsData);
                         renderTable(yearMonthsData);
+                        updateKpiCards(yearMonthsData);
                     } else {
+                        await loadOperationalData(toIso(currentWeekDays[0]), toIso(currentWeekDays[6]));
+                        currentWeekData = currentWeekDays.map(d => buildBucket(formatDDMM(d), toIso(d), toIso(d), d > today));
                         if (dateRangeText) dateRangeText.innerText = `${formatFullDate(currentWeekDays[0])} - ${formatFullDate(currentWeekDays[6])}`;
                         document.getElementById("report-chart-title").innerText = `Biểu đồ vận hành 7 ngày`;
                         renderChart(currentWeekData);
                         renderTable(currentWeekData);
+                        updateKpiCards(currentWeekData);
                     }
                 });
             });

@@ -68,7 +68,12 @@ security definer
 set search_path = public
 as $$
 begin
-    if public.user_role() is distinct from 'admin' then
+    -- auth.uid() chỉ khác NULL khi update chạy qua phiên đăng nhập thật của app
+    -- (PostgREST/GoTrue). Khi chạy trực tiếp trong SQL Editor (vai trò postgres),
+    -- auth.uid() luôn là NULL — đây là truy cập đã được tin cậy (cần đăng nhập
+    -- Supabase Dashboard), nên bỏ qua giới hạn để Admin có thể tự cấp quyền
+    -- cho tài khoản đầu tiên.
+    if auth.uid() is not null and public.user_role() is distinct from 'admin' then
         new.role := old.role;
         new.is_active := old.is_active;
     end if;
@@ -225,6 +230,96 @@ create table if not exists public.alert_resolutions (
     resolved_at      timestamptz not null default now()
 );
 
+-- Tự động tạo health_alerts khi một health_records mới vượt ngưỡng an toàn.
+-- Ngưỡng khớp với logic severity phía UI (Health.cshtml) để không lệch pha.
+create or replace function public.evaluate_health_alert()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    bp_diff int;
+    sev     text;
+begin
+    if new.systolic is null or new.diastolic is null or new.heart_rate is null or new.temperature is null then
+        return new;
+    end if;
+
+    bp_diff := new.systolic - new.diastolic;
+
+    if new.systolic >= 140 or new.diastolic >= 90 or bp_diff <= 20
+       or new.heart_rate > 100 or new.heart_rate < 50
+       or new.temperature >= 38.5 or new.temperature < 35.0
+       or (new.oxygen_saturation is not null and new.oxygen_saturation < 92) then
+        sev := 'Cao';
+    elsif (new.systolic between 120 and 139) or (new.diastolic between 80 and 89)
+       or (new.heart_rate between 91 and 100) or (new.heart_rate between 50 and 59)
+       or (new.temperature between 37.5 and 38.4) then
+        sev := 'Trung bình';
+    else
+        sev := null;
+    end if;
+
+    if sev is not null then
+        declare
+            recommendation text := '';
+        begin
+            if new.systolic >= 160 or new.diastolic >= 100 then
+                recommendation := recommendation || 'Huyết áp tăng cao độ 2. Kiểm tra lại sau 30 phút nghỉ ngơi, nhắc uống thuốc hạ áp theo đơn, hạn chế muối. ';
+            elsif new.systolic >= 140 or new.diastolic >= 90 then
+                recommendation := recommendation || 'Huyết áp cao. Theo dõi thêm, nhắc người bệnh nghỉ ngơi và dùng thuốc đúng giờ. ';
+            elsif (new.systolic < 90 and new.systolic > 0) or (new.diastolic < 60 and new.diastolic > 0) then
+                recommendation := recommendation || 'Huyết áp thấp. Cho người bệnh nằm nghỉ, kê chân cao, theo dõi dấu hiệu chóng mặt/ngất. ';
+            end if;
+
+            if new.heart_rate > 100 then
+                recommendation := recommendation || 'Nhịp tim nhanh bất thường, cần theo dõi sát và báo bác sĩ nếu kéo dài. ';
+            elsif new.heart_rate < 50 then
+                recommendation := recommendation || 'Nhịp tim chậm bất thường, cần theo dõi sát và báo bác sĩ nếu kéo dài. ';
+            end if;
+
+            if new.temperature >= 38.5 then
+                recommendation := recommendation || 'Sốt cao, cần lau mát, bù nước điện giải và theo dõi nhiệt độ mỗi giờ. ';
+            elsif new.temperature < 35.0 then
+                recommendation := recommendation || 'Thân nhiệt thấp bất thường, cần giữ ấm và theo dõi sát. ';
+            end if;
+
+            if new.oxygen_saturation is not null and new.oxygen_saturation < 92 then
+                recommendation := recommendation || 'SpO2 thấp, cần kiểm tra hô hấp và báo bác sĩ ngay. ';
+            end if;
+
+            if recommendation = '' then
+                recommendation := 'Chỉ số nằm trong vùng cần theo dõi thêm, chưa ở mức nguy hiểm.';
+            end if;
+
+            insert into public.health_alerts
+                (resident_id, health_record_id, alert_type, severity, title, message, trigger_value, ai_recommendation, status)
+            values
+            (
+                new.resident_id,
+                new.health_record_id,
+                'Sinh hiệu bất thường',
+                sev,
+                'Chỉ số bất thường: ' || new.systolic || '/' || new.diastolic || ' mmHg, '
+                    || new.heart_rate || ' bpm, ' || new.temperature || '°C',
+                'Hệ thống phát hiện chỉ số sinh hiệu vượt ngưỡng an toàn, cần nhân viên kiểm tra.',
+                new.systolic || '/' || new.diastolic || ' mmHg',
+                trim(recommendation),
+                'Chưa xử lý'
+            );
+        end;
+    end if;
+
+    return new;
+end;
+$$;
+
+drop trigger if exists trg_evaluate_health_alert on public.health_records;
+create trigger trg_evaluate_health_alert
+    after insert on public.health_records
+    for each row execute function public.evaluate_health_alert();
+
 
 /* =========================================================
    7. MEDICINES / SCHEDULES / ADMINISTRATIONS
@@ -355,9 +450,15 @@ alter table public.notification_settings enable row level security;
 alter table public.app_settings enable row level security;
 
 -- PROFILES
+-- Staff/Manager/Admin thấy được hồ sơ cơ bản của nhau (cần để hiển thị/giao
+-- "nhân viên phụ trách", "người cấp thuốc", "người ghi nhận"...).
+-- Family chỉ thấy đúng hồ sơ của chính mình.
 drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles for select
-    using (id = auth.uid() or public.user_role() = 'admin');
+    using (
+        id = auth.uid()
+        or public.user_role() in ('admin', 'manager', 'staff')
+    );
 
 drop policy if exists profiles_update on public.profiles;
 create policy profiles_update on public.profiles for update

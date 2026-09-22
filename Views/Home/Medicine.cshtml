@@ -397,7 +397,7 @@
 
 <div class="medicine-header">
     <h1 class="medicine-title">Quản lý thuốc</h1>
-    <button type="button" class="btn-add-medicine" onclick="openAddMedicineModal()">
+    <button type="button" class="btn-add-medicine" data-roles="admin,manager,staff" onclick="openAddMedicineModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -415,16 +415,38 @@
                     <th>TÊN THUỐC</th>
                     <th>LIỀU LƯỢNG</th>
                     <th>NGƯỜI DÙNG</th>
-                    <th>KHUNG GIỜ</th>
+                    <th>GIỜ UỐNG</th>
                     <th>TẦN SUẤT</th>
                     <th>TRẠNG THÁI</th>
                     <th>GHI CHÚ</th>
-                    <th style="text-align: right; width: 80px;"></th>
+                    <th style="text-align: right; width: 80px;" data-roles="admin,manager,staff"></th>
                 </tr>
             </thead>
             <tbody id="medicineTableBody">
                 <!-- Rows injected dynamically via JavaScript -->
             </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MAR — Sổ cấp phát hôm nay -->
+<div class="medicine-header" style="margin-top: 32px;">
+    <h1 class="medicine-title" style="font-size: 18px;">Sổ cấp phát hôm nay (MAR)</h1>
+</div>
+<div class="medicine-table-card" data-roles="admin,manager,staff">
+    <div class="medicine-table-responsive">
+        <table class="medicine-table" id="marTable">
+            <thead>
+                <tr>
+                    <th>GIỜ UỐNG</th>
+                    <th>NGƯỜI DÙNG</th>
+                    <th>THUỐC / LIỀU</th>
+                    <th>TRẠNG THÁI</th>
+                    <th>THỰC HIỆN LÚC</th>
+                    <th style="text-align: right; width: 140px;"></th>
+                </tr>
+            </thead>
+            <tbody id="marTableBody"></tbody>
         </table>
     </div>
 </div>
@@ -453,15 +475,12 @@
                 </div>
                 <div class="modal-form-group">
                     <label class="modal-form-label" for="addResidentName">Người dùng (Người cao tuổi)</label>
-                    <select id="addResidentName" class="modal-form-select" required>
-                        <option value="Nguyễn Văn An">Nguyễn Văn An (Phòng 201)</option>
-                        <option value="Lê Văn Bình">Lê Văn Bình (Phòng 102)</option>
-                        <option value="Phạm Thị Cúc">Phạm Thị Cúc (Phòng 305)</option>
-                    </select>
+                    <select id="addResidentName" class="modal-form-select" required></select>
                 </div>
+                <div class="modal-form-group" id="addAllergyWarning" style="display:none; background:#fef3f2; border:1px solid #fecdca; border-radius:8px; padding:10px 14px; color:#b42318; font-size:13px;"></div>
                 <div class="modal-form-group">
-                    <label class="modal-form-label" for="addScheduleTime">Khung giờ (dựa trên lịch chăm sóc)</label>
-                    <input type="text" id="addScheduleTime" class="modal-form-input" placeholder="VD: 08:00, 20:00" required />
+                    <label class="modal-form-label" for="addScheduleTime">Giờ uống</label>
+                    <input type="time" id="addScheduleTime" class="modal-form-input" required />
                 </div>
                 <div class="modal-form-group">
                     <label class="modal-form-label" for="addFrequency">Tần suất</label>
@@ -513,15 +532,12 @@
                 </div>
                 <div class="modal-form-group">
                     <label class="modal-form-label" for="editResidentName">Người dùng (Người cao tuổi)</label>
-                    <select id="editResidentName" class="modal-form-select" required>
-                        <option value="Nguyễn Văn An">Nguyễn Văn An (Phòng 201)</option>
-                        <option value="Lê Văn Bình">Lê Văn Bình (Phòng 102)</option>
-                        <option value="Phạm Thị Cúc">Phạm Thị Cúc (Phòng 305)</option>
-                    </select>
+                    <select id="editResidentName" class="modal-form-select" required></select>
                 </div>
+                <div class="modal-form-group" id="editAllergyWarning" style="display:none; background:#fef3f2; border:1px solid #fecdca; border-radius:8px; padding:10px 14px; color:#b42318; font-size:13px;"></div>
                 <div class="modal-form-group">
-                    <label class="modal-form-label" for="editScheduleTime">Khung giờ</label>
-                    <input type="text" id="editScheduleTime" class="modal-form-input" required />
+                    <label class="modal-form-label" for="editScheduleTime">Giờ uống</label>
+                    <input type="time" id="editScheduleTime" class="modal-form-input" required />
                 </div>
                 <div class="modal-form-group">
                     <label class="modal-form-label" for="editFrequency">Tần suất</label>
@@ -575,129 +591,107 @@
 
 @section Scripts {
     <script>
-        // Baseline default data strictly matching nguoicaotuoi.sql and medicine.sql
-        const defaultMedicines = [
-            {
-                id: 1,
-                name: "Amlodipine 5mg",
-                dosage: "1 viên",
-                resident: "Nguyễn Văn An",
-                scheduleTime: "08:00, 20:00",
-                frequency: "2 lần/ngày",
-                status: "Đang dùng",
-                notes: "Uống sau bữa ăn"
-            },
-            {
-                id: 2,
-                name: "Metformin 500mg",
-                dosage: "2 viên",
-                resident: "Nguyễn Văn An",
-                scheduleTime: "07:00, 12:00, 19:00",
-                frequency: "3 lần/ngày",
-                status: "Đang dùng",
-                notes: "Uống trong bữa ăn"
-            },
-            {
-                id: 3,
-                name: "Diclofenac 50mg",
-                dosage: "1 viên",
-                resident: "Lê Văn Bình",
-                scheduleTime: "09:00, 21:00",
-                frequency: "2 lần/ngày",
-                status: "Đang dùng",
-                notes: "Không dùng khi đau dạ dày ..."
-            },
-            {
-                id: 4,
-                name: "Calcium + Vitamin D",
-                dosage: "1 viên",
-                resident: "Lê Văn Bình",
-                scheduleTime: "12:00",
-                frequency: "1 lần/ngày",
-                status: "Đang dùng",
-                notes: "Uống sau bữa trưa"
-            },
-            {
-                id: 5,
-                name: "Warfarin 2mg",
-                dosage: "1 viên",
-                resident: "Phạm Thị Cúc",
-                scheduleTime: "18:00",
-                frequency: "1 lần/ngày",
-                status: "Đang dùng",
-                notes: "Theo dõi INR định kỳ"
-            },
-            {
-                id: 6,
-                name: "Atorvastatin 20mg",
-                dosage: "1 viên",
-                resident: "Phạm Thị Cúc",
-                scheduleTime: "21:00",
-                frequency: "1 lần/ngày",
-                status: "Đang dùng",
-                notes: "Uống buổi tối trước ngủ"
-            }
-        ];
-
         let medicinesList = [];
+        let marRows = [];
+        let residentsCache = []; // {residentId, name, room, allergies}
 
-        function getAvailableResidents() {
-            const raw = localStorage.getItem("silvercare_elderly_profiles_v3");
-            if (raw) {
-                try {
-                    const list = JSON.parse(raw);
-                    if (Array.isArray(list) && list.length > 0) return list;
-                } catch(e) {}
+        async function loadResidentsCache() {
+            const { data, error } = await window.sb
+                .from("residents")
+                .select("resident_id, full_name, allergies, rooms(room_code)")
+                .eq("is_active", true)
+                .order("full_name");
+
+            if (error) {
+                console.error(error);
+                residentsCache = [];
+                return;
             }
-            return [
-                { name: "Nguyễn Văn An", room: "201" },
-                { name: "Lê Văn Bình", room: "102" },
-                { name: "Phạm Thị Cúc", room: "305" }
-            ];
+
+            residentsCache = (data || []).map(r => ({
+                residentId: r.resident_id,
+                name: r.full_name,
+                room: r.rooms ? r.rooms.room_code : "",
+                allergies: r.allergies || ""
+            }));
         }
 
         function populateResidentSelects() {
-            const residents = getAvailableResidents();
             const addSel = document.getElementById("addResidentName");
             const editSel = document.getElementById("editResidentName");
 
-            const html = residents.map(r => {
-                const roomStr = r.room && r.room.startsWith("Phòng") ? r.room : `Phòng ${r.room || '---'}`;
-                return `<option value="${escapeHtml(r.name)}">${escapeHtml(r.name)} (${escapeHtml(roomStr)})</option>`;
-            }).join("");
+            const html = residentsCache.map(r =>
+                `<option value="${r.residentId}">${escapeHtml(r.name)} (Phòng ${escapeHtml(r.room || "---")})</option>`
+            ).join("");
 
             if (addSel) addSel.innerHTML = html;
             if (editSel) editSel.innerHTML = html;
         }
 
-        // Load medicines from localStorage or default
-        function loadMedicines() {
-            populateResidentSelects();
-            const validResidents = getAvailableResidents().map(r => r.name);
-            localStorage.removeItem('silvercare_medicines_list');
-            const stored = localStorage.getItem('silvercare_medicines_v2');
-            if (stored) {
-                try {
-                    const parsed = JSON.parse(stored);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        medicinesList = parsed;
-                    } else {
-                        medicinesList = [...defaultMedicines];
-                        saveMedicinesToStorage();
-                    }
-                } catch (e) {
-                    medicinesList = [...defaultMedicines];
-                    saveMedicinesToStorage();
-                }
-            } else {
-                medicinesList = [...defaultMedicines];
-                saveMedicinesToStorage();
+        // Cảnh báo dị ứng: đối chiếu tên thuốc với ghi chú dị ứng của cư dân (residents.allergies)
+        function checkAllergyWarning(residentId, medName, warningBoxEl) {
+            warningBoxEl.style.display = "none";
+            warningBoxEl.innerHTML = "";
+            const res = residentsCache.find(r => r.residentId === residentId);
+            if (!res || !res.allergies || !medName) return;
+
+            const allergyText = res.allergies.toLowerCase();
+            const words = medName.toLowerCase().split(/[\s0-9.,]+/).filter(w => w.length >= 4);
+            const hit = words.find(w => allergyText.includes(w));
+
+            if (hit) {
+                warningBoxEl.style.display = "block";
+                warningBoxEl.innerHTML = `⚠️ Cư dân có ghi chú dị ứng liên quan tới "<b>${escapeHtml(hit)}</b>" (${escapeHtml(res.allergies)}). Kiểm tra kỹ trước khi kê thuốc này.`;
             }
-            renderMedicinesTable();
         }
 
-        function saveMedicinesToStorage() {
-            localStorage.setItem('silvercare_medicines_v2', JSON.stringify(medicinesList));
+        // Tìm thuốc theo tên, tạo mới nếu chưa có trong danh mục
+        async function findOrCreateMedicine(name) {
+            const { data: found } = await window.sb
+                .from("medicines")
+                .select("medicine_id")
+                .ilike("medicine_name", name)
+                .limit(1);
+
+            if (found && found.length > 0) return found[0];
+
+            const { data: created, error } = await window.sb
+                .from("medicines")
+                .insert({ medicine_name: name })
+                .select("medicine_id")
+                .single();
+
+            if (error) throw error;
+            return created;
+        }
+
+        // Load medicines (medication_schedules) từ Supabase
+        async function loadMedicines() {
+            const { data, error } = await window.sb
+                .from("medication_schedules")
+                .select("medication_schedule_id, dosage, frequency, administration_time, status, instructions, resident_id, residents(full_name), medicines(medicine_name)")
+                .order("medication_schedule_id", { ascending: false });
+
+            if (error) {
+                console.error(error);
+                medicinesList = [];
+                renderMedicinesTable();
+                return;
+            }
+
+            medicinesList = (data || []).map(row => ({
+                scheduleId: row.medication_schedule_id,
+                name: row.medicines ? row.medicines.medicine_name : "",
+                dosage: row.dosage,
+                residentId: row.resident_id,
+                resident: row.residents ? row.residents.full_name : "",
+                scheduleTime: row.administration_time ? row.administration_time.substring(0, 5) : "",
+                frequency: row.frequency || "",
+                status: row.status,
+                notes: row.instructions || ""
+            }));
+
+            renderMedicinesTable();
         }
 
         // Render table
@@ -746,15 +740,15 @@
                         <td>${escapeHtml(med.frequency)}</td>
                         <td><span class="med-badge ${badgeClass}">${escapeHtml(med.status)}</span></td>
                         <td><span class="med-notes" title="${escapeHtml(med.notes || '')}">${escapeHtml(med.notes || '—')}</span></td>
-                        <td>
+                        <td data-roles="admin,manager,staff">
                             <div class="med-actions-cell">
-                                <button type="button" class="btn-action-icon btn-action-edit" title="Chỉnh sửa" onclick="openEditMedicineModal(${med.id})">
+                                <button type="button" class="btn-action-icon btn-action-edit" title="Chỉnh sửa" onclick="openEditMedicineModal(${med.scheduleId})">
                                     <svg viewBox="0 0 24 24">
                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                     </svg>
                                 </button>
-                                <button type="button" class="btn-action-icon btn-action-delete" title="Xóa" onclick="openDeleteMedicineModal(${med.id})">
+                                <button type="button" class="btn-action-icon btn-action-delete" title="Xóa" onclick="openDeleteMedicineModal(${med.scheduleId})">
                                     <svg viewBox="0 0 24 24">
                                         <polyline points="3 6 5 6 21 6"></polyline>
                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -767,6 +761,7 @@
             });
 
             tbody.innerHTML = html;
+            if (window.currentUser) applyDataRolesWithin(tbody, window.currentUser.role);
         }
 
         // Open/Close Modal Utilities
@@ -783,83 +778,127 @@
         // Add Modal Handler
         function openAddMedicineModal() {
             document.getElementById('addMedicineForm').reset();
+            document.getElementById('addAllergyWarning').style.display = 'none';
             openModal('addMedicineModal');
         }
 
-        function handleAddMedicine(e) {
+        async function handleAddMedicine(e) {
             e.preventDefault();
-            const newMed = {
-                id: Date.now(),
-                name: document.getElementById('addMedName').value.trim(),
-                dosage: document.getElementById('addDosage').value.trim(),
-                resident: document.getElementById('addResidentName').value,
-                scheduleTime: document.getElementById('addScheduleTime').value.trim(),
-                frequency: document.getElementById('addFrequency').value.trim(),
-                status: document.getElementById('addStatus').value,
-                notes: document.getElementById('addNotes').value.trim()
-            };
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const name = document.getElementById('addMedName').value.trim();
+            const dosage = document.getElementById('addDosage').value.trim();
+            const residentId = parseInt(document.getElementById('addResidentName').value, 10);
+            const scheduleTime = document.getElementById('addScheduleTime').value;
+            const frequency = document.getElementById('addFrequency').value.trim();
+            const status = document.getElementById('addStatus').value;
+            const notes = document.getElementById('addNotes').value.trim();
 
-            medicinesList.unshift(newMed);
-            saveMedicinesToStorage();
-            renderMedicinesTable();
-            closeModal('addMedicineModal');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Đang lưu...';
+            try {
+                const medicine = await findOrCreateMedicine(name);
+                const { error } = await window.sb.from('medication_schedules').insert({
+                    resident_id: residentId,
+                    medicine_id: medicine.medicine_id,
+                    prescribed_by: window.currentUser ? window.currentUser.id : null,
+                    dosage: dosage,
+                    frequency: frequency || null,
+                    start_date: new Date().toISOString().slice(0, 10),
+                    administration_time: scheduleTime + ':00',
+                    instructions: notes || null,
+                    status: status
+                });
+                if (error) throw error;
+
+                closeModal('addMedicineModal');
+                await loadMedicines();
+                await loadMarToday();
+            } catch (err) {
+                console.error(err);
+                alert('Không thể thêm thuốc: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Thêm thuốc';
+            }
         }
 
         // Edit Modal Handler
-        function openEditMedicineModal(id) {
-            const med = medicinesList.find(m => m.id === id);
+        function openEditMedicineModal(scheduleId) {
+            const med = medicinesList.find(m => m.scheduleId === scheduleId);
             if (!med) return;
 
-            document.getElementById('editMedId').value = med.id;
+            document.getElementById('editMedId').value = med.scheduleId;
             document.getElementById('editMedName').value = med.name;
             document.getElementById('editDosage').value = med.dosage;
-            document.getElementById('editResidentName').value = med.resident;
+            document.getElementById('editResidentName').value = med.residentId;
             document.getElementById('editScheduleTime').value = med.scheduleTime;
             document.getElementById('editFrequency').value = med.frequency;
             document.getElementById('editStatus').value = med.status;
             document.getElementById('editNotes').value = med.notes || '';
+            document.getElementById('editAllergyWarning').style.display = 'none';
 
             openModal('editMedicineModal');
         }
 
-        function handleSaveEditMedicine(e) {
+        async function handleSaveEditMedicine(e) {
             e.preventDefault();
-            const id = parseInt(document.getElementById('editMedId').value);
-            const index = medicinesList.findIndex(m => m.id === id);
-            if (index === -1) return;
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const scheduleId = parseInt(document.getElementById('editMedId').value, 10);
+            const name = document.getElementById('editMedName').value.trim();
+            const dosage = document.getElementById('editDosage').value.trim();
+            const residentId = parseInt(document.getElementById('editResidentName').value, 10);
+            const scheduleTime = document.getElementById('editScheduleTime').value;
+            const frequency = document.getElementById('editFrequency').value.trim();
+            const status = document.getElementById('editStatus').value;
+            const notes = document.getElementById('editNotes').value.trim();
 
-            medicinesList[index] = {
-                ...medicinesList[index],
-                name: document.getElementById('editMedName').value.trim(),
-                dosage: document.getElementById('editDosage').value.trim(),
-                resident: document.getElementById('editResidentName').value,
-                scheduleTime: document.getElementById('editScheduleTime').value.trim(),
-                frequency: document.getElementById('editFrequency').value.trim(),
-                status: document.getElementById('editStatus').value,
-                notes: document.getElementById('editNotes').value.trim()
-            };
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Đang lưu...';
+            try {
+                const medicine = await findOrCreateMedicine(name);
+                const { error } = await window.sb.from('medication_schedules').update({
+                    resident_id: residentId,
+                    medicine_id: medicine.medicine_id,
+                    dosage: dosage,
+                    frequency: frequency || null,
+                    administration_time: scheduleTime + ':00',
+                    instructions: notes || null,
+                    status: status
+                }).eq('medication_schedule_id', scheduleId);
+                if (error) throw error;
 
-            saveMedicinesToStorage();
-            renderMedicinesTable();
-            closeModal('editMedicineModal');
+                closeModal('editMedicineModal');
+                await loadMedicines();
+                await loadMarToday();
+            } catch (err) {
+                console.error(err);
+                alert('Không thể lưu thay đổi: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Lưu thay đổi';
+            }
         }
 
         // Delete Modal Handler
-        function openDeleteMedicineModal(id) {
-            const med = medicinesList.find(m => m.id === id);
+        function openDeleteMedicineModal(scheduleId) {
+            const med = medicinesList.find(m => m.scheduleId === scheduleId);
             if (!med) return;
 
-            document.getElementById('deleteMedId').value = med.id;
+            document.getElementById('deleteMedId').value = med.scheduleId;
             document.getElementById('deleteConfirmText').innerHTML = `Bạn có chắc chắn muốn xóa thuốc <strong>${escapeHtml(med.name)}</strong> của cư dân <strong>${escapeHtml(med.resident)}</strong> không?`;
             openModal('deleteMedicineModal');
         }
 
-        function confirmDeleteMedicine() {
-            const id = parseInt(document.getElementById('deleteMedId').value);
-            medicinesList = medicinesList.filter(m => m.id !== id);
-            saveMedicinesToStorage();
-            renderMedicinesTable();
+        async function confirmDeleteMedicine() {
+            const scheduleId = parseInt(document.getElementById('deleteMedId').value, 10);
+            const { error } = await window.sb.from('medication_schedules').delete().eq('medication_schedule_id', scheduleId);
+            if (error) {
+                alert('Không thể xóa: ' + error.message);
+                return;
+            }
             closeModal('deleteMedicineModal');
+            await loadMedicines();
+            await loadMarToday();
         }
 
         function escapeHtml(text) {
@@ -872,8 +911,151 @@
                 .replace(/'/g, "&#039;");
         }
 
-        document.addEventListener("DOMContentLoaded", function () {
-            loadMedicines();
+        // ==========================================================================
+        // MAR — SỔ CẤP PHÁT HÔM NAY
+        // ==========================================================================
+        async function loadMarToday() {
+            const todayIso = new Date().toISOString().slice(0, 10);
+
+            const { data: schedules, error } = await window.sb
+                .from('medication_schedules')
+                .select('medication_schedule_id, administration_time, dosage, resident_id, residents(full_name), medicines(medicine_name)')
+                .lte('start_date', todayIso)
+                .eq('status', 'Đang sử dụng')
+                .or(`end_date.is.null,end_date.gte.${todayIso}`);
+
+            if (error) {
+                console.error(error);
+                marRows = [];
+                renderMarTable();
+                return;
+            }
+
+            const { data: admins } = await window.sb
+                .from('medication_administrations')
+                .select('medication_schedule_id, actual_time, status')
+                .eq('scheduled_date', todayIso);
+
+            const adminMap = {};
+            (admins || []).forEach(a => { adminMap[a.medication_schedule_id] = a; });
+
+            marRows = (schedules || []).map(s => {
+                const admin = adminMap[s.medication_schedule_id];
+                return {
+                    scheduleId: s.medication_schedule_id,
+                    time: s.administration_time ? s.administration_time.substring(0, 5) : '',
+                    resident: s.residents ? s.residents.full_name : '',
+                    medName: s.medicines ? s.medicines.medicine_name : '',
+                    dosage: s.dosage,
+                    done: !!admin,
+                    actualTime: admin ? admin.actual_time : null
+                };
+            }).sort((a, b) => a.time.localeCompare(b.time));
+
+            renderMarTable();
+        }
+
+        function renderMarTable() {
+            const tbody = document.getElementById('marTableBody');
+            if (!tbody) return;
+
+            if (marRows.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="med-empty-state">Không có lịch cấp thuốc nào cho hôm nay.</td></tr>`;
+                return;
+            }
+
+            const now = new Date();
+            tbody.innerHTML = marRows.map(r => {
+                let isLate = false;
+                if (!r.done && r.time) {
+                    const [hh, mm] = r.time.split(':').map(Number);
+                    const schedDate = new Date();
+                    schedDate.setHours(hh, mm, 0, 0);
+                    isLate = (now - schedDate) / 60000 > 30;
+                }
+
+                const statusHtml = r.done
+                    ? `<span class="med-badge med-badge-active">Đã thực hiện</span>`
+                    : (isLate
+                        ? `<span class="med-badge" style="background:#fef3f2;color:#b42318;">Trễ giờ</span>`
+                        : `<span class="med-badge med-badge-paused">Chưa thực hiện</span>`);
+
+                const actionHtml = r.done
+                    ? '—'
+                    : `<button type="button" class="btn-modal-submit" style="padding:6px 14px; font-size:13px;" onclick="confirmAdministration(${r.scheduleId})">Đã cho uống</button>`;
+
+                return `
+                    <tr>
+                        <td>${escapeHtml(r.time)}</td>
+                        <td>${escapeHtml(r.resident)}</td>
+                        <td>${escapeHtml(r.medName)} — ${escapeHtml(r.dosage)}</td>
+                        <td>${statusHtml}</td>
+                        <td>${r.actualTime ? escapeHtml(r.actualTime.substring(0, 5)) : '—'}</td>
+                        <td style="text-align:right;">${actionHtml}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function confirmAdministration(scheduleId) {
+            const sched = marRows.find(r => r.scheduleId === scheduleId);
+            const todayIso = new Date().toISOString().slice(0, 10);
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
+
+            const { error } = await window.sb.from('medication_administrations').insert({
+                medication_schedule_id: scheduleId,
+                administered_by: window.currentUser ? window.currentUser.id : null,
+                scheduled_date: todayIso,
+                scheduled_time: (sched ? sched.time : '00:00') + ':00',
+                actual_time: timeStr,
+                status: 'Đã thực hiện'
+            });
+
+            if (error) {
+                alert('Không thể xác nhận đã cho uống: ' + error.message);
+                return;
+            }
+            await loadMarToday();
+        }
+
+        function applyDataRolesWithin(container, role) {
+            container.querySelectorAll('[data-roles]').forEach(el => {
+                const allowed = el.getAttribute('data-roles').split(',').map(r => r.trim());
+                el.style.display = allowed.indexOf(role) === -1 ? 'none' : '';
+            });
+        }
+
+        document.getElementById('addResidentName')?.addEventListener('change', function () {
+            checkAllergyWarning(parseInt(this.value, 10), document.getElementById('addMedName').value.trim(), document.getElementById('addAllergyWarning'));
+        });
+        document.getElementById('addMedName')?.addEventListener('input', function () {
+            checkAllergyWarning(parseInt(document.getElementById('addResidentName').value, 10), this.value.trim(), document.getElementById('addAllergyWarning'));
+        });
+        document.getElementById('editResidentName')?.addEventListener('change', function () {
+            checkAllergyWarning(parseInt(this.value, 10), document.getElementById('editMedName').value.trim(), document.getElementById('editAllergyWarning'));
+        });
+        document.getElementById('editMedName')?.addEventListener('input', function () {
+            checkAllergyWarning(parseInt(document.getElementById('editResidentName').value, 10), this.value.trim(), document.getElementById('editAllergyWarning'));
+        });
+
+        document.addEventListener("DOMContentLoaded", async function () {
+            await loadResidentsCache();
+            populateResidentSelects();
+            await loadMedicines();
+            if (window.currentUser && ['admin', 'manager', 'staff'].indexOf(window.currentUser.role) !== -1) {
+                await loadMarToday();
+            }
+            if (window.currentUser) {
+                applyDataRolesWithin(document, window.currentUser.role);
+            }
+        });
+
+        document.addEventListener("silvercare:auth-ready", async function (e) {
+            if (['admin', 'manager', 'staff'].indexOf(e.detail.role) !== -1 && marRows.length === 0) {
+                await loadMarToday();
+            }
+            applyDataRolesWithin(document, e.detail.role);
         });
     </script>
 }

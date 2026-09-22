@@ -1,26 +1,7 @@
-@using System.Collections.Generic
 @{
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewData["Title"] = "Theo dõi sức khỏe";
-
-    // Capture logged-in user profile name
-    var fullName = TempData["FullName"] as string ?? "Nguyễn Thị Lan";
-    TempData.Keep("FullName");
-}
-
-@functions {
-    public class ResidentHealth
-    {
-        public string Id { get; set; } = "";
-        public string Initials { get; set; } = "";
-        public string Name { get; set; } = "";
-        public string Room { get; set; } = "";
-        public int Systolic { get; set; }
-        public int Diastolic { get; set; }
-        public int HeartRate { get; set; }
-        public double Temperature { get; set; }
-        public string LastUpdated { get; set; } = "";
-    }
+    ViewData["AllowedRoles"] = "admin,manager,staff,family";
 }
 
 <style>
@@ -264,6 +245,22 @@
                 <input type="number" step="0.1" class="modal-input" id="input-temp" placeholder="36.5" min="30" max="45" required />
             </div>
 
+            <!-- SpO2 / Weight / Blood sugar row (tùy chọn) -->
+            <div class="modal-form-row">
+                <div class="modal-form-group">
+                    <label class="modal-label" for="input-spo2">SpO2 (%)</label>
+                    <input type="number" step="0.1" class="modal-input" id="input-spo2" placeholder="98" min="50" max="100" />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-label" for="input-weight">Cân nặng (kg)</label>
+                    <input type="number" step="0.1" class="modal-input" id="input-weight" placeholder="55" min="20" max="200" />
+                </div>
+            </div>
+            <div class="modal-form-group">
+                <label class="modal-label" for="input-bloodsugar">Đường huyết (mg/dL)</label>
+                <input type="number" step="0.1" class="modal-input" id="input-bloodsugar" placeholder="110" min="30" max="600" />
+            </div>
+
             <!-- Note group -->
             <div class="modal-form-group">
                 <label class="modal-label" for="input-note">Ghi chú</label>
@@ -281,7 +278,7 @@
 
 @section Scripts {
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        document.addEventListener("DOMContentLoaded", async function () {
             const modalOverlay = document.getElementById("update-modal-overlay");
             const modalTitle = document.getElementById("modal-title-text");
             const btnClose = document.getElementById("btn-modal-close");
@@ -293,72 +290,19 @@
             const inputDia = document.getElementById("input-dia");
             const inputHr = document.getElementById("input-hr");
             const inputTemp = document.getElementById("input-temp");
+            const inputSpo2 = document.getElementById("input-spo2");
+            const inputWeight = document.getElementById("input-weight");
+            const inputBloodSugar = document.getElementById("input-bloodsugar");
             const inputNote = document.getElementById("input-note");
             
             const searchInput = document.querySelector(".health-search-input");
             const tbody = document.getElementById("health-table-body");
             const emptyState = document.getElementById("health-empty-state");
 
-            // Storage Keys
-            const ELDERLY_STORAGE_KEY = "silvercare_elderly_profiles_v3";
-            const HEALTH_RECORDS_KEY = "silvercare_health_records_v4";
-            const HEALTH_TODAY_KEY = "silvercare_health_today_updates_v3";
-
-            // Default baseline residents if not yet stored
-            const defaultResidents = [
-                {
-                    id: "NCT001",
-                    initials: "NVA",
-                    name: "Nguyễn Văn An",
-                    age: 78,
-                    gender: "Nam",
-                    room: "201",
-                    blood: "A+",
-                    status: "Trung bình",
-                    familyName: "Nguyễn Văn Hải",
-                    familyPhone: "0909090909",
-                    familyRel: "Con trai",
-                    familyAddress: "123 Nguyễn Trãi, Quận 1, TP. HCM",
-                    admissionDate: "15/05/2024",
-                    notes: "Theo dõi huyết áp định kỳ mỗi sáng, chế độ ăn giảm muối."
-                },
-                {
-                    id: "NCT002",
-                    initials: "LVB",
-                    name: "Lê Văn Bình",
-                    age: 82,
-                    gender: "Nam",
-                    room: "102",
-                    blood: "B+",
-                    status: "Trung bình",
-                    familyName: "Lê Thị Mai",
-                    familyPhone: "0918888888",
-                    familyRel: "Con gái",
-                    familyAddress: "456 Lê Lợi, Quận Gò Vấp, TP. HCM",
-                    admissionDate: "10/11/2023",
-                    notes: "Thoái hóa khớp gối, cần hỗ trợ vận động và vật lý trị liệu."
-                },
-                {
-                    id: "NCT003",
-                    initials: "PTC",
-                    name: "Phạm Thị Cúc",
-                    age: 75,
-                    gender: "Nữ",
-                    room: "305",
-                    blood: "O+",
-                    status: "Trung bình",
-                    familyName: "Trần Minh Hoàng",
-                    familyPhone: "0989999999",
-                    familyRel: "Chồng",
-                    familyAddress: "789 Cách Mạng Tháng 8, Quận 3, TP. HCM",
-                    admissionDate: "20/02/2024",
-                    notes: "Tiền sử đường huyết dao động, kiểm tra sức khỏe hàng ngày."
-                }
-            ];
-
             let currentResidents = [];
-            let currentEditingRowId = "";
-            let selectedPatientId = "NCT001";
+            let currentEditingResidentId = null;
+            let selectedPatientResidentId = null;
+            let todayVitalsMap = {};
             let chartDaysMeta = []; // Cached metadata for hover/tooltip
 
             // Helper: get local YYYY-MM-DD
@@ -385,170 +329,129 @@
             }
 
             // ==========================================================================
-            // 1. LOAD RESIDENTS
+            // 1. LOAD RESIDENTS (Supabase — RLS tự giới hạn Family chỉ thấy resident của mình)
             // ==========================================================================
-            function loadResidents() {
-                const raw = localStorage.getItem(ELDERLY_STORAGE_KEY);
-                if (raw) {
-                    try {
-                        const parsed = JSON.parse(raw);
-                        if (Array.isArray(parsed) && parsed.length > 0) {
-                            currentResidents = parsed;
-                        } else {
-                            currentResidents = [...defaultResidents];
-                        }
-                    } catch (e) {
-                        currentResidents = [...defaultResidents];
-                    }
-                } else {
-                    currentResidents = [...defaultResidents];
-                    localStorage.setItem(ELDERLY_STORAGE_KEY, JSON.stringify(currentResidents));
+            async function loadResidents() {
+                const { data, error } = await window.sb
+                    .from("residents")
+                    .select("resident_id, resident_code, full_name, room_id, rooms(room_code)")
+                    .eq("is_active", true)
+                    .order("resident_id");
+
+                if (error) {
+                    console.error(error);
+                    currentResidents = [];
+                    return;
                 }
+
+                currentResidents = (data || []).map(r => ({
+                    residentId: r.resident_id,
+                    id: r.resident_code,
+                    name: r.full_name,
+                    room: r.rooms ? r.rooms.room_code : "",
+                    initials: computeInitials(r.full_name)
+                }));
 
                 // Check URL parameters for direct resident targeting
                 const urlParams = new URLSearchParams(window.location.search);
                 const targetId = urlParams.get('residentId') || urlParams.get('id');
                 const targetName = urlParams.get('name');
 
+                let found = null;
                 if (targetId) {
-                    const found = currentResidents.find(r => 
-                        r.id === targetId || 
-                        (targetId === 'row-1' && r.id === 'NCT001') || 
-                        (targetId === 'row-2' && r.id === 'NCT002') || 
-                        (targetId === 'row-3' && r.id === 'NCT003') || 
-                        (targetId === 'NCT001' && r.id === 'row-1') || 
-                        (targetId === 'NCT002' && r.id === 'row-2') || 
-                        (targetId === 'NCT003' && r.id === 'row-3')
-                    );
-                    if (found) {
-                        selectedPatientId = found.id;
-                    }
+                    found = currentResidents.find(r => r.id === targetId);
                 } else if (targetName) {
-                    const found = currentResidents.find(r => r.name.toLowerCase().includes(targetName.toLowerCase()));
-                    if (found) {
-                        selectedPatientId = found.id;
-                    }
-                } else if (currentResidents.length > 0 && !currentResidents.some(r => r.id === selectedPatientId)) {
-                    selectedPatientId = currentResidents[0].id;
+                    found = currentResidents.find(r => r.name.toLowerCase().includes(targetName.toLowerCase()));
+                }
+
+                if (found) {
+                    selectedPatientResidentId = found.residentId;
+                } else if (currentResidents.length > 0 && !currentResidents.some(r => r.residentId === selectedPatientResidentId)) {
+                    selectedPatientResidentId = currentResidents[0].residentId;
                 }
             }
 
             // ==========================================================================
-            // 2. DAILY HEALTH RECORDS PERSISTENCE (silvercare_health_records_v4)
+            // 2. HEALTH RECORDS (Supabase — bảng health_records thật)
             // ==========================================================================
-            function loadHealthRecords() {
-                const raw = localStorage.getItem(HEALTH_RECORDS_KEY);
-                if (raw) {
-                    try {
-                        const parsed = JSON.parse(raw);
-                        if (parsed && typeof parsed === "object") {
-                            return parsed;
-                        }
-                    } catch (e) {}
+            function startOfTodayIso() {
+                const d = new Date();
+                d.setHours(0, 0, 0, 0);
+                return d.toISOString();
+            }
+
+            // Lấy chỉ số mới nhất hôm nay của TẤT CẢ cư dân (dùng cho bảng danh sách)
+            async function loadTodayVitalsMap() {
+                const { data, error } = await window.sb
+                    .from("health_records")
+                    .select("resident_id, systolic, diastolic, heart_rate, temperature, oxygen_saturation, weight, blood_sugar, recorded_at, note")
+                    .gte("recorded_at", startOfTodayIso())
+                    .order("recorded_at", { ascending: false });
+
+                if (error) {
+                    console.error(error);
+                    return {};
                 }
 
-                // Initial Seed: Generate realistic history for default residents for past 6 days (D-6 to D-1)
-                const initialRecords = {
-                    "NCT001": {},
-                    "NCT002": {},
-                    "NCT003": {}
-                };
+                const map = {};
+                (data || []).forEach(rec => {
+                    if (!(rec.resident_id in map)) map[rec.resident_id] = rec; // dòng đầu = mới nhất (đã sắp desc)
+                });
+                return map;
+            }
 
-                const baseTemplates = {
-                    "NCT001": {
-                        sys: [138, 140, 142, 145, 142, 146],
-                        dia: [88, 90, 92, 94, 92, 95],
-                        hr: [75, 78, 80, 82, 80, 81],
-                        temp: [36.5, 36.7, 36.6, 36.9, 36.7, 36.8]
-                    },
-                    "NCT002": {
-                        sys: [115, 116, 118, 120, 119, 117],
-                        dia: [70, 72, 74, 76, 75, 73],
-                        hr: [62, 60, 58, 59, 61, 57],
-                        temp: [36.5, 36.6, 36.8, 36.7, 36.9, 36.6]
-                    },
-                    "NCT003": {
-                        sys: [120, 122, 124, 128, 126, 124],
-                        dia: [78, 79, 80, 82, 81, 79],
-                        hr: [68, 70, 72, 71, 69, 68],
-                        temp: [36.4, 36.6, 36.5, 36.8, 36.7, 36.5]
-                    }
-                };
+            // Lấy lịch sử 7 ngày gần nhất của MỘT cư dân (dùng cho biểu đồ) — mỗi ngày lấy bản ghi mới nhất
+            async function loadResidentHistory(residentId) {
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+                sevenDaysAgo.setHours(0, 0, 0, 0);
 
+                const { data, error } = await window.sb
+                    .from("health_records")
+                    .select("systolic, diastolic, heart_rate, temperature, oxygen_saturation, weight, blood_sugar, recorded_at, note")
+                    .eq("resident_id", residentId)
+                    .gte("recorded_at", sevenDaysAgo.toISOString())
+                    .order("recorded_at", { ascending: true });
+
+                if (error) {
+                    console.error(error);
+                    return {};
+                }
+
+                const byDay = {};
+                (data || []).forEach(rec => {
+                    byDay[getLocalDateKey(rec.recorded_at)] = rec; // ascending -> bản ghi sau cùng trong ngày sẽ thắng
+                });
+                return byDay;
+            }
+
+            async function saveHealthMeasurement(residentId, dateKey, payload) {
                 const now = new Date();
-                for (let i = 6; i >= 1; i--) {
-                    const d = new Date(now);
-                    d.setDate(now.getDate() - i);
-                    const dateKey = getLocalDateKey(d);
-                    const dayIdx = 6 - i; // 0 to 5
+                const recordedAt = new Date(
+                    `${dateKey}T${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:00`
+                );
 
-                    ["NCT001", "NCT002", "NCT003"].forEach(resId => {
-                        const t = baseTemplates[resId];
-                        initialRecords[resId][dateKey] = {
-                            sys: t.sys[dayIdx],
-                            dia: t.dia[dayIdx],
-                            hr: t.hr[dayIdx],
-                            temp: t.temp[dayIdx],
-                            time: "09:15",
-                            note: "Đo định kỳ",
-                            updatedAt: d.toISOString()
-                        };
-                    });
-                }
+                const { error } = await window.sb.from("health_records").insert({
+                    resident_id: residentId,
+                    recorded_by: window.currentUser ? window.currentUser.id : null,
+                    recorded_at: recordedAt.toISOString(),
+                    systolic: payload.sys,
+                    diastolic: payload.dia,
+                    heart_rate: payload.hr,
+                    temperature: payload.temp,
+                    oxygen_saturation: payload.spo2,
+                    weight: payload.weight,
+                    blood_sugar: payload.bloodSugar,
+                    note: payload.note || null
+                });
 
-                // Import today's measurements if already present in legacy key
-                try {
-                    const rawToday = localStorage.getItem(HEALTH_TODAY_KEY);
-                    if (rawToday) {
-                        const parsedToday = JSON.parse(rawToday);
-                        if (parsedToday._date === todayKey) {
-                            Object.keys(parsedToday).forEach(k => {
-                                if (k !== "_date" && parsedToday[k] && typeof parsedToday[k].sys === "number") {
-                                    if (!initialRecords[k]) initialRecords[k] = {};
-                                    initialRecords[k][todayKey] = {
-                                        sys: parsedToday[k].sys,
-                                        dia: parsedToday[k].dia,
-                                        hr: parsedToday[k].hr,
-                                        temp: parsedToday[k].temp,
-                                        time: parsedToday[k].time || "11:00 hôm nay",
-                                        note: parsedToday[k].note || "",
-                                        updatedAt: new Date().toISOString()
-                                    };
-                                }
-                            });
-                        }
-                    }
-                } catch(e) {}
+                if (error) throw error;
 
-                localStorage.setItem(HEALTH_RECORDS_KEY, JSON.stringify(initialRecords));
-                return initialRecords;
-            }
-
-            function getHealthRecords() {
-                return loadHealthRecords();
-            }
-
-            function saveHealthMeasurement(residentId, dateKey, data) {
-                const records = getHealthRecords();
-                if (!records[residentId]) {
-                    records[residentId] = {};
-                }
-                records[residentId][dateKey] = data;
-                localStorage.setItem(HEALTH_RECORDS_KEY, JSON.stringify(records));
-
-                // If date is today, sync to HEALTH_TODAY_KEY for full cross-page compatibility
+                // Chỉ cập nhật trạng thái tổng quan nếu đo cho hôm nay
                 if (dateKey === todayKey) {
-                    let todayMap = {};
-                    try {
-                        const rawT = localStorage.getItem(HEALTH_TODAY_KEY);
-                        if (rawT) todayMap = JSON.parse(rawT);
-                    } catch(e) {}
-                    todayMap._date = todayKey;
-                    todayMap[residentId] = data;
-                    delete todayMap["row-1"];
-                    delete todayMap["row-2"];
-                    delete todayMap["row-3"];
-                    localStorage.setItem(HEALTH_TODAY_KEY, JSON.stringify(todayMap));
+                    const sev = calculateSeverity(payload.sys, payload.dia, payload.hr, payload.temp);
+                    const residentStatus = sev.Text === "Cao" ? "Cần theo dõi" : (sev.Text === "Trung bình" ? "Trung bình" : "Đang ổn định");
+                    await window.sb.from("residents").update({ status: residentStatus }).eq("resident_id", residentId);
                 }
             }
 
@@ -568,17 +471,24 @@
             }
 
             // Get measurement for a resident on today
-            function getResidentTodayVitals(resId) {
-                const records = getHealthRecords();
-                const todayRec = records[resId]?.[todayKey];
-                if (todayRec && typeof todayRec.sys === "number") {
+            function formatTimeVN(isoString) {
+                const d = new Date(isoString);
+                return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+            }
+
+            function getResidentTodayVitals(residentId) {
+                const rec = todayVitalsMap[residentId];
+                if (rec && typeof rec.systolic === "number") {
                     return {
-                        sys: todayRec.sys,
-                        dia: todayRec.dia,
-                        hr: todayRec.hr,
-                        temp: todayRec.temp,
-                        time: todayRec.time || "Hôm nay",
-                        note: todayRec.note || "",
+                        sys: rec.systolic,
+                        dia: rec.diastolic,
+                        hr: rec.heart_rate,
+                        temp: rec.temperature,
+                        spo2: rec.oxygen_saturation,
+                        weight: rec.weight,
+                        bloodSugar: rec.blood_sugar,
+                        time: formatTimeVN(rec.recorded_at),
+                        note: rec.note || "",
                         isMeasured: true
                     };
                 }
@@ -587,6 +497,9 @@
                     dia: null,
                     hr: null,
                     temp: null,
+                    spo2: null,
+                    weight: null,
+                    bloodSugar: null,
                     time: "Chưa đo hôm nay",
                     note: "",
                     isMeasured: false
@@ -655,11 +568,11 @@
                 let visibleCount = 0;
 
                 currentResidents.forEach(res => {
-                    const vitals = getResidentTodayVitals(res.id);
+                    const vitals = getResidentTodayVitals(res.residentId);
                     const sev = calculateSeverity(vitals.sys, vitals.dia, vitals.hr, vitals.temp);
 
                     const matchesSeverity = (
-                        selectedSeverity === "Tất cả" || 
+                        selectedSeverity === "Tất cả" ||
                         sev.Text === selectedSeverity
                     );
                     const textToSearch = `${res.id} ${res.name} ${res.room}`.toLowerCase();
@@ -670,7 +583,7 @@
                         const tr = document.createElement("tr");
                         tr.id = res.id;
                         tr.setAttribute("data-severity", sev.Text);
-                        if (res.id === selectedPatientId) {
+                        if (res.residentId === selectedPatientResidentId) {
                             tr.classList.add("selected-row");
                         }
 
@@ -695,14 +608,17 @@
                             <td class="cell-severity">
                                 <span class="severity-badge ${sev.Class}" style="${badgeStyle}">${sev.Text}</span>
                             </td>
-                            <td>
+                            <td data-roles="admin,manager,staff">
                                 <a href="#" class="table-action-link btn-update-trigger"
-                                   data-row-id="${res.id}"
+                                   data-resident-id="${res.residentId}"
                                    data-name="${res.name}"
                                    data-sys="${vitals.isMeasured ? vitals.sys : ''}"
                                    data-dia="${vitals.isMeasured ? vitals.dia : ''}"
                                    data-hr="${vitals.isMeasured ? vitals.hr : ''}"
                                    data-temp="${vitals.isMeasured ? vitals.temp : ''}"
+                                   data-spo2="${vitals.isMeasured && vitals.spo2 != null ? vitals.spo2 : ''}"
+                                   data-weight="${vitals.isMeasured && vitals.weight != null ? vitals.weight : ''}"
+                                   data-bloodsugar="${vitals.isMeasured && vitals.bloodSugar != null ? vitals.bloodSugar : ''}"
                                    data-note="${vitals.isMeasured ? (vitals.note || '') : ''}">
                                     <svg viewBox="0 0 24 24" class="pulse-icon">
                                         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
@@ -713,12 +629,12 @@
                         `;
 
                         // Row selection listener
-                        tr.addEventListener("click", function (e) {
+                        tr.addEventListener("click", async function (e) {
                             if (e.target.closest("td") && e.target.closest("td").cellIndex === 7) return;
                             document.querySelectorAll(".health-table tbody tr").forEach(r => r.classList.remove("selected-row"));
                             this.classList.add("selected-row");
-                            selectedPatientId = res.id;
-                            drawChart();
+                            selectedPatientResidentId = res.residentId;
+                            await drawChart();
                         });
 
                         tbody.appendChild(tr);
@@ -735,12 +651,15 @@
                         e.preventDefault();
                         e.stopPropagation();
 
-                        currentEditingRowId = this.getAttribute("data-row-id");
+                        currentEditingResidentId = parseInt(this.getAttribute("data-resident-id"), 10);
                         const name = this.getAttribute("data-name");
                         const sys = this.getAttribute("data-sys");
                         const dia = this.getAttribute("data-dia");
                         const hr = this.getAttribute("data-hr");
                         const temp = this.getAttribute("data-temp");
+                        const spo2 = this.getAttribute("data-spo2");
+                        const weight = this.getAttribute("data-weight");
+                        const bloodsugar = this.getAttribute("data-bloodsugar");
                         const note = this.getAttribute("data-note");
 
                         modalTitle.innerText = `Cập nhật chỉ số - ${name}`;
@@ -749,10 +668,26 @@
                         inputDia.value = dia || "80";
                         inputHr.value = hr || "75";
                         inputTemp.value = temp || "36.5";
+                        inputSpo2.value = spo2 || "";
+                        inputWeight.value = weight || "";
+                        inputBloodSugar.value = bloodsugar || "";
                         inputNote.value = note || "";
 
                         modalOverlay.classList.add("active");
                     });
+                });
+
+                if (window.currentUser) {
+                    applyDataRolesWithin(tbody, window.currentUser.role);
+                }
+            }
+
+            // Helper cục bộ: auth-guard.js chỉ quét toàn trang lúc tải xong,
+            // các dòng bảng được vẽ lại sau đó cần tự áp dụng data-roles.
+            function applyDataRolesWithin(container, role) {
+                container.querySelectorAll("[data-roles]").forEach(el => {
+                    const allowed = el.getAttribute("data-roles").split(",").map(r => r.trim());
+                    el.style.display = allowed.indexOf(role) === -1 ? "none" : "";
                 });
             }
 
@@ -773,16 +708,19 @@
 
             // When date in modal changes, preload existing data for that date if any
             if (inputDate) {
-                inputDate.addEventListener("change", function () {
+                inputDate.addEventListener("change", async function () {
                     const pickedDate = this.value;
-                    if (!pickedDate || !currentEditingRowId) return;
-                    const records = getHealthRecords();
-                    const existing = records[currentEditingRowId]?.[pickedDate];
-                    if (existing && typeof existing.sys === "number") {
-                        inputSys.value = existing.sys;
-                        inputDia.value = existing.dia;
-                        inputHr.value = existing.hr;
-                        inputTemp.value = existing.temp;
+                    if (!pickedDate || !currentEditingResidentId) return;
+                    const history = await loadResidentHistory(currentEditingResidentId);
+                    const existing = history[pickedDate];
+                    if (existing && typeof existing.systolic === "number") {
+                        inputSys.value = existing.systolic;
+                        inputDia.value = existing.diastolic;
+                        inputHr.value = existing.heart_rate;
+                        inputTemp.value = existing.temperature;
+                        inputSpo2.value = existing.oxygen_saturation || "";
+                        inputWeight.value = existing.weight || "";
+                        inputBloodSugar.value = existing.blood_sugar || "";
                         inputNote.value = existing.note || "";
                     }
                 });
@@ -790,12 +728,15 @@
 
             // Save Health Update
             if (btnSave) {
-                btnSave.addEventListener("click", function () {
+                btnSave.addEventListener("click", async function () {
                     const targetDateKey = inputDate ? (inputDate.value || todayKey) : todayKey;
                     const sys = parseInt(inputSys.value);
                     const dia = parseInt(inputDia.value);
                     const hr = parseInt(inputHr.value);
                     const temp = parseFloat(inputTemp.value);
+                    const spo2 = inputSpo2.value ? parseFloat(inputSpo2.value) : null;
+                    const weight = inputWeight.value ? parseFloat(inputWeight.value) : null;
+                    const bloodSugar = inputBloodSugar.value ? parseFloat(inputBloodSugar.value) : null;
                     const note = inputNote.value.trim();
 
                     if (isNaN(sys) || isNaN(dia) || isNaN(hr) || isNaN(temp)) {
@@ -803,62 +744,25 @@
                         return;
                     }
 
-                    const now = new Date();
-                    const hh = String(now.getHours()).padStart(2, '0');
-                    const mm = String(now.getMinutes()).padStart(2, '0');
-                    const isPickedToday = (targetDateKey === todayKey);
-                    const timeStr = isPickedToday ? `${hh}:${mm} hôm nay` : `${hh}:${mm}`;
+                    btnSave.disabled = true;
+                    btnSave.textContent = "Đang lưu...";
 
-                    // 1. Save measurement to permanent history
-                    saveHealthMeasurement(currentEditingRowId, targetDateKey, {
-                        sys: sys,
-                        dia: dia,
-                        hr: hr,
-                        temp: temp,
-                        time: timeStr,
-                        note: note,
-                        updatedAt: new Date().toISOString()
-                    });
-
-                    // 2. Update status of resident if saved for today
-                    const targetRes = currentResidents.find(r => r.id === currentEditingRowId);
-                    if (targetRes && isPickedToday) {
-                        const sev = calculateSeverity(sys, dia, hr, temp);
-                        let residentStatus = "Đang ổn định";
-                        if (sev.Text === "Cao") {
-                            residentStatus = "Cần theo dõi";
-                        } else if (sev.Text === "Trung bình") {
-                            residentStatus = "Trung bình";
-                        } else {
-                            residentStatus = "Đang ổn định";
-                        }
-                        targetRes.status = residentStatus;
-                        localStorage.setItem(ELDERLY_STORAGE_KEY, JSON.stringify(currentResidents));
-                    }
-
-                    // 3. Log to shared recent activities
                     try {
-                        const rawActs = localStorage.getItem("silvercare_recent_activities_v2");
-                        let acts = rawActs ? JSON.parse(rawActs) : [];
-                        const staffName = "@fullName" || "Nguyễn Thị Lan";
-                        const residentName = targetRes ? targetRes.name : "Người cao tuổi";
-
-                        acts.unshift({
-                            id: "act-" + Date.now(),
-                            type: "health_update",
-                            title: `Đã cập nhật chỉ số huyết áp & sức khỏe (${sys}/${dia} mmHg, ${hr} bpm)`,
-                            patientName: residentName,
-                            staffName: staffName,
-                            time: `${hh}:${mm}`,
-                            iconType: "pulse",
-                            iconColor: "blue"
+                        await saveHealthMeasurement(currentEditingResidentId, targetDateKey, {
+                            sys, dia, hr, temp, spo2, weight, bloodSugar, note
                         });
-                        localStorage.setItem("silvercare_recent_activities_v2", JSON.stringify(acts.slice(0, 30)));
-                    } catch (e) {}
 
-                    closeModal();
-                    renderHealthTable();
-                    drawChart();
+                        closeModal();
+                        todayVitalsMap = await loadTodayVitalsMap();
+                        renderHealthTable();
+                        await drawChart();
+                    } catch (err) {
+                        console.error(err);
+                        alert("Không thể lưu chỉ số: " + err.message);
+                    } finally {
+                        btnSave.disabled = false;
+                        btnSave.textContent = "Lưu cập nhật";
+                    }
                 });
             }
 
@@ -891,8 +795,8 @@
                 return 190 - val;
             }
 
-            function drawChart() {
-                const selectedResident = currentResidents.find(r => r.id === selectedPatientId) || currentResidents[0];
+            async function drawChart() {
+                const selectedResident = currentResidents.find(r => r.residentId === selectedPatientResidentId) || currentResidents[0];
                 if (!selectedResident) return;
 
                 if (chartTitle) {
@@ -902,8 +806,7 @@
                 const rollingDays = getRolling7Days();
                 renderXAxisLabels(rollingDays);
 
-                const records = getHealthRecords();
-                const resHistory = records[selectedResident.id] || {};
+                const resHistory = await loadResidentHistory(selectedResident.residentId);
 
                 // Reset canvas paths and groups
                 if (pathSys) pathSys.setAttribute("d", "");
@@ -920,15 +823,15 @@
                     const cx = xCoords[idx];
                     const rec = resHistory[day.dateKey];
 
-                    if (rec && typeof rec.sys === "number") {
+                    if (rec && typeof rec.systolic === "number") {
                         const pt = {
                             idx: idx,
                             x: cx,
-                            sys: rec.sys,
-                            dia: rec.dia,
-                            hr: rec.hr,
-                            temp: rec.temp,
-                            time: rec.time,
+                            sys: rec.systolic,
+                            dia: rec.diastolic,
+                            hr: rec.heart_rate,
+                            temp: rec.temperature,
+                            time: formatTimeVN(rec.recorded_at),
                             note: rec.note || "",
                             label: day.label,
                             dateKey: day.dateKey,
@@ -1167,9 +1070,10 @@
             }
 
             // Initial execution
-            loadResidents();
+            await loadResidents();
+            todayVitalsMap = await loadTodayVitalsMap();
             renderHealthTable();
-            drawChart();
+            await drawChart();
 
             // Auto-scroll and highlight if navigating directly to a resident
             const urlParams = new URLSearchParams(window.location.search);
@@ -1185,7 +1089,8 @@
                             setTimeout(() => chartCard.classList.remove("chart-highlight-pulse"), 2500);
                         }
                     } else {
-                        const targetRow = document.getElementById(selectedPatientId);
+                        const selRes = currentResidents.find(r => r.residentId === selectedPatientResidentId);
+                        const targetRow = selRes ? document.getElementById(selRes.id) : null;
                         if (targetRow) {
                             targetRow.scrollIntoView({ behavior: "smooth", block: "center" });
                             targetRow.style.transition = "background-color 0.5s ease";

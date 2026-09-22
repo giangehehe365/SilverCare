@@ -1,7 +1,7 @@
 @{
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewData["Title"] = "Hồ sơ người cao tuổi";
-    ViewData["AllowedRoles"] = "admin,manager,staff";
+    ViewData["AllowedRoles"] = "admin,manager,staff,family";
 }
 
 <!-- Custom Styles for Residents Page -->
@@ -645,7 +645,7 @@
 <!-- Header -->
 <div class="residents-header">
     <h1 class="residents-title">Hồ sơ người cao tuổi</h1>
-    <div class="residents-actions-group">
+    <div class="residents-actions-group" data-roles="admin,manager,staff">
         <!-- Import Excel -->
         <button class="btn-secondary-action" id="btn-import-excel">
             <svg viewBox="0 0 24 24">
@@ -833,6 +833,121 @@
 </div>
 
 <!-- ==========================================================================
+   MODAL: SỬA HỒ SƠ NGƯỜI CAO TUỔI
+   ========================================================================== -->
+<div class="res-modal-overlay" id="edit-resident-modal">
+    <div class="res-modal-container">
+        <div class="res-modal-header">
+            <h2 class="res-modal-title">Chỉnh sửa hồ sơ người cao tuổi</h2>
+            <button class="res-modal-close-btn" id="btn-close-edit-modal" title="Đóng">
+                <svg viewBox="0 0 24 24">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="res-modal-body">
+            <div class="form-group">
+                <label class="form-label" for="edit-fullname">Họ và tên <span style="color: #f04438;">*</span></label>
+                <input type="text" class="form-input" id="edit-fullname" required />
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="edit-age">Tuổi <span style="color: #f04438;">*</span></label>
+                    <input type="number" class="form-input" id="edit-age" min="50" max="120" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="edit-gender">Giới tính</label>
+                    <select class="form-select" id="edit-gender">
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="edit-room">Phòng <span style="color: #f04438;">*</span></label>
+                    <select class="form-select" id="edit-room" required>
+                        <option value="">Đang tải danh sách phòng...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="edit-blood">Nhóm máu</label>
+                    <select class="form-select" id="edit-blood">
+                        <option value="A+">A+</option>
+                        <option value="B+">B+</option>
+                        <option value="O+">O+</option>
+                        <option value="AB+">AB+</option>
+                        <option value="A-">A-</option>
+                        <option value="B-">B-</option>
+                        <option value="O-">O-</option>
+                        <option value="AB-">AB-</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-status">Tình trạng sức khỏe</label>
+                <select class="form-select" id="edit-status">
+                    <option value="Đang ổn định">Đang ổn định</option>
+                    <option value="Cần theo dõi">Cần theo dõi</option>
+                    <option value="Trung bình">Trung bình</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-family-profile">Tài khoản người nhà liên hệ <span style="color: #f04438;">*</span></label>
+                <select class="form-select" id="edit-family-profile" required>
+                    <option value="">-- Chọn tài khoản người nhà --</option>
+                </select>
+                <small style="color: #667085; font-size: 12px; display: block; margin-top: 4px;">
+                    Chưa có tài khoản phù hợp? Vào <a href="@Url.Action("UserManagement", "Home")" target="_blank">Quản lý tài khoản</a> tạo tài khoản vai trò "Người nhà" trước.
+                </small>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="edit-family-rel">Mối quan hệ</label>
+                    <select class="form-select" id="edit-family-rel">
+                        <option value="Con trai">Con trai</option>
+                        <option value="Con gái">Con gái</option>
+                        <option value="Chồng">Chồng</option>
+                        <option value="Vợ">Vợ</option>
+                        <option value="Cháu">Cháu</option>
+                        <option value="Khác">Khác</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="edit-family-phone">Số điện thoại liên hệ</label>
+                    <input type="tel" class="form-input" id="edit-family-phone" placeholder="0909090909" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-family-address">Địa chỉ người nhà</label>
+                <input type="text" class="form-input" id="edit-family-address" placeholder="123 Nguyễn Trãi, Quận 1, TP. HCM" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-admission">Ngày tiếp nhận</label>
+                <input type="date" class="form-input" id="edit-admission" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-notes">Ghi chú bệnh nền / sức khỏe</label>
+                <textarea class="form-textarea" id="edit-notes" placeholder="VD: Tiền sử huyết áp cao, dị ứng kháng sinh..."></textarea>
+            </div>
+        </div>
+        <div class="res-modal-footer">
+            <button class="btn-secondary-action" id="btn-cancel-edit-modal">Hủy</button>
+            <button class="btn-primary-action" id="btn-save-edit-resident">Lưu thay đổi</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
    MODAL: XEM CHI TIẾT HỒ SƠ
    ========================================================================== -->
 <div class="res-modal-overlay" id="detail-resident-modal">
@@ -915,6 +1030,9 @@
                 </a>
                 <button type="button" id="btn-detail-schedule" class="btn-secondary-action" style="font-size: 13px; padding: 8px 12px; cursor: pointer;">
                     🗓️ Lịch chăm sóc
+                </button>
+                <button type="button" id="btn-detail-edit" class="btn-primary-action" data-roles="admin,manager,staff" style="font-size: 13px; padding: 8px 12px; cursor: pointer;">
+                    ✏️ Chỉnh sửa
                 </button>
             </div>
             <button class="btn-secondary-action" id="btn-close-detail-footer">Đóng</button>
@@ -1028,14 +1146,18 @@
                     name: row.full_name,
                     age: row.age,
                     gender: row.gender,
+                    roomId: row.room_id,
                     room: row.rooms ? row.rooms.room_code : "",
                     blood: row.blood_type,
                     status: row.status,
+                    familyMemberId: primary.family_member_id || null,
+                    familyProfileId: primary.profile_id || null,
                     familyName: primary.full_name,
                     familyPhone: primary.phone,
                     familyRel: primary.relationship,
                     familyAddress: primary.address,
                     admissionDate: formatDateVN(row.admission_date),
+                    admissionDateIso: row.admission_date,
                     notes: row.notes
                 };
             }
@@ -1086,7 +1208,7 @@
                 const { data, error } = await window.sb
                     .from("residents")
                     .select(
-                        "resident_id, resident_code, full_name, age, gender, blood_type, status, admission_date, notes, room_id, rooms(room_code, room_name), family_members(full_name, relationship, phone, address, is_primary_contact)"
+                        "resident_id, resident_code, full_name, age, gender, blood_type, status, admission_date, notes, room_id, rooms(room_code, room_name), family_members(family_member_id, profile_id, full_name, relationship, phone, address, is_primary_contact)"
                     )
                     .eq("is_active", true)
                     .order("resident_id");
@@ -1135,6 +1257,56 @@
                 return (rooms || []).filter(r => (occupancy[r.room_id] || 0) < r.capacity);
             }
 
+            // Danh sách phòng dùng khi SỬA hồ sơ — phải bao gồm cả phòng hiện tại
+            // của cư dân đó (dù phòng đã đầy), chỉ loại các phòng đầy KHÁC.
+            async function loadRoomsForEdit(residentId, currentRoomId) {
+                const { data: rooms, error: roomsError } = await window.sb
+                    .from("rooms")
+                    .select("room_id, room_code, room_name, capacity")
+                    .eq("is_active", true)
+                    .order("room_code");
+
+                if (roomsError) {
+                    console.error(roomsError);
+                    return [];
+                }
+
+                const { data: occupants, error: occError } = await window.sb
+                    .from("residents")
+                    .select("resident_id, room_id")
+                    .eq("is_active", true);
+
+                if (occError) console.error(occError);
+
+                const occupancy = {};
+                (occupants || []).forEach(r => {
+                    if (r.room_id && r.resident_id !== residentId) {
+                        occupancy[r.room_id] = (occupancy[r.room_id] || 0) + 1;
+                    }
+                });
+
+                return (rooms || []).filter(r => r.room_id === currentRoomId || (occupancy[r.room_id] || 0) < r.capacity);
+            }
+
+            // Danh sách tài khoản có vai trò "Người nhà" — dùng cho dropdown liên hệ
+            let familyProfilesCache = [];
+            async function loadFamilyProfiles() {
+                const { data, error } = await window.sb
+                    .from("profiles")
+                    .select("id, full_name, email, phone")
+                    .eq("role", "family")
+                    .eq("is_active", true)
+                    .order("full_name");
+
+                if (error) {
+                    console.error(error);
+                    familyProfilesCache = [];
+                    return familyProfilesCache;
+                }
+                familyProfilesCache = data || [];
+                return familyProfilesCache;
+            }
+
             // Tạo hồ sơ cư dân mới + người liên hệ chính (2 lệnh ghi, cùng một giao dịch nghiệp vụ)
             async function createResident(payload) {
                 const { data: resident, error } = await window.sb
@@ -1166,6 +1338,50 @@
                 if (famError) throw famError;
 
                 return resident;
+            }
+
+            // Cập nhật hồ sơ cư dân + người liên hệ chính (update nếu đã có dòng
+            // family_members, insert nếu hồ sơ cũ chưa có người liên hệ nào)
+            async function updateResident(residentId, familyMemberId, payload) {
+                const { error } = await window.sb
+                    .from("residents")
+                    .update({
+                        full_name: payload.name,
+                        age: payload.age,
+                        gender: payload.gender,
+                        room_id: payload.roomId,
+                        blood_type: payload.blood,
+                        status: payload.status,
+                        admission_date: payload.admissionIso || null,
+                        notes: payload.notes || null,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq("resident_id", residentId);
+
+                if (error) throw error;
+
+                const familyProfile = familyProfilesCache.find(p => p.id === payload.familyProfileId);
+                const familyPayload = {
+                    resident_id: residentId,
+                    profile_id: payload.familyProfileId,
+                    full_name: familyProfile ? familyProfile.full_name : "",
+                    relationship: payload.familyRel,
+                    phone: payload.familyPhone || (familyProfile ? familyProfile.phone : null),
+                    email: familyProfile ? familyProfile.email : null,
+                    address: payload.familyAddress || null,
+                    is_primary_contact: true
+                };
+
+                if (familyMemberId) {
+                    const { error: famError } = await window.sb
+                        .from("family_members")
+                        .update(familyPayload)
+                        .eq("family_member_id", familyMemberId);
+                    if (famError) throw famError;
+                } else {
+                    const { error: famError } = await window.sb.from("family_members").insert(familyPayload);
+                    if (famError) throw famError;
+                }
             }
 
             // Helper to get initials
@@ -1231,13 +1447,20 @@
                             <td class="cell-blood">${res.blood}</td>
                             <td>${getStatusBadgeHtml(res.status)}</td>
                             <td class="cell-contact" title="${res.familyName} - ${res.familyPhone}">${res.familyName} - ${res.familyPhone}</td>
-                            <td style="text-align: right;">
+                            <td style="text-align: right; white-space: nowrap;">
                                 <a href="#" class="btn-view-detail" data-id="${res.id}">
                                     <svg viewBox="0 0 24 24">
                                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                         <circle cx="12" cy="12" r="3"></circle>
                                     </svg>
                                     <span>Xem chi tiết</span>
+                                </a>
+                                <a href="#" class="btn-view-detail btn-edit-resident" data-id="${res.id}" data-roles="admin,manager,staff" style="margin-left: 12px;">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                    <span>Sửa</span>
                                 </a>
                             </td>
                         `;
@@ -1252,12 +1475,30 @@
                 }
 
                 // Bind detail view triggers
-                document.querySelectorAll(".btn-view-detail").forEach(btn => {
+                document.querySelectorAll(".btn-view-detail:not(.btn-edit-resident)").forEach(btn => {
                     btn.addEventListener("click", function (e) {
                         e.preventDefault();
                         const id = this.getAttribute("data-id");
                         openDetailModal(id);
                     });
+                });
+
+                // Bind edit triggers
+                document.querySelectorAll(".btn-edit-resident").forEach(btn => {
+                    btn.addEventListener("click", function (e) {
+                        e.preventDefault();
+                        const id = this.getAttribute("data-id");
+                        openEditModal(id);
+                    });
+                });
+
+                if (window.currentUser) applyDataRolesWithin(tbody, window.currentUser.role);
+            }
+
+            function applyDataRolesWithin(container, role) {
+                container.querySelectorAll("[data-roles]").forEach(el => {
+                    const allowed = el.getAttribute("data-roles").split(",").map(r => r.trim());
+                    el.style.display = allowed.indexOf(role) === -1 ? "none" : "";
                 });
             }
 
@@ -1333,6 +1574,15 @@
             if (detailModal) {
                 detailModal.addEventListener("click", function(e) {
                     if (e.target === detailModal) closeDetailModal();
+                });
+            }
+
+            const btnDetailEdit = document.getElementById("btn-detail-edit");
+            if (btnDetailEdit) {
+                btnDetailEdit.addEventListener("click", function () {
+                    if (!activeDetailResident) return;
+                    closeDetailModal();
+                    openEditModal(activeDetailResident.id);
                 });
             }
 
@@ -1574,6 +1824,131 @@
                     } finally {
                         btnSaveResident.disabled = false;
                         btnSaveResident.textContent = "Lưu hồ sơ";
+                    }
+                });
+            }
+
+            // ==========================================================================
+            // EDIT MODAL LOGIC
+            // ==========================================================================
+            const editModal = document.getElementById("edit-resident-modal");
+            const btnCloseEdit = document.getElementById("btn-close-edit-modal");
+            const btnCancelEdit = document.getElementById("btn-cancel-edit-modal");
+            const btnSaveEditResident = document.getElementById("btn-save-edit-resident");
+            const editFamilyProfileSelect = document.getElementById("edit-family-profile");
+            let activeEditResident = null;
+
+            async function openEditModal(id) {
+                const res = currentResidents.find(r => r.id === id);
+                if (!res) return;
+                activeEditResident = res;
+
+                document.getElementById("edit-fullname").value = res.name || "";
+                document.getElementById("edit-age").value = res.age || "";
+                document.getElementById("edit-gender").value = res.gender || "Nam";
+                document.getElementById("edit-blood").value = res.blood || "O+";
+                document.getElementById("edit-status").value = res.status || "Đang ổn định";
+                document.getElementById("edit-family-rel").value = res.familyRel || "Con trai";
+                document.getElementById("edit-family-phone").value = res.familyPhone || "";
+                document.getElementById("edit-family-address").value = res.familyAddress || "";
+                document.getElementById("edit-admission").value = res.admissionDateIso || "";
+                document.getElementById("edit-notes").value = res.notes || "";
+
+                const roomSelect = document.getElementById("edit-room");
+                roomSelect.innerHTML = '<option value="">Đang tải danh sách phòng...</option>';
+                editFamilyProfileSelect.innerHTML = '<option value="">Đang tải danh sách tài khoản...</option>';
+
+                editModal.classList.add("active");
+
+                const [rooms] = await Promise.all([
+                    loadRoomsForEdit(res.residentId, res.roomId),
+                    loadFamilyProfiles()
+                ]);
+
+                roomSelect.innerHTML = rooms
+                    .map(r => `<option value="${r.room_id}" ${r.room_id === res.roomId ? "selected" : ""}>${r.room_code}${r.room_name ? " - " + r.room_name : ""}</option>`)
+                    .join("");
+
+                editFamilyProfileSelect.innerHTML = '<option value="">-- Chọn tài khoản người nhà --</option>' +
+                    familyProfilesCache
+                        .map(p => `<option value="${p.id}" ${p.id === res.familyProfileId ? "selected" : ""}>${p.full_name}${p.email ? " (" + p.email + ")" : ""}</option>`)
+                        .join("");
+            }
+
+            function closeEditModal() {
+                editModal.classList.remove("active");
+            }
+
+            if (btnCloseEdit) btnCloseEdit.addEventListener("click", closeEditModal);
+            if (btnCancelEdit) btnCancelEdit.addEventListener("click", closeEditModal);
+            if (editModal) {
+                editModal.addEventListener("click", function (e) {
+                    if (e.target === editModal) closeEditModal();
+                });
+            }
+
+            // Tự điền số điện thoại từ tài khoản được chọn nếu ô đang trống
+            if (editFamilyProfileSelect) {
+                editFamilyProfileSelect.addEventListener("change", function () {
+                    const profile = familyProfilesCache.find(p => p.id === this.value);
+                    const phoneInput = document.getElementById("edit-family-phone");
+                    if (profile && profile.phone && !phoneInput.value.trim()) {
+                        phoneInput.value = profile.phone;
+                    }
+                });
+            }
+
+            if (btnSaveEditResident) {
+                btnSaveEditResident.addEventListener("click", async function () {
+                    if (!activeEditResident) return;
+
+                    const name = document.getElementById("edit-fullname").value.trim();
+                    const age = parseInt(document.getElementById("edit-age").value);
+                    const gender = document.getElementById("edit-gender").value;
+                    const roomId = document.getElementById("edit-room").value;
+                    const blood = document.getElementById("edit-blood").value;
+                    const status = document.getElementById("edit-status").value;
+                    const familyProfileId = editFamilyProfileSelect.value;
+                    const familyRel = document.getElementById("edit-family-rel").value;
+                    const familyPhone = document.getElementById("edit-family-phone").value.trim();
+                    const familyAddress = document.getElementById("edit-family-address").value.trim();
+                    const admissionVal = document.getElementById("edit-admission").value;
+                    const notes = document.getElementById("edit-notes").value.trim();
+
+                    if (!name || isNaN(age) || !roomId || !familyProfileId) {
+                        alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*), bao gồm chọn tài khoản người nhà liên hệ.");
+                        return;
+                    }
+
+                    btnSaveEditResident.disabled = true;
+                    btnSaveEditResident.textContent = "Đang lưu...";
+
+                    try {
+                        await updateResident(activeEditResident.residentId, activeEditResident.familyMemberId, {
+                            name,
+                            age,
+                            gender,
+                            roomId: parseInt(roomId, 10),
+                            blood,
+                            status,
+                            familyProfileId,
+                            familyRel,
+                            familyPhone,
+                            familyAddress,
+                            admissionIso: admissionVal,
+                            notes
+                        });
+
+                        closeEditModal();
+                        await loadResidents();
+                        renderTable();
+                        showToast(`Đã cập nhật hồ sơ: ${name}`);
+                    } catch (err) {
+                        console.error(err);
+                        alert("Không thể lưu thay đổi: " + err.message);
+                    } finally {
+                        btnSaveEditResident.disabled = false;
+                        btnSaveEditResident.textContent = "Lưu thay đổi";
                     }
                 });
             }

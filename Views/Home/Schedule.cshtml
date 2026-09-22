@@ -1,6 +1,7 @@
 @{
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewData["Title"] = "Lịch chăm sóc";
+    ViewData["AllowedRoles"] = "admin,manager,staff,family";
 
     // Dynamic date in Vietnamese formatting
     var now = DateTime.Now;
@@ -16,10 +17,6 @@
         _ => ""
     };
     var dateString = $"{dayOfWeekVi}, {now.Day} tháng {now.Month} năm {now.Year}";
-
-    // Capture logged-in user profile name
-    var fullName = TempData["FullName"] as string ?? "Nguyễn Thị Lan";
-    TempData.Keep("FullName");
 }
 
 <!-- Custom Styles for Schedule Page -->
@@ -621,7 +618,7 @@
 <!-- Header Title & Action button -->
 <div class="schedule-header">
     <h1 class="schedule-title">Lịch chăm sóc</h1>
-    <button class="btn-create-schedule" id="btn-open-create-modal">
+    <button class="btn-create-schedule" id="btn-open-create-modal" data-roles="admin,manager,staff">
         <svg viewBox="0 0 24 24">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -635,24 +632,21 @@
     <!-- View Switcher -->
     <div class="view-toggle-group">
         <button class="view-toggle-btn active" data-view="day">Ngày</button>
-        <button class="view-toggle-btn" data-view="week" onclick="alert('Bộ lọc hiển thị theo Tuần đang được xây dựng.')">Tuần</button>
-        <button class="view-toggle-btn" data-view="month" onclick="alert('Bộ lọc hiển thị theo Tháng đang được xây dựng.')">Tháng</button>
+        <button class="view-toggle-btn" data-view="week">Tuần</button>
+        <button class="view-toggle-btn" data-view="month">Tháng</button>
     </div>
 
     <!-- Room Filter -->
     <select class="filter-select" id="room-filter">
         <option value="all">Tất cả phòng</option>
-        <option value="201">Phòng 201</option>
-        <option value="102">Phòng 102</option>
-        <option value="305">Phòng 305</option>
     </select>
 
     <!-- Status Filter -->
     <select class="filter-select" id="status-filter">
         <option value="all">Tất cả</option>
-        <option value="todo">Chưa thực hiện</option>
-        <option value="pending">Đang chờ</option>
-        <option value="done">Hoàn thành</option>
+        <option value="Chưa thực hiện">Chưa thực hiện</option>
+        <option value="Đang thực hiện">Đang thực hiện</option>
+        <option value="Hoàn thành">Hoàn thành</option>
     </select>
 </div>
 
@@ -723,9 +717,14 @@
                 <label class="schedule-form-label" for="schedule-select-patient">Người cao tuổi <span class="required-asterisk">*</span></label>
                 <select class="schedule-form-select" id="schedule-select-patient" required>
                     <option value="" disabled selected>-- Chọn --</option>
-                    <option value="Nguyễn Văn An-201">Nguyễn Văn An - Phòng 201</option>
-                    <option value="Lê Văn Bình-102">Lê Văn Bình - Phòng 102</option>
-                    <option value="Phạm Thị Cúc-305">Phạm Thị Cúc - Phòng 305</option>
+                </select>
+            </div>
+
+            <!-- Nhân viên phụ trách -->
+            <div class="schedule-form-group">
+                <label class="schedule-form-label" for="schedule-select-staff">Nhân viên phụ trách</label>
+                <select class="schedule-form-select" id="schedule-select-staff">
+                    <option value="">-- Chưa phân công --</option>
                 </select>
             </div>
 
@@ -798,6 +797,10 @@
                 <span class="detail-modal-label">Phòng</span>
                 <span class="detail-modal-value" id="detail-val-room">-</span>
             </div>
+            <div class="detail-modal-row" id="detail-row-staff">
+                <span class="detail-modal-label">Nhân viên phụ trách</span>
+                <span class="detail-modal-value" id="detail-val-staff">-</span>
+            </div>
             <div class="detail-modal-row">
                 <span class="detail-modal-label">Trạng thái</span>
                 <span class="detail-modal-value" id="detail-val-status">-</span>
@@ -823,61 +826,54 @@
 
 @section Scripts {
     <script>
-        // Default static schedule items matching nguoinha.sql
-        const defaultTasks = [
-            {
-                id: "task-1",
-                name: "Uống thuốc sáng",
-                time: "08:00",
-                patientName: "Nguyễn Văn An",
-                patientRoom: "201",
-                status: "todo",
-                type: "Chăm sóc",
-                note: "Uống thuốc sau khi ăn no"
-            },
-            {
-                id: "task-2",
-                name: "Vật lý trị liệu",
-                time: "10:00",
-                patientName: "Lê Văn Bình",
-                patientRoom: "102",
-                status: "pending",
-                type: "Y tế",
-                note: "Tập phục hồi chức năng khớp gối"
-            },
-            {
-                id: "task-3",
-                name: "Đo huyết áp & khám định kỳ",
-                time: "14:00",
-                patientName: "Phạm Thị Cúc",
-                patientRoom: "305",
-                status: "todo",
-                type: "Y tế",
-                note: "Kiểm tra huyết áp và chỉ số sức khỏe chiều"
-            },
-            {
-                id: "task-4",
-                name: "Chăm sóc cá nhân",
-                time: "16:00",
-                patientName: "Nguyễn Văn An",
-                patientRoom: "201",
-                status: "todo",
-                type: "Chăm sóc",
-                note: "Hỗ trợ vận động nhẹ ngoài sân vườn"
-            },
-            {
-                id: "task-5",
-                name: "Uống thuốc tối",
-                time: "20:00",
-                patientName: "Lê Văn Bình",
-                patientRoom: "102",
-                status: "done",
-                type: "Chăm sóc",
-                note: "Uống thuốc theo đơn bác sĩ trước khi ngủ"
-            }
-        ];
-
         let currentTasks = [];
+        let currentViewMode = "day"; // day | week | month
+        let residentsCache = [];
+        let staffCache = [];
+
+        function toIsoDate(d) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        }
+
+        function formatDateShortVN(iso) {
+            const parts = iso.split("-");
+            return `${parts[2]}/${parts[1]}`;
+        }
+
+        function getDateRangeForView(mode) {
+            const now = new Date();
+            if (mode === "day") {
+                const iso = toIsoDate(now);
+                return { start: iso, end: iso };
+            }
+            if (mode === "week") {
+                const day = now.getDay();
+                const diffToMonday = (day === 0 ? -6 : 1 - day);
+                const monday = new Date(now);
+                monday.setDate(now.getDate() + diffToMonday);
+                const sunday = new Date(monday);
+                sunday.setDate(monday.getDate() + 6);
+                return { start: toIsoDate(monday), end: toIsoDate(sunday) };
+            }
+            // month
+            const first = new Date(now.getFullYear(), now.getMonth(), 1);
+            const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            return { start: toIsoDate(first), end: toIsoDate(last) };
+        }
+
+        function updateHeaderTitle() {
+            const header = document.getElementById("schedule-date-header");
+            if (!header) return;
+            const range = getDateRangeForView(currentViewMode);
+            if (currentViewMode === "day") {
+                header.innerText = "@dateString";
+            } else if (currentViewMode === "week") {
+                header.innerText = `Tuần ${formatDateShortVN(range.start)} - ${formatDateShortVN(range.end)}`;
+            } else {
+                const now = new Date();
+                header.innerText = `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
+            }
+        }
 
         // Helper to construct item HTML
         function createTaskHtml(task) {
@@ -888,24 +884,20 @@
                 indicatorClass = "indicator-green";
             }
 
+            const timeLabel = currentViewMode === "day" ? task.time : `${formatDateShortVN(task.date)} ${task.time}`;
+
             let actionsHtml = "";
-            if (task.status === "done") {
+            if (task.status === "Hoàn thành") {
                 actionsHtml = `
                     <span class="status-badge badge-done">Hoàn thành</span>
                     <a href="#" class="btn-detail">Chi tiết</a>
                 `;
             } else {
-                let badgeClass = "badge-todo";
-                let badgeText = "Chưa thực hiện";
-                if (task.status === "pending") {
-                    badgeClass = "badge-pending";
-                    badgeText = "Đang chờ";
-                }
-                
+                const badgeClass = task.status === "Đang thực hiện" ? "badge-pending" : "badge-todo";
                 actionsHtml = `
-                    <span class="status-badge ${badgeClass}" id="badge-${task.id}">${badgeText}</span>
+                    <span class="status-badge ${badgeClass}" id="badge-${task.id}">${task.status}</span>
                     <a href="#" class="btn-detail">Chi tiết</a>
-                    <button class="btn-complete" onclick="markCompleted('${task.id}')">
+                    <button class="btn-complete" data-roles="admin,manager,staff" onclick="markCompleted(${task.id})">
                         <svg viewBox="0 0 24 24">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
@@ -915,12 +907,12 @@
             }
 
             return `
-            <div class="schedule-item" data-room="${task.patientRoom}" data-status="${task.status}" id="task-${task.id}" data-id="${task.id}" data-name="${task.name}" data-time="${task.time}" data-patient="${task.patientName}" data-note="${task.note || ""}">
-                <span class="schedule-time">${task.time}</span>
+            <div class="schedule-item" data-room="${task.patientRoom}" data-status="${task.status}" id="task-${task.id}" data-id="${task.id}" data-name="${escapeHtmlAttr(task.name)}" data-time="${task.time}" data-date="${task.date}" data-patient="${escapeHtmlAttr(task.patientName)}" data-staff="${escapeHtmlAttr(task.staffName || "Chưa phân công")}" data-note="${escapeHtmlAttr(task.note || "")}">
+                <span class="schedule-time">${timeLabel}</span>
                 <div class="status-indicator ${indicatorClass}" id="indicator-${task.id}"></div>
                 <div class="schedule-info">
                     <h3 class="schedule-task-name">${task.name}</h3>
-                    <p class="schedule-patient-meta">${task.patientName} - Phòng ${task.patientRoom}</p>
+                    <p class="schedule-patient-meta">${task.patientName} - Phòng ${task.patientRoom || "---"}</p>
                 </div>
                 <div class="schedule-actions">
                     ${actionsHtml}
@@ -929,24 +921,62 @@
             `;
         }
 
-        // Load and render
-        function loadAndRenderTasks() {
-            const saved = localStorage.getItem("silvercare_schedules_v2");
-            if (saved) {
-                currentTasks = JSON.parse(saved);
-            } else {
-                currentTasks = [...defaultTasks];
-                localStorage.setItem("silvercare_schedules_v2", JSON.stringify(currentTasks));
+        function escapeHtmlAttr(text) {
+            return String(text || "").replace(/"/g, "&quot;");
+        }
+
+        // Load and render (Supabase — bảng care_schedules)
+        async function loadAndRenderTasks() {
+            const range = getDateRangeForView(currentViewMode);
+            let query = window.sb
+                .from("care_schedules")
+                .select("care_schedule_id, schedule_name, schedule_date, start_time, schedule_type, status, note, resident_id, assigned_staff_id, residents(full_name, rooms(room_code)), profiles(full_name)")
+                .gte("schedule_date", range.start)
+                .lte("schedule_date", range.end);
+
+            if (window.currentUser && window.currentUser.role === "staff") {
+                query = query.eq("assigned_staff_id", window.currentUser.id);
             }
+
+            const { data, error } = await query;
+            if (error) {
+                console.error(error);
+                currentTasks = [];
+            } else {
+                currentTasks = (data || []).map(row => ({
+                    id: row.care_schedule_id,
+                    name: row.schedule_name,
+                    date: row.schedule_date,
+                    time: row.start_time ? row.start_time.substring(0, 5) : "",
+                    patientName: row.residents ? row.residents.full_name : "",
+                    patientRoom: row.residents && row.residents.rooms ? row.residents.rooms.room_code : "",
+                    status: row.status,
+                    type: row.schedule_type,
+                    note: row.note || "",
+                    staffName: row.profiles ? row.profiles.full_name : ""
+                }));
+            }
+
+            updateHeaderTitle();
 
             const container = document.getElementById("schedule-items-container");
             if (container) {
                 container.innerHTML = "";
-                const sorted = [...currentTasks].sort((a, b) => a.time.localeCompare(b.time));
+                const sorted = [...currentTasks].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
                 sorted.forEach(task => {
                     container.insertAdjacentHTML("beforeend", createTaskHtml(task));
                 });
+                if (window.currentUser) applyDataRolesWithin(container, window.currentUser.role);
             }
+
+            applyFilters();
+        }
+
+        function applyDataRolesWithin(container, role) {
+            container.querySelectorAll("[data-roles]").forEach(el => {
+                const allowed = el.getAttribute("data-roles").split(",").map(r => r.trim());
+                el.style.display = allowed.indexOf(role) === -1 ? "none" : "";
+            });
         }
 
         // Store total count of items visible under active filters
@@ -981,64 +1011,23 @@
             }
         }
 
-        // Complete action
-        window.markCompleted = function(taskId) {
-            const taskItem = document.getElementById(`task-${taskId}`);
-            if (!taskItem) return;
+        // Complete action — cập nhật thật vào care_schedules
+        window.markCompleted = async function (taskId) {
+            const { error } = await window.sb
+                .from("care_schedules")
+                .update({ status: "Hoàn thành", updated_at: new Date().toISOString() })
+                .eq("care_schedule_id", taskId);
 
-            // Update status attribute for filtering
-            taskItem.setAttribute("data-status", "done");
-
-            // Change indicator bar to green
-            const indicator = document.getElementById(`indicator-${taskId}`);
-            if (indicator) {
-                indicator.className = "status-indicator indicator-green";
-            }
-
-            // Change badge and action buttons
-            const actionsDiv = taskItem.querySelector(".schedule-actions");
-            if (actionsDiv) {
-                actionsDiv.innerHTML = `
-                    <span class="status-badge badge-done">Hoàn thành</span>
-                    <a href="#" class="btn-detail">Chi tiết</a>
-                `;
-            }
-
-            // Update local state and localStorage
-            const task = currentTasks.find(t => t.id === taskId);
-            if (task) {
-                task.status = "done";
-                localStorage.setItem("silvercare_schedules_v2", JSON.stringify(currentTasks));
-
-                // Log recent activity to shared storage
-                try {
-                    const rawActs = localStorage.getItem("silvercare_recent_activities_v2");
-                    let acts = rawActs ? JSON.parse(rawActs) : [];
-                    const nowD = new Date();
-                    const curH = String(nowD.getHours()).padStart(2, '0');
-                    const curM = String(nowD.getMinutes()).padStart(2, '0');
-                    const taskTitle = task.name.startsWith("Đã") ? task.name : `Đã hoàn thành ${task.name}`;
-
-                    acts.unshift({
-                        id: "act-" + Date.now(),
-                        taskId: taskId,
-                        type: "care_complete",
-                        title: taskTitle,
-                        patientName: task.patientName,
-                        staffName: "@fullName" || "Nguyễn Thị Lan",
-                        time: `${curH}:${curM}`,
-                        iconType: "check",
-                        iconColor: "green"
-                    });
-                    localStorage.setItem("silvercare_recent_activities_v2", JSON.stringify(acts.slice(0, 30)));
-                } catch (e) {}
+            if (error) {
+                alert("Không thể cập nhật: " + error.message);
+                return;
             }
 
             showToast("Đã đánh dấu hoàn thành!");
-            applyFilters();
+            await loadAndRenderTasks();
         };
 
-        // Filtering logic
+        // Filtering logic (lọc trên tập dữ liệu đã tải từ Supabase)
         const roomFilter = document.getElementById("room-filter");
         const statusFilter = document.getElementById("status-filter");
 
@@ -1053,15 +1042,7 @@
                 const matchesRoom = (selectedRoom === "all" || room === selectedRoom);
                 const matchesStatus = (selectedStatus === "all" || status === selectedStatus);
 
-                if (matchesRoom) {
-                    if (matchesStatus) {
-                        item.style.display = "grid";
-                    } else {
-                        item.style.display = "none";
-                    }
-                } else {
-                    item.style.display = "none";
-                }
+                item.style.display = (matchesRoom && matchesStatus) ? "grid" : "none";
             });
 
             updateCountText();
@@ -1069,6 +1050,16 @@
 
         if (roomFilter) roomFilter.addEventListener("change", applyFilters);
         if (statusFilter) statusFilter.addEventListener("change", applyFilters);
+
+        // View toggle: Ngày / Tuần / Tháng — dữ liệu thật theo khoảng ngày tương ứng
+        document.querySelectorAll(".view-toggle-btn").forEach(btn => {
+            btn.addEventListener("click", async function () {
+                document.querySelectorAll(".view-toggle-btn").forEach(b => b.classList.remove("active"));
+                this.classList.add("active");
+                currentViewMode = this.getAttribute("data-view");
+                await loadAndRenderTasks();
+            });
+        });
 
         // ==========================================
         // CREATE SCHEDULE MODAL LOGIC
@@ -1101,121 +1092,119 @@
             }
         }
 
-        if (openModalBtn) {
-            if (modalOverlay) {
-                // Open Modal
-                function populateSchedulePatients() {
-                    const raw = localStorage.getItem("silvercare_elderly_profiles_v3");
-                    let list = [
-                        { name: "Nguyễn Văn An", room: "201" },
-                        { name: "Lê Văn Bình", room: "102" },
-                        { name: "Phạm Thị Cúc", room: "305" }
-                    ];
-                    if (raw) {
-                        try {
-                            const parsed = JSON.parse(raw);
-                            if (Array.isArray(parsed) && parsed.length > 0) list = parsed;
-                        } catch(e) {}
-                    }
-                    if (selectPatient) {
-                        selectPatient.innerHTML = `<option value="" disabled selected>-- Chọn --</option>` + list.map(r => {
-                            const roomClean = r.room ? r.room.replace(/^Phòng\s*/i, "") : "---";
-                            return `<option value="${r.name}-${roomClean}">${r.name} - Phòng ${roomClean}</option>`;
-                        }).join("");
-                    }
+        const selectStaff = document.getElementById("schedule-select-staff");
+
+        async function populateSchedulePatients() {
+            const { data, error } = await window.sb
+                .from("residents")
+                .select("resident_id, full_name, rooms(room_code)")
+                .eq("is_active", true)
+                .order("full_name");
+
+            residentsCache = error ? [] : (data || []).map(r => ({
+                residentId: r.resident_id,
+                name: r.full_name,
+                room: r.rooms ? r.rooms.room_code : "---"
+            }));
+
+            if (selectPatient) {
+                selectPatient.innerHTML = `<option value="" disabled selected>-- Chọn --</option>` +
+                    residentsCache.map(r => `<option value="${r.residentId}">${r.name} - Phòng ${r.room}</option>`).join("");
+            }
+        }
+
+        async function populateStaffSelect() {
+            const { data, error } = await window.sb
+                .from("profiles")
+                .select("id, full_name, role")
+                .in("role", ["admin", "manager", "staff"])
+                .eq("is_active", true)
+                .order("full_name");
+
+            staffCache = error ? [] : (data || []);
+
+            if (selectStaff) {
+                selectStaff.innerHTML = `<option value="">-- Chưa phân công --</option>` +
+                    staffCache.map(s => `<option value="${s.id}">${s.full_name}</option>`).join("");
+                if (window.currentUser && window.currentUser.role === "staff") {
+                    selectStaff.value = window.currentUser.id;
                 }
+            }
+        }
 
-                populateSchedulePatients();
+        if (openModalBtn && modalOverlay) {
+            openModalBtn.addEventListener("click", async function (e) {
+                e.preventDefault();
 
-                openModalBtn.addEventListener("click", function (e) {
-                    e.preventDefault();
+                await populateSchedulePatients();
+                await populateStaffSelect();
 
-                    populateSchedulePatients();
-                    // Reset form values
-                    inputName.value = "";
-                    selectPatient.selectedIndex = 0;
-                    selectType.selectedIndex = 0;
-                    textareaNote.value = "";
+                // Reset form values
+                inputName.value = "";
+                selectPatient.selectedIndex = 0;
+                selectType.selectedIndex = 0;
+                textareaNote.value = "";
 
-                    // Set current date and time
-                    const today = new Date();
-                    const yyyy = today.getFullYear();
-                    const mm = String(today.getMonth() + 1).padStart(2, '0');
-                    const dd = String(today.getDate()).padStart(2, '0');
-                    inputDate.value = `${yyyy}-${mm}-${dd}`;
+                const today = new Date();
+                inputDate.value = toIsoDate(today);
+                inputTime.value = `${String(today.getHours()).padStart(2, "0")}:${String(today.getMinutes()).padStart(2, "0")}`;
 
-                    const hh = String(today.getHours()).padStart(2, '0');
-                    const min = String(today.getMinutes()).padStart(2, '0');
-                    inputTime.value = `${hh}:${min}`;
+                modalOverlay.classList.add("active");
+            });
 
-                    // Show Modal
-                    modalOverlay.classList.add("active");
-                });
+            function closeCreateModal() {
+                modalOverlay.classList.remove("active");
+            }
 
-                // Close Modal helpers
-                function closeCreateModal() {
-                    modalOverlay.classList.remove("active");
-                }
+            if (closeModalBtn) closeModalBtn.addEventListener("click", closeCreateModal);
+            if (cancelModalBtn) cancelModalBtn.addEventListener("click", closeCreateModal);
 
-                if (closeModalBtn) closeModalBtn.addEventListener("click", closeCreateModal);
-                if (cancelModalBtn) cancelModalBtn.addEventListener("click", closeCreateModal);
+            modalOverlay.addEventListener("click", function (e) {
+                if (e.target === modalOverlay) closeCreateModal();
+            });
 
-                modalOverlay.addEventListener("click", function(e) {
-                    if (e.target === modalOverlay) {
-                        closeCreateModal();
+            if (saveModalBtn) {
+                saveModalBtn.addEventListener("click", async function () {
+                    const name = inputName.value.trim();
+                    const residentId = selectPatient.value ? parseInt(selectPatient.value, 10) : null;
+                    const staffId = selectStaff.value || null;
+                    const date = inputDate.value;
+                    const time = inputTime.value;
+                    const type = selectType.value;
+                    const note = textareaNote.value.trim();
+
+                    if (!name || !residentId || !date || !time) {
+                        alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
+                        return;
                     }
-                });
 
-                // Save Schedule
-                if (saveModalBtn) {
-                    saveModalBtn.addEventListener("click", function() {
-                        const name = inputName.value.trim();
-                        const patientVal = selectPatient.value;
-                        const date = inputDate.value;
-                        const time = inputTime.value;
-                        const type = selectType.value;
-                        const note = textareaNote.value.trim();
+                    saveModalBtn.disabled = true;
+                    saveModalBtn.textContent = "Đang lưu...";
 
-                        if (!name || !patientVal || !date || !time) {
-                            alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
-                            return;
-                        }
+                    try {
+                        const { error } = await window.sb.from("care_schedules").insert({
+                            resident_id: residentId,
+                            assigned_staff_id: staffId,
+                            schedule_name: name,
+                            schedule_date: date,
+                            start_time: time + ":00",
+                            schedule_type: type,
+                            status: "Chưa thực hiện",
+                            note: note || null
+                        });
+                        if (error) throw error;
 
-                        // Extract name and room
-                        const parts = patientVal.split("-");
-                        const patientName = parts[0];
-                        const patientRoom = parts[1];
-
-                        // Generate task ID
-                        const newTaskId = "task-" + Date.now();
-
-                        // Add to currentTasks array
-                        const newTaskObj = {
-                            id: newTaskId,
-                            name: name,
-                            time: time,
-                            patientName: patientName,
-                            patientRoom: patientRoom,
-                            status: "todo",
-                            type: type,
-                            note: note
-                        };
-                        currentTasks.push(newTaskObj);
-                        localStorage.setItem("silvercare_schedules_v2", JSON.stringify(currentTasks));
-
-                        // Render and sort all tasks
-                        loadAndRenderTasks();
-
-                        // Close Modal
                         closeCreateModal();
-
-                        // Show success notification toast
                         showToast("Đã lưu lịch chăm sóc!");
-
-                        // Re-apply filters to show new task and update counters
-                        applyFilters();
-                    });
-                }
+                        await loadAndRenderTasks();
+                    } catch (err) {
+                        console.error(err);
+                        alert("Không thể lưu lịch: " + err.message);
+                    } finally {
+                        saveModalBtn.disabled = false;
+                        saveModalBtn.textContent = "Lưu lịch";
+                    }
+                });
             }
         }
 
@@ -1230,64 +1219,36 @@
 
             activeDetailTaskId = taskId;
 
-            const name = taskItem.getAttribute("data-name") || taskItem.querySelector(".schedule-task-name").innerText;
-            const time = taskItem.getAttribute("data-time") || taskItem.querySelector(".schedule-time").innerText;
-            
-            // Extract patient name and room
-            let patientMeta = taskItem.getAttribute("data-patient") || taskItem.querySelector(".schedule-patient-meta").innerText;
-            let patientName = patientMeta;
-            let patientRoom = taskItem.getAttribute("data-room") || "";
-            if (patientMeta.includes(" - Phòng ")) {
-                const parts = patientMeta.split(" - Phòng ");
-                patientName = parts[0];
-                patientRoom = parts[1];
-            } else if (patientMeta.includes("- Phòng ")) {
-                const parts = patientMeta.split("- Phòng ");
-                patientName = parts[0];
-                patientRoom = parts[1];
-            } else if (patientMeta.includes(" Phòng ")) {
-                const parts = patientMeta.split(" Phòng ");
-                patientName = parts[0];
-                patientRoom = parts[1];
-            }
+            const name = taskItem.getAttribute("data-name") || "";
+            const date = taskItem.getAttribute("data-date") || "";
+            const time = taskItem.getAttribute("data-time") || "";
+            const patientName = taskItem.getAttribute("data-patient") || "";
+            const patientRoom = taskItem.getAttribute("data-room") || "";
+            const staffName = taskItem.getAttribute("data-staff") || "Chưa phân công";
+            const status = taskItem.getAttribute("data-status") || "Chưa thực hiện";
+            const note = taskItem.getAttribute("data-note") || "";
 
-            const status = taskItem.getAttribute("data-status");
-            const note = taskItem.getAttribute("data-note") || "Không có";
-
-            // Map status text
-            let statusText = "Chưa thực hiện";
-            if (status === "done") {
-                statusText = "Hoàn thành";
-            } else if (status === "pending") {
-                statusText = "Đang chờ";
-            }
-
-            // Populate elements
             document.getElementById("detail-val-name").innerText = name;
-            document.getElementById("detail-val-time").innerText = time;
+            document.getElementById("detail-val-time").innerText = `${formatDateShortVN(date)} ${time}`;
             document.getElementById("detail-val-patient").innerText = patientName;
-            document.getElementById("detail-val-room").innerText = patientRoom;
-            document.getElementById("detail-val-status").innerText = statusText;
-            document.getElementById("detail-val-note").innerText = note;
+            document.getElementById("detail-val-room").innerText = patientRoom ? `Phòng ${patientRoom}` : "---";
+            document.getElementById("detail-val-status").innerText = status;
+            document.getElementById("detail-val-note").innerText = note || "Không có";
+
+            const staffRow = document.getElementById("detail-row-staff");
+            if (staffRow) document.getElementById("detail-val-staff").innerText = staffName;
 
             // Show or hide Note row based on content
             const noteSection = document.getElementById("detail-row-note");
             if (noteSection) {
-                if (note && note !== "Không có" && note !== "") {
-                    noteSection.style.display = "block";
-                } else {
-                    noteSection.style.display = "none";
-                }
+                noteSection.style.display = note ? "block" : "none";
             }
 
-            // Show or hide Complete button depending on status
+            // Show or hide Complete button depending on status & quyền
             const completeBtn = document.getElementById("btn-detail-modal-complete");
             if (completeBtn) {
-                if (status === "done") {
-                    completeBtn.style.display = "none";
-                } else {
-                    completeBtn.style.display = "inline-flex";
-                }
+                const canComplete = status !== "Hoàn thành" && window.currentUser && ["admin", "manager", "staff"].indexOf(window.currentUser.role) !== -1;
+                completeBtn.style.display = canComplete ? "inline-flex" : "none";
             }
 
             // Show modal
@@ -1341,32 +1302,27 @@
             }
         });
 
-        // Initial check
-        document.addEventListener("DOMContentLoaded", function() {
-            loadAndRenderTasks();
+        // Nạp danh sách phòng thật từ Supabase cho bộ lọc
+        async function populateRoomFilter() {
+            const { data, error } = await window.sb
+                .from("rooms")
+                .select("room_code")
+                .eq("is_active", true)
+                .order("room_code");
 
-            // Populate room filter dynamically with all resident rooms
-            const rawResidents = localStorage.getItem("silvercare_elderly_profiles_v3");
-            if (rawResidents && roomFilter) {
-                try {
-                    const parsed = JSON.parse(rawResidents);
-                    if (Array.isArray(parsed)) {
-                        const existingRooms = new Set(["201", "102", "305"]);
-                        parsed.forEach(r => {
-                            if (r.room) {
-                                const clean = r.room.replace(/\D/g, '');
-                                if (clean && !existingRooms.has(clean)) {
-                                    existingRooms.add(clean);
-                                    const opt = document.createElement("option");
-                                    opt.value = clean;
-                                    opt.innerText = `Phòng ${clean}`;
-                                    roomFilter.appendChild(opt);
-                                }
-                            }
-                        });
-                    }
-                } catch(e) {}
-            }
+            if (error || !roomFilter) return;
+
+            (data || []).forEach(r => {
+                const opt = document.createElement("option");
+                opt.value = r.room_code;
+                opt.innerText = `Phòng ${r.room_code}`;
+                roomFilter.appendChild(opt);
+            });
+        }
+
+        // Initial check
+        document.addEventListener("DOMContentLoaded", async function () {
+            await populateRoomFilter();
 
             // Check URL parameters for initial room filtering
             const urlParams = new URLSearchParams(window.location.search);
@@ -1376,7 +1332,7 @@
                 roomFilter.value = clean;
             }
 
-            applyFilters();
+            await loadAndRenderTasks();
         });
     </script>
 }

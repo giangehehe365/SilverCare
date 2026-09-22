@@ -2,11 +2,7 @@
 @{
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewData["Title"] = "Cảnh báo & Thông báo";
-
-    var fullName = TempData["FullName"] as string ?? "Nguyễn Thị Lan";
-    var role = TempData["Role"] as string ?? "Nhân viên";
-    TempData.Keep("FullName");
-    TempData.Keep("Role");
+    ViewData["AllowedRoles"] = "admin,manager,staff,family";
 }
 
 <style>
@@ -874,16 +870,16 @@
                 <input type="text" class="alerts-search-input" id="alerts-search-input" placeholder="Tìm theo tên, phòng, bệnh..." />
             </div>
 
-            <button class="alerts-btn-action" id="btn-sync-ai" title="Quét và phân tích lại các chỉ số sức khỏe mới nhất">
+            <button class="alerts-btn-action" id="btn-sync-ai" title="Tải lại danh sách cảnh báo mới nhất từ hệ thống">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="23 4 23 10 17 10"></polyline>
                     <polyline points="1 20 1 14 7 14"></polyline>
                     <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                 </svg>
-                <span>Quét AI</span>
+                <span>Làm mới</span>
             </button>
 
-            <button class="alerts-btn-action" id="btn-resolve-all" title="Đánh dấu tất cả cảnh báo là đã xử lý">
+            <button class="alerts-btn-action" id="btn-resolve-all" data-roles="admin,manager,staff" title="Đánh dấu tất cả cảnh báo là đã xử lý">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
@@ -1071,7 +1067,7 @@
 
             <div class="form-group">
                 <label class="form-label">Người thực hiện xử lý</label>
-                <input type="text" class="form-input" id="resolve-staff-name" value="@fullName" />
+                <input type="text" class="form-input" id="resolve-staff-name" readonly />
             </div>
         </div>
 
@@ -1093,66 +1089,10 @@
 
 @section Scripts {
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-    // ==========================================================================
-    // 1. STORAGE KEYS (STRICT SINGLE SOURCE OF TRUTH)
-    // ==========================================================================
-    const ELDERLY_STORAGE_KEY = "silvercare_elderly_profiles_v3";
-    const HEALTH_STORAGE_KEY = "silvercare_health_today_updates_v3";
-    const RESOLVED_STORAGE_KEY = "silvercare_alerts_resolved_v3";
-    const ACTIVITY_STORAGE_KEY = "silvercare_recent_activities_v2";
-
-    // Clean up obsolete mock keys
-    localStorage.removeItem("silvercare_alerts_notifications_v2");
-    localStorage.removeItem("silvercare_alerts_notifications_v1");
-
-    // Standard baseline residents if storage is empty
-    const defaultBaselineResidents = [
-        {
-            id: "NCT001",
-            initials: "NVA",
-            name: "Nguyễn Văn An",
-            age: 78,
-            gender: "Nam",
-            room: "201",
-            blood: "A+",
-            status: "Trung bình",
-            admissionDate: "15/05/2024",
-            notes: "Theo dõi huyết áp định kỳ mỗi sáng, chế độ ăn giảm muối."
-        },
-        {
-            id: "NCT002",
-            initials: "LVB",
-            name: "Lê Văn Bình",
-            age: 82,
-            gender: "Nam",
-            room: "102",
-            blood: "B+",
-            status: "Trung bình",
-            admissionDate: "10/11/2023",
-            notes: "Thoái hóa khớp gối, cần hỗ trợ vận động và vật lý trị liệu."
-        },
-        {
-            id: "NCT003",
-            initials: "PTC",
-            name: "Phạm Thị Cúc",
-            age: 75,
-            gender: "Nữ",
-            room: "305",
-            blood: "O+",
-            status: "Trung bình",
-            admissionDate: "20/02/2024",
-            notes: "Tiền sử đường huyết dao động, kiểm tra sức khỏe hàng ngày."
-        }
-    ];
-
-    // Standard baseline health measurements
-    const defaultBaselineHealth = {
-        "NCT001": { sys: 132, dia: 85, hr: 74, temp: 36.8, time: "11:03 hôm nay", note: "Huyết áp ổn định hơn hôm qua" },
-        "NCT002": { sys: 124, dia: 73, hr: 68, temp: 37.2, time: "14:43 hôm nay", note: "Thân nhiệt tăng nhẹ, 37.2°C" },
-        "NCT003": { sys: 105, dia: 65, hr: 83, temp: 37.6, time: "14:43 hôm nay", note: "Thân nhiệt tăng nhẹ, 37.6°C" }
-    };
-
+document.addEventListener("DOMContentLoaded", async function () {
+    // Dữ liệu cảnh báo giờ lấy thật từ bảng health_alerts (Supabase) — được tạo
+    // tự động bởi trigger trg_evaluate_health_alert mỗi khi có health_records
+    // mới vượt ngưỡng an toàn (xem supabase/schema.sql).
     let alertsData = [];
     let currentFilter = "all";
     let searchQuery = "";
@@ -1220,389 +1160,90 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // ==========================================================================
-    // 2. DYNAMIC HEALTH RECORD SCANNING & ALERT GENERATION
+    // 2. LOAD ALERTS FROM SUPABASE (health_alerts + alert_resolutions)
     // ==========================================================================
-    function generateAlertsFromHealthRecords(showToastFeedback = false) {
-        // Step A: Load real residents list from Elderly Profiles
-        let residentsList = [];
-        const rawElderly = localStorage.getItem(ELDERLY_STORAGE_KEY);
-        if (rawElderly) {
-            try {
-                const parsed = JSON.parse(rawElderly);
-                if (Array.isArray(parsed) && parsed.length > 0) residentsList = parsed;
-                else residentsList = [...defaultBaselineResidents];
-            } catch(e) { residentsList = [...defaultBaselineResidents]; }
-        } else {
-            residentsList = [...defaultBaselineResidents];
-            localStorage.setItem(ELDERLY_STORAGE_KEY, JSON.stringify(residentsList));
+    function formatDateTimeVN(iso) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        const dd = String(d.getDate()).padStart(2, "0");
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mi = String(d.getMinutes()).padStart(2, "0");
+        return `${hh}:${mi} ${dd}/${mm}`;
+    }
+
+    function mapSeverityToLevel(severity) {
+        if (severity === "Cao") return "high";
+        if (severity === "Trung bình") return "medium";
+        return "low";
+    }
+
+    async function loadAlerts(showToastFeedback = false) {
+        const { data, error } = await window.sb
+            .from("health_alerts")
+            .select(
+                "alert_id, resident_id, alert_type, severity, title, message, trigger_value, ai_recommendation, status, created_at, resolved_at, " +
+                "residents(resident_code, full_name, age, gender, blood_type, notes, rooms(room_code)), " +
+                "health_records(systolic, diastolic, heart_rate, temperature), " +
+                "alert_resolutions(resolution_type, action_taken, note, resolved_at, profiles(full_name))"
+            )
+            .order("created_at", { ascending: false })
+            .order("resolved_at", { foreignTable: "alert_resolutions", ascending: false });
+
+        if (error) {
+            console.error(error);
+            showToast("Không tải được danh sách cảnh báo: " + error.message);
+            alertsData = [];
+            renderAlerts();
+            return;
         }
 
-        // Step B: Load real health measurements
-        let healthUpdates = {};
-        const rawHealth = localStorage.getItem(HEALTH_STORAGE_KEY);
-        if (rawHealth) {
-            try {
-                const parsed = JSON.parse(rawHealth);
-                delete parsed["row-1"];
-                delete parsed["row-2"];
-                delete parsed["row-3"];
-                healthUpdates = { ...defaultBaselineHealth, ...parsed };
-                localStorage.setItem(HEALTH_STORAGE_KEY, JSON.stringify(healthUpdates));
-            } catch(e) { 
-                healthUpdates = { ...defaultBaselineHealth }; 
-                localStorage.setItem(HEALTH_STORAGE_KEY, JSON.stringify(healthUpdates));
-            }
-        } else {
-            healthUpdates = { ...defaultBaselineHealth };
-            localStorage.setItem(HEALTH_STORAGE_KEY, JSON.stringify(healthUpdates));
-        }
+        alertsData = (data || []).map(row => {
+            const res = row.residents || {};
+            const vitals = row.health_records || {};
+            const room = res.rooms ? `Phòng ${res.rooms.room_code}` : "Phòng ---";
+            const latestResolution = (row.alert_resolutions && row.alert_resolutions[0]) || null;
+            const isResolved = row.status === "Đã xử lý";
 
-        // Step C: Load resolved states map
-        let resolvedMap = {};
-        const rawResolved = localStorage.getItem(RESOLVED_STORAGE_KEY);
-        if (rawResolved) {
-            try {
-                resolvedMap = JSON.parse(rawResolved);
-            } catch(e) { resolvedMap = {}; }
-        }
-
-        const generatedAlerts = [];
-
-        // Step D: Evaluate clinical thresholds strictly per patient
-        residentsList.forEach(res => {
-            const m = healthUpdates[res.id] || (defaultBaselineHealth[res.id] ? defaultBaselineHealth[res.id] : null);
-            const roomLabel = res.room ? (res.room.toString().startsWith("Phòng") ? res.room : `Phòng ${res.room}`) : "Phòng ---";
-            const resNotes = res.notes || "";
-
-            if (!m || typeof m.sys !== "number" || m.time === "Chưa đo hôm nay") {
-                // If patient has condition requiring monitoring from profile notes
-                if (res.status === "Cần theo dõi" || resNotes.toLowerCase().includes("huyết áp") || resNotes.toLowerCase().includes("đường huyết")) {
-                    const alertKey = `alt-${res.id}-profile-check`;
-                    const resState = resolvedMap[alertKey] || null;
-                    generatedAlerts.push({
-                        id: alertKey,
-                        patientId: res.id,
-                        patientName: res.name,
-                        patientAge: res.age || 75,
-                        patientGender: res.gender || "---",
-                        patientBlood: res.blood || "O+",
-                        patientAdmission: res.admissionDate || "15/05/2024",
-                        patientNotes: resNotes || "Cần theo dõi sức khỏe định kỳ theo hồ sơ bệnh án.",
-                        room: roomLabel,
-                        level: res.status === "Cần theo dõi" ? "high" : "medium",
-                        title: "Cần đo & cập nhật chỉ số hôm nay",
-                        description: `Hồ sơ bệnh án ghi nhận: ${resNotes || 'Bệnh nhân chưa có chỉ số sinh hiệu đo trong ngày hôm nay.'}`,
-                        time: "Hôm nay",
-                        assignee: "@fullName" || "Nguyễn Thị Lan",
-                        vitalsSummary: "Chưa cập nhật sinh hiệu hôm nay",
-                        sys: null,
-                        dia: null,
-                        hr: null,
-                        temp: null,
-                        isResolved: !!resState,
-                        resolvedAt: resState?.resolvedAt || null,
-                        resolvedNote: resState?.resolvedNote || null,
-                        resolvedBy: resState?.resolvedBy || null,
-                        aiRecommendation: "Khuyến nghị điều dưỡng ca trực thực hiện đo kiểm tra huyết áp, nhịp tim và thân nhiệt cho người bệnh."
-                    });
-                }
-                return;
-            }
-
-            const sys = m.sys;
-            const dia = m.dia;
-            const hr = m.hr;
-            const temp = m.temp;
-            const timeStr = m.time || "Hôm nay";
-
-            // 1. EVALUATE BLOOD PRESSURE
-            if (sys >= 140 || dia >= 90) {
-                const isHighGrade = sys >= 160 || dia >= 100;
-                const alertKey = `alt-${res.id}-bp`;
-                const resState = resolvedMap[alertKey] || null;
-                generatedAlerts.push({
-                    id: alertKey,
-                    patientId: res.id,
-                    patientName: res.name,
-                    patientAge: res.age || 78,
-                    patientGender: res.gender || "Nam",
-                    patientBlood: res.blood || "A+",
-                    patientAdmission: res.admissionDate || "15/05/2024",
-                    patientNotes: resNotes || "Theo dõi huyết áp định kỳ.",
-                    room: roomLabel,
-                    level: "high",
-                    title: isHighGrade ? "Huyết áp tăng cao bất thường (Độ 2)" : "Huyết áp cao",
-                    description: `Huyết áp tâm thu/tâm trương cập nhật đạt ${sys}/${dia} mmHg, vượt ngưỡng tiêu chuẩn an toàn (140/90 mmHg).`,
-                    time: timeStr,
-                    assignee: "@fullName" || "Nguyễn Thị Lan",
-                    vitalsSummary: `HA: ${sys}/${dia} mmHg · NT: ${hr} bpm`,
-                    sys: sys,
-                    dia: dia,
-                    hr: hr,
-                    temp: temp,
-                    isResolved: !!resState,
-                    resolvedAt: resState?.resolvedAt || null,
-                    resolvedNote: resState?.resolvedNote || null,
-                    resolvedBy: resState?.resolvedBy || null,
-                    aiRecommendation: `Chỉ số huyết áp ${sys}/${dia} mmHg thuộc nhóm tăng huyết áp độ ${isHighGrade ? "2" : "1"}. Đề xuất nhân viên kiểm tra lại sau 30 phút nghỉ ngơi, nhắc nhở uống thuốc hạ áp theo đơn và hạn chế muối trong bữa ăn.`
-                });
-            } else if ((sys < 90 && sys > 0) || (dia < 60 && dia > 0)) {
-                const alertKey = `alt-${res.id}-bp-low`;
-                const resState = resolvedMap[alertKey] || null;
-                generatedAlerts.push({
-                    id: alertKey,
-                    patientId: res.id,
-                    patientName: res.name,
-                    patientAge: res.age || 75,
-                    patientGender: res.gender || "---",
-                    patientBlood: res.blood || "O+",
-                    patientAdmission: res.admissionDate || "15/05/2024",
-                    patientNotes: resNotes || "Theo dõi huyết áp.",
-                    room: roomLabel,
-                    level: "medium",
-                    title: "Huyết áp thấp",
-                    description: `Huyết áp ghi nhận ở mức ${sys}/${dia} mmHg, thấp hơn ngưỡng chuẩn an toàn.`,
-                    time: timeStr,
-                    assignee: "@fullName" || "Nguyễn Thị Lan",
-                    vitalsSummary: `HA: ${sys}/${dia} mmHg · NT: ${hr} bpm`,
-                    sys: sys,
-                    dia: dia,
-                    hr: hr,
-                    temp: temp,
-                    isResolved: !!resState,
-                    resolvedAt: resState?.resolvedAt || null,
-                    resolvedNote: resState?.resolvedNote || null,
-                    resolvedBy: resState?.resolvedBy || null,
-                    aiRecommendation: "Cho người bệnh nằm nghỉ, nâng cao nhẹ chi dưới, bổ sung nước ấm và theo dõi sát tránh choáng ngất khi đổi tư thế."
-                });
-            }
-
-            // 2. EVALUATE HEART RATE
-            if (hr > 100) {
-                const alertKey = `alt-${res.id}-hr-high`;
-                const resState = resolvedMap[alertKey] || null;
-                generatedAlerts.push({
-                    id: alertKey,
-                    patientId: res.id,
-                    patientName: res.name,
-                    patientAge: res.age || 78,
-                    patientGender: res.gender || "Nam",
-                    patientBlood: res.blood || "A+",
-                    patientAdmission: res.admissionDate || "15/05/2024",
-                    patientNotes: resNotes || "Theo dõi nhịp tim.",
-                    room: roomLabel,
-                    level: "high",
-                    title: "Nhịp tim nhanh",
-                    description: `Nhịp tim ghi nhận ${hr} lần/phút (vượt ngưỡng bình thường 100 bpm).`,
-                    time: timeStr,
-                    assignee: "@fullName" || "Nguyễn Thị Lan",
-                    vitalsSummary: `NT: ${hr} bpm · HA: ${sys}/${dia} mmHg`,
-                    sys: sys,
-                    dia: dia,
-                    hr: hr,
-                    temp: temp,
-                    isResolved: !!resState,
-                    resolvedAt: resState?.resolvedAt || null,
-                    resolvedNote: resState?.resolvedNote || null,
-                    resolvedBy: resState?.resolvedBy || null,
-                    aiRecommendation: "Nhịp tim trên 100 bpm. Cho người bệnh nghỉ ngơi tại phòng thoáng mát, kiểm tra nhịp thở và nhiệt độ cơ thể."
-                });
-            } else if (hr < 60 && hr > 0) {
-                const alertKey = `alt-${res.id}-hr-low`;
-                const resState = resolvedMap[alertKey] || null;
-                generatedAlerts.push({
-                    id: alertKey,
-                    patientId: res.id,
-                    patientName: res.name,
-                    patientAge: res.age || 82,
-                    patientGender: res.gender || "Nam",
-                    patientBlood: res.blood || "B+",
-                    patientAdmission: res.admissionDate || "10/11/2023",
-                    patientNotes: resNotes || "Theo dõi nhịp tim chậm.",
-                    room: roomLabel,
-                    level: "medium",
-                    title: "Nhịp tim thấp",
-                    description: `Nhịp tim ghi nhận ${hr} lần/phút, thấp hơn mức chuẩn bình thường 60 lần/phút.`,
-                    time: timeStr,
-                    assignee: "@fullName" || "Nguyễn Thị Lan",
-                    vitalsSummary: `NT: ${hr} bpm · HA: ${sys}/${dia} mmHg`,
-                    sys: sys,
-                    dia: dia,
-                    hr: hr,
-                    temp: temp,
-                    isResolved: !!resState,
-                    resolvedAt: resState?.resolvedAt || null,
-                    resolvedNote: resState?.resolvedNote || null,
-                    resolvedBy: resState?.resolvedBy || null,
-                    aiRecommendation: "Nhịp chậm xoang. Khuyến nghị theo dõi điện tâm đồ nếu xuất hiện triệu chứng mệt mỏi, hoa mắt hoặc chóng mặt."
-                });
-            }
-
-            // 3. EVALUATE BODY TEMPERATURE
-            if (temp >= 38.5) {
-                const alertKey = `alt-${res.id}-temp-high`;
-                const resState = resolvedMap[alertKey] || null;
-                generatedAlerts.push({
-                    id: alertKey,
-                    patientId: res.id,
-                    patientName: res.name,
-                    patientAge: res.age || 75,
-                    patientGender: res.gender || "Nữ",
-                    patientBlood: res.blood || "O+",
-                    patientAdmission: res.admissionDate || "20/02/2024",
-                    patientNotes: resNotes || "Theo dõi thân nhiệt.",
-                    room: roomLabel,
-                    level: "high",
-                    title: "Sốt cao bất thường",
-                    description: `Thân nhiệt đo được ${temp}°C, người bệnh đang trong tình trạng sốt cao cần hạ sốt khẩn cấp.`,
-                    time: timeStr,
-                    assignee: "@fullName" || "Nguyễn Thị Lan",
-                    vitalsSummary: `NĐ: ${temp}°C · HA: ${sys}/${dia} mmHg`,
-                    sys: sys,
-                    dia: dia,
-                    hr: hr,
-                    temp: temp,
-                    isResolved: !!resState,
-                    resolvedAt: resState?.resolvedAt || null,
-                    resolvedNote: resState?.resolvedNote || null,
-                    resolvedBy: resState?.resolvedBy || null,
-                    aiRecommendation: "Sốt cao. Cho dùng hạ sốt theo chỉ định bác sĩ, lau mát vùng nách/bẹn bằng nước ấm và bổ sung dung dịch bù điện giải Oresol."
-                });
-            } else if (temp >= 37.2 && temp < 38.5) {
-                const alertKey = `alt-${res.id}-temp-mild`;
-                const resState = resolvedMap[alertKey] || null;
-                generatedAlerts.push({
-                    id: alertKey,
-                    patientId: res.id,
-                    patientName: res.name,
-                    patientAge: res.age || 75,
-                    patientGender: res.gender || "Nữ",
-                    patientBlood: res.blood || "O+",
-                    patientAdmission: res.admissionDate || "20/02/2024",
-                    patientNotes: resNotes || "Theo dõi thân nhiệt.",
-                    room: roomLabel,
-                    level: "medium",
-                    title: "Nhiệt độ tăng",
-                    description: `Thân nhiệt tăng nhẹ, ${temp}°C, cần theo dõi diễn tiến nhiệt độ.`,
-                    time: timeStr,
-                    assignee: "@fullName" || "Nguyễn Thị Lan",
-                    vitalsSummary: `NĐ: ${temp}°C · HA: ${sys}/${dia} mmHg`,
-                    sys: sys,
-                    dia: dia,
-                    hr: hr,
-                    temp: temp,
-                    isResolved: !!resState,
-                    resolvedAt: resState?.resolvedAt || null,
-                    resolvedNote: resState?.resolvedNote || null,
-                    resolvedBy: resState?.resolvedBy || null,
-                    aiRecommendation: "Thân nhiệt sốt nhẹ. Cho uống nhiều nước ấm, duy trì phòng thoáng mát và theo dõi đo lại nhiệt độ sau mỗi 2 giờ."
-                });
-            } else if (temp < 35.5 && temp > 0) {
-                const alertKey = `alt-${res.id}-temp-low`;
-                const resState = resolvedMap[alertKey] || null;
-                generatedAlerts.push({
-                    id: alertKey,
-                    patientId: res.id,
-                    patientName: res.name,
-                    patientAge: res.age || 78,
-                    patientGender: res.gender || "Nam",
-                    patientBlood: res.blood || "A+",
-                    patientAdmission: res.admissionDate || "15/05/2024",
-                    patientNotes: resNotes || "Theo dõi thân nhiệt.",
-                    room: roomLabel,
-                    level: "high",
-                    title: "Hạ thân nhiệt",
-                    description: `Thân nhiệt đo được ${temp}°C, thấp hơn ngưỡng sinh lý an toàn.`,
-                    time: timeStr,
-                    assignee: "@fullName" || "Nguyễn Thị Lan",
-                    vitalsSummary: `NĐ: ${temp}°C · HA: ${sys}/${dia} mmHg`,
-                    sys: sys,
-                    dia: dia,
-                    hr: hr,
-                    temp: temp,
-                    isResolved: !!resState,
-                    resolvedAt: resState?.resolvedAt || null,
-                    resolvedNote: resState?.resolvedNote || null,
-                    resolvedBy: resState?.resolvedBy || null,
-                    aiRecommendation: "Ủ ấm bằng chăn ấm, kiểm tra nhiệt độ phòng và cho uống sữa hoặc nước trà gừng ấm."
-                });
-            }
-
-            // 4. EVALUATE PATIENT PROFILE MEDICAL CONDITIONS & NOTES
-            if (resNotes.toLowerCase().includes("đường huyết") && !generatedAlerts.some(a => a.patientId === res.id && a.title.includes("đường huyết"))) {
-                const alertKey = `alt-${res.id}-glucose`;
-                const resState = resolvedMap[alertKey] || null;
-                generatedAlerts.push({
-                    id: alertKey,
-                    patientId: res.id,
-                    patientName: res.name,
-                    patientAge: res.age || 75,
-                    patientGender: res.gender || "Nữ",
-                    patientBlood: res.blood || "O+",
-                    patientAdmission: res.admissionDate || "20/02/2024",
-                    patientNotes: resNotes,
-                    room: roomLabel,
-                    level: "medium",
-                    title: "Lưu ý đường huyết & Dinh dưỡng",
-                    description: `Hồ sơ bệnh án: "${resNotes}". Nhắc nhở kiểm tra đường huyết trước bữa ăn chính và tuân thủ chế độ ăn giảm tinh bột.`,
-                    time: "Hôm nay",
-                    assignee: "@fullName" || "Nguyễn Thị Lan",
-                    vitalsSummary: `Bệnh lý: Tiểu đường/Đường huyết`,
-                    sys: sys,
-                    dia: dia,
-                    hr: hr,
-                    temp: temp,
-                    isResolved: !!resState,
-                    resolvedAt: resState?.resolvedAt || null,
-                    resolvedNote: resState?.resolvedNote || null,
-                    resolvedBy: resState?.resolvedBy || null,
-                    aiRecommendation: "Đo đường huyết mao mạch định kỳ theo phác đồ, theo dõi phản ứng hạ đường huyết (vã mồ hôi, run tay)."
-                });
-            } else if (resNotes.toLowerCase().includes("khớp") && !generatedAlerts.some(a => a.patientId === res.id && a.title.includes("khớp"))) {
-                const alertKey = `alt-${res.id}-joints`;
-                const resState = resolvedMap[alertKey] || null;
-                generatedAlerts.push({
-                    id: alertKey,
-                    patientId: res.id,
-                    patientName: res.name,
-                    patientAge: res.age || 82,
-                    patientGender: res.gender || "Nam",
-                    patientBlood: res.blood || "B+",
-                    patientAdmission: res.admissionDate || "10/11/2023",
-                    patientNotes: resNotes,
-                    room: roomLabel,
-                    level: "low",
-                    title: "Hỗ trợ vận động & Vật lý trị liệu",
-                    description: `Hồ sơ bệnh án: "${resNotes}". Nhắc nhở hỗ trợ người bệnh đi lại nhẹ nhàng và tập phục hồi chức năng khớp gối.`,
-                    time: "Hôm nay",
-                    assignee: "@fullName" || "Nguyễn Thị Lan",
-                    vitalsSummary: `Bệnh lý: Thoái hóa khớp gối`,
-                    sys: sys,
-                    dia: dia,
-                    hr: hr,
-                    temp: temp,
-                    isResolved: !!resState,
-                    resolvedAt: resState?.resolvedAt || null,
-                    resolvedNote: resState?.resolvedNote || null,
-                    resolvedBy: resState?.resolvedBy || null,
-                    aiRecommendation: "Hỗ trợ di chuyển an toàn bằng gậy/khung tập đi, kết hợp xoa bóp nhẹ nhàng giảm cứng khớp vào buổi sáng."
-                });
-            }
+            return {
+                id: row.alert_id,
+                patientId: res.resident_code,
+                patientResidentId: row.resident_id,
+                patientName: res.full_name || "Người cao tuổi",
+                patientAge: res.age,
+                patientGender: res.gender,
+                patientBlood: res.blood_type,
+                patientNotes: res.notes,
+                room: room,
+                level: mapSeverityToLevel(row.severity),
+                title: row.title,
+                description: row.message || "",
+                time: formatDateTimeVN(row.created_at),
+                vitalsSummary: row.trigger_value,
+                sys: vitals.systolic,
+                dia: vitals.diastolic,
+                hr: vitals.heart_rate,
+                temp: vitals.temperature,
+                aiRecommendation: row.ai_recommendation,
+                isResolved: isResolved,
+                resolvedAt: latestResolution ? formatDateTimeVN(latestResolution.resolved_at) : null,
+                resolvedNote: latestResolution ? (latestResolution.action_taken || latestResolution.note) : null,
+                resolvedBy: latestResolution && latestResolution.profiles ? latestResolution.profiles.full_name : null
+            };
         });
 
-        // Sort: Unresolved high priority first, then medium, then low, then resolved
-        generatedAlerts.sort((a, b) => {
+        // Sort: unresolved trước (cao > trung bình > thấp), rồi tới đã xử lý
+        alertsData.sort((a, b) => {
             if (a.isResolved !== b.isResolved) return a.isResolved ? 1 : -1;
-            const weight = { "high": 3, "medium": 2, "low": 1 };
+            const weight = { high: 3, medium: 2, low: 1 };
             return (weight[b.level] || 0) - (weight[a.level] || 0);
         });
 
-        alertsData = generatedAlerts;
         renderAlerts();
 
         if (showToastFeedback) {
             const count = alertsData.filter(a => !a.isResolved).length;
-            showToast(`Hệ thống AI đã quét và đồng bộ dữ liệu từ ${residentsList.length} hồ sơ sức khỏe (${count} cảnh báo đang hoạt động).`);
+            showToast(`Đã tải lại danh sách cảnh báo (${count} cảnh báo đang hoạt động).`);
         }
     }
 
@@ -1721,7 +1362,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 `;
             } else {
                 resolveButtonHtml = `
-                    <button class="btn-alert-link btn-alert-resolve" onclick="openResolveModal('${alert.id}')" title="Ghi nhận can thiệp xử lý cảnh báo">
+                    <button class="btn-alert-link btn-alert-resolve" data-roles="admin,manager,staff" onclick="openResolveModal(${alert.id})" title="Ghi nhận can thiệp xử lý cảnh báo">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
@@ -1737,7 +1378,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 <div class="alert-content-wrapper">
                     <div class="alert-header-line">
                         <span class="alert-level-badge ${badgeClass}">${badgeText}</span>
-                        <span class="alert-patient-name" onclick="openDetailModal('${alert.id}')">${alert.patientName}</span>
+                        <span class="alert-patient-name" onclick="openDetailModal(${alert.id})">${alert.patientName}</span>
                         <span class="alert-patient-room">${alert.room}</span>
                         ${alert.isResolved ? `<span class="badge-resolved-status">✓ Đã xử lý</span>` : ""}
                     </div>
@@ -1751,12 +1392,12 @@ document.addEventListener("DOMContentLoaded", function () {
                             </svg>
                             ${alert.time}
                         </span>
-                        <span class="alert-meta-assignee">Phụ trách: ${alert.assignee || 'Nguyễn Thị Lan'}</span>
+                        ${alert.isResolved && alert.resolvedBy ? `<span class="alert-meta-assignee">Xử lý bởi: ${alert.resolvedBy}</span>` : ""}
                         ${alert.vitalsSummary ? `<span class="vital-pill-highlight">${alert.vitalsSummary}</span>` : ''}
                     </div>
                 </div>
                 <div class="alert-actions-col">
-                    <button class="btn-alert-link btn-alert-detail" onclick="openDetailModal('${alert.id}')" title="Xem phân tích y tế AI & hồ sơ">
+                    <button class="btn-alert-link btn-alert-detail" onclick="openDetailModal(${alert.id})" title="Xem phân tích y tế AI & hồ sơ">
                         Chi tiết
                     </button>
                     <a href="@Url.Action("Health", "Home")?residentId=${encodeURIComponent(alert.patientId)}&name=${encodeURIComponent(alert.patientName)}" class="btn-alert-link btn-alert-profile" title="Xem biểu đồ & nhật ký sức khỏe">
@@ -1770,6 +1411,15 @@ document.addEventListener("DOMContentLoaded", function () {
             `;
 
             alertsListContainer.appendChild(itemEl);
+        });
+
+        if (window.currentUser) applyDataRolesWithin(alertsListContainer, window.currentUser.role);
+    }
+
+    function applyDataRolesWithin(container, role) {
+        container.querySelectorAll("[data-roles]").forEach(el => {
+            const allowed = el.getAttribute("data-roles").split(",").map(r => r.trim());
+            el.style.display = allowed.indexOf(role) === -1 ? "none" : "";
         });
     }
 
@@ -1795,53 +1445,56 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Button Quét AI
+    // Button "Làm mới" — tải lại danh sách cảnh báo mới nhất từ Supabase
     const btnSyncAi = document.getElementById("btn-sync-ai");
     if (btnSyncAi) {
-        btnSyncAi.addEventListener("click", function () {
+        btnSyncAi.addEventListener("click", async function () {
             this.style.transform = "rotate(180deg)";
-            setTimeout(() => {
-                this.style.transform = "none";
-                generateAlertsFromHealthRecords(true);
-            }, 300);
+            await loadAlerts(true);
+            setTimeout(() => { this.style.transform = "none"; }, 300);
         });
     }
 
-    // Button Resolve All
+    // Button Resolve All — ghi nhận xử lý hàng loạt (thật, vào alert_resolutions + health_alerts)
     const btnResolveAll = document.getElementById("btn-resolve-all");
     if (btnResolveAll) {
-        btnResolveAll.addEventListener("click", function () {
+        btnResolveAll.addEventListener("click", async function () {
             const unresolved = alertsData.filter(a => !a.isResolved);
             if (unresolved.length === 0) {
                 showToast("Tất cả các cảnh báo đã được xử lý trước đó!");
                 return;
             }
-            if (confirm(`Bạn có chắc chắn muốn ghi nhận xử lý toàn bộ ${unresolved.length} cảnh báo sức khỏe?`)) {
-                let resolvedMap = {};
-                try {
-                    const raw = localStorage.getItem(RESOLVED_STORAGE_KEY);
-                    if (raw) resolvedMap = JSON.parse(raw);
-                } catch(e) { resolvedMap = {}; }
+            if (!confirm(`Bạn có chắc chắn muốn ghi nhận xử lý toàn bộ ${unresolved.length} cảnh báo sức khỏe?`)) return;
 
-                const timeStr = "Hôm nay " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const nowIso = new Date().toISOString();
+            const resolvedById = window.currentUser ? window.currentUser.id : null;
 
-                unresolved.forEach(a => {
-                    a.isResolved = true;
-                    a.resolvedAt = timeStr;
-                    a.resolvedNote = "Xử lý hàng loạt bởi nhân viên ca trực.";
-                    a.resolvedBy = "@fullName" || "Nguyễn Thị Lan";
+            const resolutionRows = unresolved.map(a => ({
+                alert_id: a.id,
+                resolved_by: resolvedById,
+                resolution_type: "Xử lý hàng loạt",
+                action_taken: "Xử lý hàng loạt bởi nhân viên ca trực.",
+                resolved_at: nowIso
+            }));
 
-                    resolvedMap[a.id] = {
-                        resolvedAt: a.resolvedAt,
-                        resolvedNote: a.resolvedNote,
-                        resolvedBy: a.resolvedBy
-                    };
-                });
-
-                localStorage.setItem(RESOLVED_STORAGE_KEY, JSON.stringify(resolvedMap));
-                renderAlerts();
-                showToast(`Đã ghi nhận xử lý toàn bộ ${unresolved.length} cảnh báo.`);
+            const { error: insError } = await window.sb.from("alert_resolutions").insert(resolutionRows);
+            if (insError) {
+                alert("Không thể ghi nhận xử lý: " + insError.message);
+                return;
             }
+
+            const { error: updError } = await window.sb
+                .from("health_alerts")
+                .update({ status: "Đã xử lý", resolved_at: nowIso })
+                .in("alert_id", unresolved.map(a => a.id));
+
+            if (updError) {
+                alert("Không thể cập nhật trạng thái: " + updError.message);
+                return;
+            }
+
+            await loadAlerts();
+            showToast(`Đã ghi nhận xử lý toàn bộ ${unresolved.length} cảnh báo.`);
         });
     }
 
@@ -1865,7 +1518,7 @@ document.addEventListener("DOMContentLoaded", function () {
         detailValBp.innerText = item.sys && item.dia ? `${item.sys}/${item.dia} mmHg` : "--/-- mmHg";
         detailValHr.innerText = item.hr ? `${item.hr} bpm` : "-- bpm";
         detailValTemp.innerText = item.temp ? `${item.temp} °C` : "-- °C";
-        detailValStaff.innerText = item.assignee || "Nguyễn Thị Lan";
+        detailValStaff.innerText = item.isResolved ? (item.resolvedBy || "---") : "Chưa xử lý";
         detailAiRecommendation.innerText = item.aiRecommendation || "Chỉ số cần được theo dõi định kỳ và can thiệp kịp thời nếu bất thường.";
 
         // Badge styling
@@ -1876,13 +1529,15 @@ document.addEventListener("DOMContentLoaded", function () {
             detailIconBox.className = `modal-header-icon ${item.isResolved ? 'icon-box-resolved' : (item.level === 'high' ? 'icon-box-high' : 'icon-box-medium')}`;
         }
 
+        const canResolve = !item.isResolved && window.currentUser && ["admin", "manager", "staff"].indexOf(window.currentUser.role) !== -1;
+
         if (item.isResolved) {
             detailResolvedSection.style.display = "block";
             detailResolvedText.innerText = `${item.resolvedNote || 'Đã can thiệp và hoàn tất xử lý.'} (Bởi ${item.resolvedBy || 'Nhân viên'} lúc ${item.resolvedAt || 'hôm nay'})`;
             btnModalQuickResolve.style.display = "none";
         } else {
             detailResolvedSection.style.display = "none";
-            btnModalQuickResolve.style.display = "inline-flex";
+            btnModalQuickResolve.style.display = canResolve ? "inline-flex" : "none";
         }
 
         btnModalViewRecord.onclick = function () {
@@ -1908,6 +1563,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         resolveModalTitle.innerText = `Xử lý cảnh báo - ${item.patientName}`;
         resolveNoteInput.value = `Đã can thiệp kiểm tra cho bệnh nhân ${item.patientName} (${item.title}), các dấu hiệu ổn định.`;
+        resolveStaffName.value = window.currentUser ? window.currentUser.fullName : "";
         openModal(modalResolveOverlay);
     };
 
@@ -1935,60 +1591,57 @@ document.addEventListener("DOMContentLoaded", function () {
         if (e.target === modalResolveOverlay) closeModal(modalResolveOverlay);
     });
 
-    // Confirm Resolve
+    // Confirm Resolve — ghi thật vào alert_resolutions + cập nhật health_alerts.status
     if (btnConfirmResolve) {
-        btnConfirmResolve.addEventListener("click", function () {
+        btnConfirmResolve.addEventListener("click", async function () {
             if (!activeAlertId) return;
             const item = alertsData.find(a => a.id === activeAlertId);
             if (!item) return;
 
             const actionSelect = resolveActionSelect.value;
-            const noteText = resolveNoteInput.value.trim() || actionSelect;
-            const staffName = resolveStaffName.value.trim() || "@fullName" || "Nguyễn Thị Lan";
-            const timeStr = "Hôm nay " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const noteText = resolveNoteInput.value.trim();
+            const nowIso = new Date().toISOString();
 
-            item.isResolved = true;
-            item.resolvedAt = timeStr;
-            item.resolvedNote = `${actionSelect}. ${noteText}`;
-            item.resolvedBy = staffName;
+            btnConfirmResolve.disabled = true;
+            btnConfirmResolve.textContent = "Đang lưu...";
 
-            // Save to persistent resolved storage
-            let resolvedMap = {};
             try {
-                const raw = localStorage.getItem(RESOLVED_STORAGE_KEY);
-                if (raw) resolvedMap = JSON.parse(raw);
-            } catch(e) { resolvedMap = {}; }
-
-            resolvedMap[item.id] = {
-                resolvedAt: item.resolvedAt,
-                resolvedNote: item.resolvedNote,
-                resolvedBy: item.resolvedBy
-            };
-            localStorage.setItem(RESOLVED_STORAGE_KEY, JSON.stringify(resolvedMap));
-
-            // Log activity to recent activities for Dashboard
-            try {
-                let acts = [];
-                const rawActs = localStorage.getItem(ACTIVITY_STORAGE_KEY);
-                if (rawActs) acts = JSON.parse(rawActs);
-                acts.unshift({
-                    id: `act-${Date.now()}`,
-                    title: `Xử lý cảnh báo: ${item.title} - ${item.patientName}`,
-                    time: "Vừa xong",
-                    type: "health",
-                    staff: staffName
+                const { error: insError } = await window.sb.from("alert_resolutions").insert({
+                    alert_id: item.id,
+                    resolved_by: window.currentUser ? window.currentUser.id : null,
+                    resolution_type: actionSelect,
+                    action_taken: noteText || actionSelect,
+                    resolved_at: nowIso
                 });
-                localStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(acts.slice(0, 30)));
-            } catch(e) {}
+                if (insError) throw insError;
 
-            renderAlerts();
-            closeModal(modalResolveOverlay);
-            showToast(`Đã ghi nhận xử lý thành công cho bệnh nhân ${item.patientName}!`);
+                const { error: updError } = await window.sb
+                    .from("health_alerts")
+                    .update({ status: "Đã xử lý", resolved_at: nowIso })
+                    .eq("alert_id", item.id);
+                if (updError) throw updError;
+
+                await loadAlerts();
+                closeModal(modalResolveOverlay);
+                showToast(`Đã ghi nhận xử lý thành công cho bệnh nhân ${item.patientName}!`);
+            } catch (err) {
+                console.error(err);
+                alert("Không thể ghi nhận xử lý: " + err.message);
+            } finally {
+                btnConfirmResolve.disabled = false;
+                btnConfirmResolve.textContent = "Xác nhận hoàn tất";
+            }
         });
     }
 
-    // Initial load pure from Health records
-    generateAlertsFromHealthRecords(false);
+    // Initial load — dữ liệu thật từ Supabase
+    await loadAlerts(false);
+    if (window.currentUser) applyDataRolesWithin(document, window.currentUser.role);
+
+    document.addEventListener("silvercare:auth-ready", function (e) {
+        applyDataRolesWithin(document, e.detail.role);
+        renderAlerts();
+    });
 });
 </script>
 }
