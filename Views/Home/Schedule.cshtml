@@ -2,21 +2,6 @@
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewData["Title"] = "Lịch chăm sóc";
     ViewData["AllowedRoles"] = "admin,manager,staff,family";
-
-    // Dynamic date in Vietnamese formatting
-    var now = DateTime.Now;
-    var dayOfWeekVi = now.DayOfWeek switch
-    {
-        DayOfWeek.Sunday => "Chủ Nhật",
-        DayOfWeek.Monday => "Thứ Hai",
-        DayOfWeek.Tuesday => "Thứ Ba",
-        DayOfWeek.Wednesday => "Thứ Tư",
-        DayOfWeek.Thursday => "Thứ Năm",
-        DayOfWeek.Friday => "Thứ Sáu",
-        DayOfWeek.Saturday => "Thứ Bảy",
-        _ => ""
-    };
-    var dateString = $"{dayOfWeekVi}, {now.Day} tháng {now.Month} năm {now.Year}";
 }
 
 <!-- Custom Styles for Schedule Page -->
@@ -133,6 +118,24 @@
         background-size: 16px;
         min-width: 150px;
         box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    }
+
+    .range-date-input {
+        background-color: #ffffff;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        padding: 9px 10px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: #344054;
+        outline: none;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    }
+
+    .range-date-input:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(11, 165, 236, 0.12);
     }
 
     .filter-select:focus {
@@ -636,6 +639,14 @@
         <button class="view-toggle-btn" data-view="month">Tháng</button>
     </div>
 
+    <!-- Custom Date Range Filter -->
+    <div class="custom-range-wrapper" style="display: flex; align-items: center; gap: 6px;">
+        <input type="date" id="range-from" class="range-date-input" title="Từ ngày" />
+        <span style="color: #98a2b3; font-size: 13px;">&rarr;</span>
+        <input type="date" id="range-to" class="range-date-input" title="Đến ngày" />
+        <button type="button" id="btn-apply-range" class="btn-create-schedule" style="padding: 8px 14px; font-size: 13px;">Xem</button>
+    </div>
+
     <!-- Room Filter -->
     <select class="filter-select" id="room-filter">
         <option value="all">Tất cả phòng</option>
@@ -647,6 +658,11 @@
         <option value="Chưa thực hiện">Chưa thực hiện</option>
         <option value="Đang thực hiện">Đang thực hiện</option>
         <option value="Hoàn thành">Hoàn thành</option>
+    </select>
+
+    <!-- Staff Filter (chỉ Admin/Manager) -->
+    <select class="filter-select" id="staff-filter" data-roles="admin,manager">
+        <option value="all">Tất cả nhân viên</option>
     </select>
 </div>
 
@@ -660,7 +676,7 @@
                 <line x1="8" y1="2" x2="8" y2="6"></line>
                 <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
-            <h2 class="schedule-day-title" id="schedule-date-header">@dateString</h2>
+            <h2 class="schedule-day-title" id="schedule-date-header"></h2>
         </div>
         <span class="schedule-count-text" id="schedule-count">0 lịch</span>
     </div>
@@ -731,14 +747,21 @@
             <!-- Ngày & Giờ -->
             <div class="schedule-form-row">
                 <div class="schedule-form-group">
-                    <label class="schedule-form-label" for="schedule-input-date">Ngày <span class="required-asterisk">*</span></label>
-                    <input type="date" class="schedule-form-input" id="schedule-input-date" required />
+                    <label class="schedule-form-label" for="schedule-input-date-from">Từ ngày <span class="required-asterisk">*</span></label>
+                    <input type="date" class="schedule-form-input" id="schedule-input-date-from" required />
                 </div>
                 <div class="schedule-form-group">
-                    <label class="schedule-form-label" for="schedule-input-time">Giờ <span class="required-asterisk">*</span></label>
-                    <input type="time" class="schedule-form-input" id="schedule-input-time" required />
+                    <label class="schedule-form-label" for="schedule-input-date-to">Đến ngày <span class="required-asterisk">*</span></label>
+                    <input type="date" class="schedule-form-input" id="schedule-input-date-to" required />
                 </div>
             </div>
+            <div class="schedule-form-group">
+                <label class="schedule-form-label" for="schedule-input-time">Giờ <span class="required-asterisk">*</span></label>
+                <input type="time" class="schedule-form-input" id="schedule-input-time" required />
+            </div>
+            <small style="color: #667085; font-size: 12px; display: block; margin-top: -10px; margin-bottom: 14px;">
+                Chọn "Đến ngày" khác "Từ ngày" để tạo cùng lúc nhiều lịch lặp lại mỗi ngày trong khoảng đó (cùng giờ, cùng nội dung).
+            </small>
 
             <!-- Loại -->
             <div class="schedule-form-group">
@@ -761,6 +784,83 @@
         <div class="schedule-modal-footer">
             <button class="btn-modal-cancel" id="btn-create-modal-cancel">Hủy</button>
             <button class="btn-modal-save" id="btn-create-modal-save">Lưu lịch</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Schedule Modal -->
+<div class="schedule-modal-overlay" id="edit-schedule-modal-overlay">
+    <div class="schedule-modal-container">
+        <!-- Header -->
+        <div class="schedule-modal-header">
+            <h2 class="schedule-modal-title">Sửa lịch chăm sóc</h2>
+            <button class="schedule-modal-close-btn" id="btn-edit-modal-close" title="Đóng">
+                <svg viewBox="0 0 24 24">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="schedule-modal-body">
+            <div class="schedule-form-group">
+                <label class="schedule-form-label" for="edit-schedule-input-name">Tên lịch chăm sóc <span class="required-asterisk">*</span></label>
+                <input type="text" class="schedule-form-input" id="edit-schedule-input-name" required />
+            </div>
+
+            <div class="schedule-form-group">
+                <label class="schedule-form-label" for="edit-schedule-select-patient">Người cao tuổi <span class="required-asterisk">*</span></label>
+                <select class="schedule-form-select" id="edit-schedule-select-patient" required></select>
+            </div>
+
+            <div class="schedule-form-group">
+                <label class="schedule-form-label" for="edit-schedule-select-staff">Nhân viên phụ trách</label>
+                <select class="schedule-form-select" id="edit-schedule-select-staff">
+                    <option value="">-- Chưa phân công --</option>
+                </select>
+            </div>
+
+            <div class="schedule-form-row">
+                <div class="schedule-form-group">
+                    <label class="schedule-form-label" for="edit-schedule-input-date">Ngày <span class="required-asterisk">*</span></label>
+                    <input type="date" class="schedule-form-input" id="edit-schedule-input-date" required />
+                </div>
+                <div class="schedule-form-group">
+                    <label class="schedule-form-label" for="edit-schedule-input-time">Giờ <span class="required-asterisk">*</span></label>
+                    <input type="time" class="schedule-form-input" id="edit-schedule-input-time" required />
+                </div>
+            </div>
+
+            <div class="schedule-form-row">
+                <div class="schedule-form-group">
+                    <label class="schedule-form-label" for="edit-schedule-select-type">Loại</label>
+                    <select class="schedule-form-select" id="edit-schedule-select-type">
+                        <option value="Chăm sóc">Chăm sóc</option>
+                        <option value="Y tế">Y tế</option>
+                        <option value="Khác">Khác</option>
+                    </select>
+                </div>
+                <div class="schedule-form-group">
+                    <label class="schedule-form-label" for="edit-schedule-select-status">Trạng thái</label>
+                    <select class="schedule-form-select" id="edit-schedule-select-status">
+                        <option value="Chưa thực hiện">Chưa thực hiện</option>
+                        <option value="Đang thực hiện">Đang thực hiện</option>
+                        <option value="Hoàn thành">Hoàn thành</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="schedule-form-group" style="margin-bottom: 0;">
+                <label class="schedule-form-label" for="edit-schedule-textarea-note">Ghi chú</label>
+                <textarea class="schedule-form-textarea" id="edit-schedule-textarea-note" placeholder="Nhập ghi chú..."></textarea>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="schedule-modal-footer">
+            <button class="btn-modal-cancel" id="btn-edit-modal-cancel">Hủy</button>
+            <button class="btn-modal-save" id="btn-edit-modal-save">Lưu thay đổi</button>
         </div>
     </div>
 </div>
@@ -812,8 +912,14 @@
         </div>
 
         <!-- Footer -->
-        <div class="schedule-modal-footer">
+        <div class="schedule-modal-footer" style="flex-wrap: wrap;">
             <button class="btn-modal-cancel" id="btn-detail-modal-close-footer" style="flex: 1;">Đóng</button>
+            <button class="btn-modal-cancel" id="btn-detail-modal-delete" data-roles="admin,manager,staff" style="flex: 1; color: #d92d20; border-color: #fda29b;">
+                🗑️ Xóa
+            </button>
+            <button class="btn-modal-cancel" id="btn-detail-modal-edit" data-roles="admin,manager,staff" style="flex: 1;">
+                ✏️ Sửa
+            </button>
             <button class="btn-modal-save" id="btn-detail-modal-complete" style="flex: 1.5; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background-color: #0ba5ec;">
                 <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; stroke-width: 2.5; fill: none;">
                     <polyline points="20 6 9 17 4 12"></polyline>
@@ -827,9 +933,11 @@
 @section Scripts {
     <script>
         let currentTasks = [];
-        let currentViewMode = "day"; // day | week | month
+        let currentViewMode = "day"; // day | week | month | custom
         let residentsCache = [];
         let staffCache = [];
+        let customRangeStart = null;
+        let customRangeEnd = null;
 
         function toIsoDate(d) {
             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -838,6 +946,16 @@
         function formatDateShortVN(iso) {
             const parts = iso.split("-");
             return `${parts[2]}/${parts[1]}`;
+        }
+
+        // Tính chuỗi ngày tiếng Việt đầy đủ hoàn toàn trong JS (không nhúng chuỗi
+        // Razor vào <script> — nhúng trực tiếp sẽ bị Razor HTML-encode ký tự có
+        // dấu thành numeric character reference, và .innerText/.textContent
+        // không giải mã HTML entity trong chuỗi JS nên hiển thị sai như
+        // "Th&#x1EE9; T&#x1B0;..." thay vì "Thứ Tư...").
+        function formatFullDateVN(d) {
+            const days = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+            return `${days[d.getDay()]}, ${d.getDate()} tháng ${d.getMonth() + 1} năm ${d.getFullYear()}`;
         }
 
         function getDateRangeForView(mode) {
@@ -855,6 +973,9 @@
                 sunday.setDate(monday.getDate() + 6);
                 return { start: toIsoDate(monday), end: toIsoDate(sunday) };
             }
+            if (mode === "custom" && customRangeStart && customRangeEnd) {
+                return { start: customRangeStart, end: customRangeEnd };
+            }
             // month
             const first = new Date(now.getFullYear(), now.getMonth(), 1);
             const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -866,9 +987,11 @@
             if (!header) return;
             const range = getDateRangeForView(currentViewMode);
             if (currentViewMode === "day") {
-                header.innerText = "@dateString";
+                header.innerText = formatFullDateVN(new Date());
             } else if (currentViewMode === "week") {
                 header.innerText = `Tuần ${formatDateShortVN(range.start)} - ${formatDateShortVN(range.end)}`;
+            } else if (currentViewMode === "custom") {
+                header.innerText = `${formatDateShortVN(range.start)} - ${formatDateShortVN(range.end)}`;
             } else {
                 const now = new Date();
                 header.innerText = `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
@@ -886,11 +1009,17 @@
 
             const timeLabel = currentViewMode === "day" ? task.time : `${formatDateShortVN(task.date)} ${task.time}`;
 
+            const manageButtonsHtml = `
+                <a href="#" class="btn-detail btn-edit-schedule" data-roles="admin,manager,staff" data-id="${task.id}">Sửa</a>
+                <a href="#" class="btn-detail btn-delete-schedule" data-roles="admin,manager,staff" data-id="${task.id}" style="color: #d92d20;">Xóa</a>
+            `;
+
             let actionsHtml = "";
             if (task.status === "Hoàn thành") {
                 actionsHtml = `
                     <span class="status-badge badge-done">Hoàn thành</span>
                     <a href="#" class="btn-detail">Chi tiết</a>
+                    ${manageButtonsHtml}
                 `;
             } else {
                 const badgeClass = task.status === "Đang thực hiện" ? "badge-pending" : "badge-todo";
@@ -903,11 +1032,12 @@
                         </svg>
                         <span>Hoàn thành</span>
                     </button>
+                    ${manageButtonsHtml}
                 `;
             }
 
             return `
-            <div class="schedule-item" data-room="${task.patientRoom}" data-status="${task.status}" id="task-${task.id}" data-id="${task.id}" data-name="${escapeHtmlAttr(task.name)}" data-time="${task.time}" data-date="${task.date}" data-patient="${escapeHtmlAttr(task.patientName)}" data-staff="${escapeHtmlAttr(task.staffName || "Chưa phân công")}" data-note="${escapeHtmlAttr(task.note || "")}">
+            <div class="schedule-item" data-room="${task.patientRoom}" data-status="${task.status}" data-staff-id="${task.assignedStaffId}" id="task-${task.id}" data-id="${task.id}" data-name="${escapeHtmlAttr(task.name)}" data-time="${task.time}" data-date="${task.date}" data-patient="${escapeHtmlAttr(task.patientName)}" data-staff="${escapeHtmlAttr(task.staffName || "Chưa phân công")}" data-note="${escapeHtmlAttr(task.note || "")}">
                 <span class="schedule-time">${timeLabel}</span>
                 <div class="status-indicator ${indicatorClass}" id="indicator-${task.id}"></div>
                 <div class="schedule-info">
@@ -948,11 +1078,13 @@
                     name: row.schedule_name,
                     date: row.schedule_date,
                     time: row.start_time ? row.start_time.substring(0, 5) : "",
+                    residentId: row.resident_id,
                     patientName: row.residents ? row.residents.full_name : "",
                     patientRoom: row.residents && row.residents.rooms ? row.residents.rooms.room_code : "",
                     status: row.status,
                     type: row.schedule_type,
                     note: row.note || "",
+                    assignedStaffId: row.assigned_staff_id || "",
                     staffName: row.profiles ? row.profiles.full_name : ""
                 }));
             }
@@ -981,10 +1113,11 @@
 
         // Store total count of items visible under active filters
         function updateCountText() {
-            const visibleItems = document.querySelectorAll(".schedule-item[style*='display: grid']").length 
-                + document.querySelectorAll(".schedule-item:not([style*='display: none'])").length 
-                - document.querySelectorAll(".schedule-item[style*='display: none']").length;
-            
+            let visibleItems = 0;
+            document.querySelectorAll(".schedule-item").forEach(item => {
+                if (item.style.display !== "none") visibleItems++;
+            });
+
             const countText = document.getElementById("schedule-count");
             if (countText) {
                 countText.innerText = `${visibleItems} lịch`;
@@ -1030,19 +1163,23 @@
         // Filtering logic (lọc trên tập dữ liệu đã tải từ Supabase)
         const roomFilter = document.getElementById("room-filter");
         const statusFilter = document.getElementById("status-filter");
+        const staffFilter = document.getElementById("staff-filter");
 
         function applyFilters() {
             const selectedRoom = roomFilter.value;
             const selectedStatus = statusFilter.value;
+            const selectedStaff = staffFilter ? staffFilter.value : "all";
 
             document.querySelectorAll(".schedule-item").forEach(item => {
                 const room = item.getAttribute("data-room");
                 const status = item.getAttribute("data-status");
+                const staffId = item.getAttribute("data-staff-id") || "";
 
                 const matchesRoom = (selectedRoom === "all" || room === selectedRoom);
                 const matchesStatus = (selectedStatus === "all" || status === selectedStatus);
+                const matchesStaff = (selectedStaff === "all" || staffId === selectedStaff);
 
-                item.style.display = (matchesRoom && matchesStatus) ? "grid" : "none";
+                item.style.display = (matchesRoom && matchesStatus && matchesStaff) ? "grid" : "none";
             });
 
             updateCountText();
@@ -1050,6 +1187,31 @@
 
         if (roomFilter) roomFilter.addEventListener("change", applyFilters);
         if (statusFilter) statusFilter.addEventListener("change", applyFilters);
+        if (staffFilter) staffFilter.addEventListener("change", applyFilters);
+
+        // Nạp danh sách nhân viên cho bộ lọc (chỉ hữu ích với Admin/Manager — ô đã
+        // bị auth-guard ẩn với các vai trò khác qua data-roles)
+        async function populateStaffFilter() {
+            if (!staffFilter) return;
+            const { data, error } = await window.sb
+                .from("profiles")
+                .select("id, full_name")
+                .in("role", ["admin", "manager", "staff"])
+                .eq("is_active", true)
+                .order("full_name");
+
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            (data || []).forEach(p => {
+                const opt = document.createElement("option");
+                opt.value = p.id;
+                opt.innerText = p.full_name;
+                staffFilter.appendChild(opt);
+            });
+        }
 
         // View toggle: Ngày / Tuần / Tháng — dữ liệu thật theo khoảng ngày tương ứng
         document.querySelectorAll(".view-toggle-btn").forEach(btn => {
@@ -1060,6 +1222,33 @@
                 await loadAndRenderTasks();
             });
         });
+
+        // Bộ lọc khoảng ngày tùy chỉnh (Từ ngày - Đến ngày)
+        const rangeFromInput = document.getElementById("range-from");
+        const rangeToInput = document.getElementById("range-to");
+        const btnApplyRange = document.getElementById("btn-apply-range");
+
+        if (btnApplyRange) {
+            btnApplyRange.addEventListener("click", async function () {
+                const from = rangeFromInput.value;
+                const to = rangeToInput.value;
+
+                if (!from || !to) {
+                    alert("Vui lòng chọn đầy đủ Từ ngày và Đến ngày.");
+                    return;
+                }
+                if (from > to) {
+                    alert("\"Từ ngày\" phải trước hoặc bằng \"Đến ngày\".");
+                    return;
+                }
+
+                customRangeStart = from;
+                customRangeEnd = to;
+                currentViewMode = "custom";
+                document.querySelectorAll(".view-toggle-btn").forEach(b => b.classList.remove("active"));
+                await loadAndRenderTasks();
+            });
+        }
 
         // ==========================================
         // CREATE SCHEDULE MODAL LOGIC
@@ -1072,10 +1261,23 @@
 
         const inputName = document.getElementById("schedule-input-name");
         const selectPatient = document.getElementById("schedule-select-patient");
-        const inputDate = document.getElementById("schedule-input-date");
+        const inputDateFrom = document.getElementById("schedule-input-date-from");
+        const inputDateTo = document.getElementById("schedule-input-date-to");
         const inputTime = document.getElementById("schedule-input-time");
         const selectType = document.getElementById("schedule-select-type");
         const textareaNote = document.getElementById("schedule-textarea-note");
+
+        // Liệt kê tất cả các ngày (yyyy-mm-dd) trong khoảng [fromIso, toIso], hai đầu bao gồm
+        function enumerateDateRange(fromIso, toIso) {
+            const dates = [];
+            let cursor = new Date(`${fromIso}T00:00:00`);
+            const end = new Date(`${toIso}T00:00:00`);
+            while (cursor <= end) {
+                dates.push(toIsoDate(cursor));
+                cursor.setDate(cursor.getDate() + 1);
+            }
+            return dates;
+        }
 
         // Helper to show custom toast message
         function showToast(message) {
@@ -1093,8 +1295,11 @@
         }
 
         const selectStaff = document.getElementById("schedule-select-staff");
+        const editSelectPatient = document.getElementById("edit-schedule-select-patient");
+        const editSelectStaff = document.getElementById("edit-schedule-select-staff");
 
-        async function populateSchedulePatients() {
+        async function ensureResidentsCache() {
+            if (residentsCache.length > 0) return residentsCache;
             const { data, error } = await window.sb
                 .from("residents")
                 .select("resident_id, full_name, rooms(room_code)")
@@ -1106,14 +1311,11 @@
                 name: r.full_name,
                 room: r.rooms ? r.rooms.room_code : "---"
             }));
-
-            if (selectPatient) {
-                selectPatient.innerHTML = `<option value="" disabled selected>-- Chọn --</option>` +
-                    residentsCache.map(r => `<option value="${r.residentId}">${r.name} - Phòng ${r.room}</option>`).join("");
-            }
+            return residentsCache;
         }
 
-        async function populateStaffSelect() {
+        async function ensureStaffCache() {
+            if (staffCache.length > 0) return staffCache;
             const { data, error } = await window.sb
                 .from("profiles")
                 .select("id, full_name, role")
@@ -1122,13 +1324,37 @@
                 .order("full_name");
 
             staffCache = error ? [] : (data || []);
+            return staffCache;
+        }
 
+        async function populateSchedulePatients() {
+            await ensureResidentsCache();
+            if (selectPatient) {
+                selectPatient.innerHTML = `<option value="" disabled selected>-- Chọn --</option>` +
+                    residentsCache.map(r => `<option value="${r.residentId}">${r.name} - Phòng ${r.room}</option>`).join("");
+            }
+        }
+
+        async function populateStaffSelect() {
+            await ensureStaffCache();
             if (selectStaff) {
                 selectStaff.innerHTML = `<option value="">-- Chưa phân công --</option>` +
                     staffCache.map(s => `<option value="${s.id}">${s.full_name}</option>`).join("");
                 if (window.currentUser && window.currentUser.role === "staff") {
                     selectStaff.value = window.currentUser.id;
                 }
+            }
+        }
+
+        async function populateEditSelects() {
+            await Promise.all([ensureResidentsCache(), ensureStaffCache()]);
+            if (editSelectPatient) {
+                editSelectPatient.innerHTML = residentsCache
+                    .map(r => `<option value="${r.residentId}">${r.name} - Phòng ${r.room}</option>`).join("");
+            }
+            if (editSelectStaff) {
+                editSelectStaff.innerHTML = `<option value="">-- Chưa phân công --</option>` +
+                    staffCache.map(s => `<option value="${s.id}">${s.full_name}</option>`).join("");
             }
         }
 
@@ -1146,7 +1372,11 @@
                 textareaNote.value = "";
 
                 const today = new Date();
-                inputDate.value = toIsoDate(today);
+                const todayIso = toIsoDate(today);
+                inputDateFrom.min = todayIso;
+                inputDateTo.min = todayIso;
+                inputDateFrom.value = todayIso;
+                inputDateTo.value = todayIso;
                 inputTime.value = `${String(today.getHours()).padStart(2, "0")}:${String(today.getMinutes()).padStart(2, "0")}`;
 
                 modalOverlay.classList.add("active");
@@ -1163,39 +1393,68 @@
                 if (e.target === modalOverlay) closeCreateModal();
             });
 
+            // Đến ngày không được nhỏ hơn Từ ngày, và Từ ngày không được chọn ngày quá khứ
+            if (inputDateFrom) {
+                inputDateFrom.addEventListener("change", function () {
+                    if (this.value) {
+                        inputDateTo.min = this.value;
+                        if (inputDateTo.value && inputDateTo.value < this.value) {
+                            inputDateTo.value = this.value;
+                        }
+                    }
+                });
+            }
+
             if (saveModalBtn) {
                 saveModalBtn.addEventListener("click", async function () {
                     const name = inputName.value.trim();
                     const residentId = selectPatient.value ? parseInt(selectPatient.value, 10) : null;
                     const staffId = selectStaff.value || null;
-                    const date = inputDate.value;
+                    const dateFrom = inputDateFrom.value;
+                    const dateTo = inputDateTo.value;
                     const time = inputTime.value;
                     const type = selectType.value;
                     const note = textareaNote.value.trim();
 
-                    if (!name || !residentId || !date || !time) {
+                    if (!name || !residentId || !dateFrom || !dateTo || !time) {
                         alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
                         return;
                     }
+
+                    const todayIso = toIsoDate(new Date());
+                    if (dateFrom < todayIso || dateTo < todayIso) {
+                        alert("Không thể tạo lịch chăm sóc cho ngày trong quá khứ.");
+                        return;
+                    }
+                    if (dateFrom > dateTo) {
+                        alert("\"Từ ngày\" phải trước hoặc bằng \"Đến ngày\".");
+                        return;
+                    }
+
+                    const dates = enumerateDateRange(dateFrom, dateTo);
 
                     saveModalBtn.disabled = true;
                     saveModalBtn.textContent = "Đang lưu...";
 
                     try {
-                        const { error } = await window.sb.from("care_schedules").insert({
+                        const rows = dates.map(d => ({
                             resident_id: residentId,
                             assigned_staff_id: staffId,
                             schedule_name: name,
-                            schedule_date: date,
+                            schedule_date: d,
                             start_time: time + ":00",
                             schedule_type: type,
                             status: "Chưa thực hiện",
                             note: note || null
-                        });
+                        }));
+
+                        const { error } = await window.sb.from("care_schedules").insert(rows);
                         if (error) throw error;
 
                         closeCreateModal();
-                        showToast("Đã lưu lịch chăm sóc!");
+                        showToast(dates.length > 1
+                            ? `Đã lưu lịch chăm sóc cho ${dates.length} ngày!`
+                            : "Đã lưu lịch chăm sóc!");
                         await loadAndRenderTasks();
                     } catch (err) {
                         console.error(err);
@@ -1207,6 +1466,141 @@
                 });
             }
         }
+
+        // ==========================================
+        // EDIT / DELETE SCHEDULE LOGIC
+        // ==========================================
+        const editModalOverlay = document.getElementById("edit-schedule-modal-overlay");
+        const btnEditModalClose = document.getElementById("btn-edit-modal-close");
+        const btnEditModalCancel = document.getElementById("btn-edit-modal-cancel");
+        const btnEditModalSave = document.getElementById("btn-edit-modal-save");
+
+        const editInputName = document.getElementById("edit-schedule-input-name");
+        const editInputDate = document.getElementById("edit-schedule-input-date");
+        const editInputTime = document.getElementById("edit-schedule-input-time");
+        const editSelectType = document.getElementById("edit-schedule-select-type");
+        const editSelectStatus = document.getElementById("edit-schedule-select-status");
+        const editTextareaNote = document.getElementById("edit-schedule-textarea-note");
+
+        let activeEditTaskId = null;
+
+        function closeEditScheduleModal() {
+            if (editModalOverlay) editModalOverlay.classList.remove("active");
+            activeEditTaskId = null;
+        }
+
+        async function openEditScheduleModal(taskId) {
+            const task = currentTasks.find(t => t.id === taskId);
+            if (!task) return;
+            activeEditTaskId = taskId;
+
+            await populateEditSelects();
+
+            editInputName.value = task.name || "";
+            editSelectPatientValue(task.residentId);
+            if (editSelectStaff) editSelectStaff.value = task.assignedStaffId || "";
+            editInputDate.value = task.date || "";
+            editInputTime.value = task.time || "";
+            editSelectType.value = task.type || "Chăm sóc";
+            editSelectStatus.value = task.status || "Chưa thực hiện";
+            editTextareaNote.value = task.note || "";
+
+            if (editModalOverlay) editModalOverlay.classList.add("active");
+        }
+
+        function editSelectPatientValue(residentId) {
+            if (editSelectPatient && residentId) editSelectPatient.value = residentId;
+        }
+
+        if (btnEditModalClose) btnEditModalClose.addEventListener("click", closeEditScheduleModal);
+        if (btnEditModalCancel) btnEditModalCancel.addEventListener("click", closeEditScheduleModal);
+        if (editModalOverlay) {
+            editModalOverlay.addEventListener("click", function (e) {
+                if (e.target === editModalOverlay) closeEditScheduleModal();
+            });
+        }
+
+        if (btnEditModalSave) {
+            btnEditModalSave.addEventListener("click", async function () {
+                if (!activeEditTaskId) return;
+
+                const name = editInputName.value.trim();
+                const residentId = editSelectPatient && editSelectPatient.value ? parseInt(editSelectPatient.value, 10) : null;
+                const staffId = editSelectStaff ? (editSelectStaff.value || null) : null;
+                const date = editInputDate.value;
+                const time = editInputTime.value;
+                const type = editSelectType.value;
+                const status = editSelectStatus.value;
+                const note = editTextareaNote.value.trim();
+
+                if (!name || !residentId || !date || !time) {
+                    alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
+                    return;
+                }
+
+                btnEditModalSave.disabled = true;
+                btnEditModalSave.textContent = "Đang lưu...";
+
+                try {
+                    const { error } = await window.sb
+                        .from("care_schedules")
+                        .update({
+                            resident_id: residentId,
+                            assigned_staff_id: staffId,
+                            schedule_name: name,
+                            schedule_date: date,
+                            start_time: time + ":00",
+                            schedule_type: type,
+                            status: status,
+                            note: note || null,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq("care_schedule_id", activeEditTaskId);
+
+                    if (error) throw error;
+
+                    closeEditScheduleModal();
+                    showToast("Đã cập nhật lịch chăm sóc!");
+                    await loadAndRenderTasks();
+                } catch (err) {
+                    console.error(err);
+                    alert("Không thể lưu thay đổi: " + err.message);
+                } finally {
+                    btnEditModalSave.disabled = false;
+                    btnEditModalSave.textContent = "Lưu thay đổi";
+                }
+            });
+        }
+
+        async function deleteSchedule(taskId) {
+            const task = currentTasks.find(t => t.id === taskId);
+            const label = task ? `"${task.name}" (${task.patientName})` : "lịch chăm sóc này";
+            if (!confirm(`Bạn có chắc chắn muốn xóa ${label}? Hành động này không thể hoàn tác.`)) return;
+
+            const { error } = await window.sb.from("care_schedules").delete().eq("care_schedule_id", taskId);
+            if (error) {
+                alert("Không thể xóa: " + error.message);
+                return;
+            }
+
+            showToast("Đã xóa lịch chăm sóc.");
+            await loadAndRenderTasks();
+        }
+
+        // Event delegation cho nút Sửa/Xóa trên từng dòng danh sách
+        document.addEventListener("click", function (e) {
+            const editBtn = e.target.closest(".btn-edit-schedule");
+            if (editBtn) {
+                e.preventDefault();
+                openEditScheduleModal(parseInt(editBtn.getAttribute("data-id"), 10));
+                return;
+            }
+            const deleteBtn = e.target.closest(".btn-delete-schedule");
+            if (deleteBtn) {
+                e.preventDefault();
+                deleteSchedule(parseInt(deleteBtn.getAttribute("data-id"), 10));
+            }
+        });
 
         // ==========================================
         // DETAIL SCHEDULE MODAL LOGIC
@@ -1290,6 +1684,27 @@
             });
         }
 
+        const editDetailBtn = document.getElementById("btn-detail-modal-edit");
+        const deleteDetailBtn = document.getElementById("btn-detail-modal-delete");
+
+        if (editDetailBtn) {
+            editDetailBtn.addEventListener("click", function () {
+                if (!activeDetailTaskId) return;
+                const id = parseInt(activeDetailTaskId, 10);
+                closeDetailModal();
+                openEditScheduleModal(id);
+            });
+        }
+
+        if (deleteDetailBtn) {
+            deleteDetailBtn.addEventListener("click", async function () {
+                if (!activeDetailTaskId) return;
+                const id = parseInt(activeDetailTaskId, 10);
+                closeDetailModal();
+                await deleteSchedule(id);
+            });
+        }
+
         // Event delegation for "Chi tiết" button
         document.addEventListener("click", function(e) {
             if (e.target.classList.contains("btn-detail")) {
@@ -1322,7 +1737,7 @@
 
         // Initial check
         document.addEventListener("DOMContentLoaded", async function () {
-            await populateRoomFilter();
+            await Promise.all([populateRoomFilter(), populateStaffFilter()]);
 
             // Check URL parameters for initial room filtering
             const urlParams = new URLSearchParams(window.location.search);

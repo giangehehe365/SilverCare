@@ -825,15 +825,147 @@
             grid-template-columns: 1fr;
         }
     }
+
+    /* ==========================================================================
+       VIEW SWITCH: Thông báo | Cảnh báo sức khỏe
+       ========================================================================== */
+    .alerts-view-switch {
+        display: inline-flex;
+        gap: 4px;
+        padding: 4px;
+        background: #f2f4f7;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .alerts-view-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: #475467;
+        font-size: 14px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+    }
+
+    .alerts-view-btn.active {
+        background: #ffffff;
+        color: #101828;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.1);
+    }
+
+    .alerts-view[hidden] {
+        display: none !important;
+    }
+
+    /* Dòng thông báo (dùng lại khung .alert-row-item) */
+    .alert-row-item.notif-row-unread {
+        background: #f0f9ff;
+        box-shadow: inset 3px 0 0 #0ba5ec;
+    }
+
+    .notif-type-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .notif-unread-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #0ba5ec;
+        display: inline-block;
+    }
 </style>
 
 <div class="alerts-container">
     <!-- Header -->
     <div class="alerts-header">
         <h1 class="alerts-title">Cảnh báo & Thông báo</h1>
-        <p class="alerts-subtitle">Cảnh báo AI và thông báo hệ thống dựa trên chỉ số cập nhật</p>
+        <p class="alerts-subtitle">Cảnh báo sức khỏe và thông báo hệ thống dựa trên chỉ số cập nhật</p>
     </div>
 
+    <!-- Chuyển giữa Thông báo (bảng notifications) và Cảnh báo sức khỏe (bảng health_alerts) -->
+    <div class="alerts-view-switch" role="tablist">
+        <button type="button" class="alerts-view-btn active" data-view="notifications" role="tab">
+            <span>Thông báo</span>
+            <span class="tab-badge" id="badge-notif-unread">0</span>
+        </button>
+        <button type="button" class="alerts-view-btn" data-view="alerts" role="tab">
+            <span>Cảnh báo sức khỏe</span>
+            <span class="tab-badge tab-badge-high" id="badge-alerts-active">0</span>
+        </button>
+    </div>
+
+    <!-- ===================== VIEW: THÔNG BÁO ===================== -->
+    <div class="alerts-view" id="view-notifications">
+        <div class="alerts-control-bar">
+            <div class="alerts-tabs" role="tablist">
+                <button class="alerts-tab-btn notif-filter-btn active" data-nfilter="all">
+                    <span>Tất cả</span>
+                    <span class="tab-badge" id="nbadge-all">0</span>
+                </button>
+                <button class="alerts-tab-btn notif-filter-btn" data-nfilter="unread">
+                    <span>Chưa đọc</span>
+                    <span class="tab-badge tab-badge-high" id="nbadge-unread">0</span>
+                </button>
+                <button class="alerts-tab-btn notif-filter-btn" data-nfilter="billing">
+                    <span>Thanh toán</span>
+                    <span class="tab-badge" id="nbadge-billing">0</span>
+                </button>
+                <button class="alerts-tab-btn notif-filter-btn" data-nfilter="schedule">
+                    <span>Lịch chăm sóc</span>
+                    <span class="tab-badge" id="nbadge-schedule">0</span>
+                </button>
+                <button class="alerts-tab-btn notif-filter-btn" data-nfilter="health">
+                    <span>Sức khỏe</span>
+                    <span class="tab-badge" id="nbadge-health">0</span>
+                </button>
+            </div>
+
+            <div class="alerts-header-actions">
+                <div class="alerts-search-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" class="alerts-search-input" id="notif-search-input" placeholder="Tìm theo tiêu đề, nội dung..." />
+                </div>
+
+                <button class="alerts-btn-action" id="btn-notif-mark-all" title="Đánh dấu tất cả thông báo là đã đọc">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <span>Đánh dấu tất cả đã đọc</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="alerts-card-list" id="notif-list-container"></div>
+
+        <div class="alerts-card-list alerts-empty-state" id="notif-empty-state" style="display: none;">
+            <div class="alerts-empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+            </div>
+            <h3 class="alerts-empty-title">Không có thông báo phù hợp</h3>
+            <p class="alerts-empty-desc">Thông báo về hóa đơn, lịch chăm sóc và cảnh báo sức khỏe sẽ xuất hiện tại đây.</p>
+        </div>
+    </div>
+
+    <!-- ===================== VIEW: CẢNH BÁO SỨC KHỎE ===================== -->
+    <div class="alerts-view" id="view-alerts" hidden>
     <!-- Control & Filter Bar -->
     <div class="alerts-control-bar">
         <!-- Tabs -->
@@ -904,10 +1036,11 @@
         <h3 class="alerts-empty-title">Không tìm thấy cảnh báo phù hợp</h3>
         <p class="alerts-empty-desc">Tất cả các chỉ số sức khỏe của người cao tuổi hiện đang ở mức ổn định hoặc không khớp với bộ lọc tìm kiếm.</p>
     </div>
+    </div>
 </div>
 
 <!-- ==========================================================================
-   MODAL 1: CHI TIẾT CẢNH BÁO & PHÂN TÍCH AI
+   MODAL 1: CHI TIẾT CẢNH BÁO & PHÂN TÍCH
    ========================================================================== -->
 <div class="modal-overlay" id="modal-detail-overlay">
     <div class="modal-dialog">
@@ -977,13 +1110,13 @@
                 </div>
             </div>
 
-            <!-- AI Diagnosis & Action Plan -->
+            <!-- Diagnosis & Action Plan -->
             <div class="detail-ai-box">
                 <div class="detail-ai-title">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
-                    <span>Phân tích & Khuyến nghị y tế AI</span>
+                    <span>Phân tích & Khuyến nghị y tế</span>
                 </div>
                 <p class="detail-ai-text" id="detail-ai-recommendation">
                     Chỉ số đo được vượt ngưỡng bình thường. Đề xuất nhân viên kiểm tra lại huyết áp sau 30 phút nghỉ ngơi, nhắc nhở uống thuốc hạ huyết áp theo đúng toa và báo cáo bác sĩ nếu tình trạng tiếp tục kéo dài.
@@ -1102,7 +1235,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     const alertsListContainer = document.getElementById("alerts-list-container");
     const alertsEmptyState = document.getElementById("alerts-empty-state");
     const searchInput = document.getElementById("alerts-search-input");
-    const tabButtons = document.querySelectorAll(".alerts-tab-btn");
+    const tabButtons = document.querySelectorAll("#view-alerts .alerts-tab-btn");
 
     // Badges
     const badgeAll = document.getElementById("badge-all");
@@ -1263,6 +1396,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (badgeMedium) badgeMedium.innerText = mediumCount;
         if (badgeLow) badgeLow.innerText = lowCount;
         if (badgeResolved) badgeResolved.innerText = resolvedCount;
+        const badgeAlertsActive = document.getElementById("badge-alerts-active");
+        if (badgeAlertsActive) badgeAlertsActive.innerText = totalCount - resolvedCount;
 
         // Filter items
         let filtered = alertsData.filter(item => {
@@ -1397,7 +1532,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                     </div>
                 </div>
                 <div class="alert-actions-col">
-                    <button class="btn-alert-link btn-alert-detail" onclick="openDetailModal(${alert.id})" title="Xem phân tích y tế AI & hồ sơ">
+                    <button class="btn-alert-link btn-alert-detail" onclick="openDetailModal(${alert.id})" title="Xem phân tích y tế & hồ sơ">
                         Chi tiết
                     </button>
                     <a href="@Url.Action("Health", "Home")?residentId=${encodeURIComponent(alert.patientId)}&name=${encodeURIComponent(alert.patientName)}" class="btn-alert-link btn-alert-profile" title="Xem biểu đồ & nhật ký sức khỏe">
@@ -1634,8 +1769,241 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
     }
 
+    // ==========================================================================
+    // 5. THÔNG BÁO (bảng notifications — hóa đơn, lịch chăm sóc, sức khỏe)
+    // Trigger phía Postgres tạo thông báo cho đúng người liên quan; trang này
+    // hiển thị toàn bộ và cập nhật realtime qua sự kiện "silvercare:notification"
+    // do wwwroot/js/notifications.js phát ra (cùng lúc với popup ở góc màn hình).
+    // ==========================================================================
+    const NOTIF_TYPES = {
+        billing: { label: "Thanh toán", color: "#7a5af8", bg: "#f4f3ff", url: "@Url.Action("Billing", "Home")" },
+        schedule: { label: "Lịch chăm sóc", color: "#0ba5ec", bg: "#f0f9ff", url: "@Url.Action("Schedule", "Home")" },
+        health: { label: "Sức khỏe", color: "#f04438", bg: "#fef3f2", url: null },
+        other: { label: "Thông báo", color: "#667085", bg: "#f2f4f7", url: null }
+    };
+    const NOTIF_ICONS = {
+        billing: '<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path>',
+        schedule: '<rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>',
+        health: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>',
+        other: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>'
+    };
+    const NOTIF_SELECT = "notification_id, notification_type, title, message, is_read, created_at, resident_id, residents(full_name, rooms(room_code))";
+
+    let notifData = [];
+    let notifFilter = "all";
+    let notifSearch = "";
+    let notifUserId = null;
+
+    const notifListContainer = document.getElementById("notif-list-container");
+    const notifEmptyState = document.getElementById("notif-empty-state");
+
+    function notifType(n) {
+        return NOTIF_TYPES[n.notification_type] ? n.notification_type : "other";
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.textContent = str == null ? "" : String(str);
+        return div.innerHTML;
+    }
+
+    async function getNotifUserId() {
+        if (notifUserId) return notifUserId;
+        if (window.currentUser) return (notifUserId = window.currentUser.id);
+        const { data } = await window.sb.auth.getSession();
+        notifUserId = data && data.session ? data.session.user.id : null;
+        return notifUserId;
+    }
+
+    async function loadNotifications() {
+        const uid = await getNotifUserId();
+        if (!uid) return;
+        const { data, error } = await window.sb
+            .from("notifications")
+            .select(NOTIF_SELECT)
+            .eq("profile_id", uid)
+            .order("created_at", { ascending: false })
+            .limit(200);
+        if (error) {
+            console.error(error);
+            showToast("Không tải được thông báo: " + error.message);
+            notifData = [];
+        } else {
+            notifData = data || [];
+        }
+        renderNotifications();
+    }
+
+    function renderNotifications() {
+        const unread = notifData.filter(n => !n.is_read).length;
+        const setText = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+        setText("badge-notif-unread", unread);
+        setText("nbadge-all", notifData.length);
+        setText("nbadge-unread", unread);
+        ["billing", "schedule", "health"].forEach(t => setText("nbadge-" + t, notifData.filter(n => n.notification_type === t).length));
+
+        const q = notifSearch.trim().toLowerCase();
+        const filtered = notifData.filter(n => {
+            if (notifFilter === "unread" && n.is_read) return false;
+            if (["billing", "schedule", "health"].includes(notifFilter) && n.notification_type !== notifFilter) return false;
+            if (q) {
+                const resName = n.residents ? n.residents.full_name : "";
+                if (!`${n.title} ${n.message} ${resName}`.toLowerCase().includes(q)) return false;
+            }
+            return true;
+        });
+
+        notifListContainer.innerHTML = "";
+        if (filtered.length === 0) {
+            notifEmptyState.style.display = "flex";
+            return;
+        }
+        notifEmptyState.style.display = "none";
+
+        filtered.forEach(n => {
+            const type = notifType(n);
+            const t = NOTIF_TYPES[type];
+            const res = n.residents;
+            const room = res && res.rooms ? `Phòng ${res.rooms.room_code}` : "";
+
+            const el = document.createElement("div");
+            el.className = "alert-row-item" + (n.is_read ? "" : " notif-row-unread");
+            el.innerHTML = `
+                <div class="alert-icon-box" style="background:${t.bg}; color:${t.color};">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${NOTIF_ICONS[type]}</svg>
+                </div>
+                <div class="alert-content-wrapper">
+                    <div class="alert-header-line">
+                        <span class="notif-type-badge" style="background:${t.bg}; color:${t.color};">${t.label}</span>
+                        ${res ? `<span class="alert-patient-name" style="cursor:default;">${escapeHtml(res.full_name)}</span>` : ""}
+                        ${room ? `<span class="alert-patient-room">${escapeHtml(room)}</span>` : ""}
+                        ${n.is_read ? "" : `<span class="notif-unread-dot" title="Chưa đọc"></span>`}
+                    </div>
+                    <h3 class="alert-title-text">${escapeHtml(n.title)}</h3>
+                    <p class="alert-description-text">${escapeHtml(n.message)}</p>
+                    <div class="alert-meta-line">
+                        <span class="alert-meta-time">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            ${formatDateTimeVN(n.created_at)}
+                        </span>
+                    </div>
+                </div>
+                <div class="alert-actions-col">
+                    <button class="btn-alert-link btn-alert-detail" data-notif-open="${n.notification_id}">Xem</button>
+                    ${n.is_read ? "" : `<button class="btn-alert-link btn-alert-resolve" data-notif-read="${n.notification_id}">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        <span>Đã đọc</span>
+                    </button>`}
+                </div>
+            `;
+            notifListContainer.appendChild(el);
+        });
+    }
+
+    async function markNotificationsRead(ids) {
+        const uid = await getNotifUserId();
+        let query = window.sb
+            .from("notifications")
+            .update({ is_read: true, read_at: new Date().toISOString() })
+            .eq("profile_id", uid)
+            .eq("is_read", false);
+        if (ids) query = query.in("notification_id", ids);
+        const { error } = await query;
+        if (error) {
+            console.error(error);
+            showToast("Không cập nhật được thông báo: " + error.message);
+            return false;
+        }
+        notifData.forEach(n => { if (!ids || ids.includes(n.notification_id)) n.is_read = true; });
+        renderNotifications();
+        if (window.SilverCareNotifications) window.SilverCareNotifications.refreshUnreadCount();
+        return true;
+    }
+
+    notifListContainer.addEventListener("click", async function (e) {
+        const readBtn = e.target.closest("[data-notif-read]");
+        if (readBtn) {
+            await markNotificationsRead([parseInt(readBtn.getAttribute("data-notif-read"), 10)]);
+            return;
+        }
+        const openBtn = e.target.closest("[data-notif-open]");
+        if (openBtn) {
+            const id = parseInt(openBtn.getAttribute("data-notif-open"), 10);
+            const n = notifData.find(x => x.notification_id === id);
+            if (!n) return;
+            if (!n.is_read) await markNotificationsRead([id]);
+            const type = notifType(n);
+            if (type === "health") {
+                switchView("alerts");
+            } else if (NOTIF_TYPES[type].url) {
+                window.location.href = NOTIF_TYPES[type].url;
+            }
+        }
+    });
+
+    document.querySelectorAll(".notif-filter-btn").forEach(btn => {
+        btn.addEventListener("click", function () {
+            document.querySelectorAll(".notif-filter-btn").forEach(b => b.classList.remove("active"));
+            this.classList.add("active");
+            notifFilter = this.getAttribute("data-nfilter");
+            renderNotifications();
+        });
+    });
+
+    document.getElementById("notif-search-input").addEventListener("input", function (e) {
+        notifSearch = e.target.value;
+        renderNotifications();
+    });
+
+    document.getElementById("btn-notif-mark-all").addEventListener("click", async function () {
+        if (!notifData.some(n => !n.is_read)) {
+            showToast("Không có thông báo chưa đọc.");
+            return;
+        }
+        if (await markNotificationsRead(null)) showToast("Đã đánh dấu tất cả thông báo là đã đọc.");
+    });
+
+    // Thông báo mới tới qua Realtime (popup góc màn hình do notifications.js hiện)
+    document.addEventListener("silvercare:notification", async function (e) {
+        const n = e.detail;
+        if (!n || notifData.some(x => x.notification_id === n.notification_id)) return;
+        // Lấy lại bản ghi đầy đủ (kèm tên cư dân / phòng)
+        const { data } = await window.sb.from("notifications").select(NOTIF_SELECT).eq("notification_id", n.notification_id).maybeSingle();
+        if (notifData.some(x => x.notification_id === n.notification_id)) return;
+        notifData.unshift(data || n);
+        renderNotifications();
+        if (n.notification_type === "health") loadAlerts(false);
+    });
+
+    // Bell / popup đánh dấu đã đọc thì đồng bộ lại trạng thái trên trang
+    document.addEventListener("silvercare:notifications-read", function (e) {
+        const ids = e.detail && e.detail.ids;
+        notifData.forEach(n => { if (!ids || ids.includes(n.notification_id)) n.is_read = true; });
+        renderNotifications();
+    });
+
+    // ---------- Chuyển view ----------
+    function switchView(view) {
+        const isAlerts = view === "alerts";
+        document.getElementById("view-alerts").hidden = !isAlerts;
+        document.getElementById("view-notifications").hidden = isAlerts;
+        document.querySelectorAll(".alerts-view-btn").forEach(b => b.classList.toggle("active", b.getAttribute("data-view") === (isAlerts ? "alerts" : "notifications")));
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", isAlerts ? "alerts" : "notifications");
+        window.history.replaceState(null, "", url);
+    }
+
+    document.querySelectorAll(".alerts-view-btn").forEach(btn => {
+        btn.addEventListener("click", function () { switchView(this.getAttribute("data-view")); });
+    });
+
+    switchView(new URLSearchParams(window.location.search).get("tab") === "alerts" ? "alerts" : "notifications");
+
     // Initial load — dữ liệu thật từ Supabase
-    await loadAlerts(false);
+    await Promise.all([loadAlerts(false), loadNotifications()]);
     if (window.currentUser) applyDataRolesWithin(document, window.currentUser.role);
 
     document.addEventListener("silvercare:auth-ready", function (e) {

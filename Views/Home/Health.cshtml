@@ -54,6 +54,13 @@
         <input type="text" class="health-search-input" placeholder="Tìm theo tên, phòng..." />
     </div>
 
+    <!-- Date Filter -->
+    <div class="health-date-filter-wrapper" style="display: flex; align-items: center; gap: 8px;">
+        <label for="health-date-filter" style="font-size: 13px; font-weight: 600; color: #475467; white-space: nowrap;">Xem theo ngày:</label>
+        <input type="date" id="health-date-filter" class="health-date-input" style="width: 168px; height: 40px; background-color: #f9fafb; border: 1px solid #e4e7ec; border-radius: 20px; padding: 0 16px; font-size: 14px; color: var(--text-primary);" />
+        <button type="button" id="btn-health-date-today" class="health-pill" style="white-space: nowrap;">Hôm nay</button>
+    </div>
+
     <!-- Filter Pills -->
     <div class="health-pills-wrapper">
         <button class="health-pill active">Tất cả</button>
@@ -303,6 +310,7 @@
             let currentEditingResidentId = null;
             let selectedPatientResidentId = null;
             let todayVitalsMap = {};
+            let selectedViewDate = null; // Ngày đang xem trên bảng danh sách (mặc định hôm nay)
             let chartDaysMeta = []; // Cached metadata for hover/tooltip
 
             // Helper: get local YYYY-MM-DD
@@ -315,6 +323,7 @@
             }
 
             const todayKey = getLocalDateKey();
+            selectedViewDate = todayKey;
 
             // Helper to get initials
             function computeInitials(name) {
@@ -374,18 +383,20 @@
             // ==========================================================================
             // 2. HEALTH RECORDS (Supabase — bảng health_records thật)
             // ==========================================================================
-            function startOfTodayIso() {
-                const d = new Date();
-                d.setHours(0, 0, 0, 0);
-                return d.toISOString();
+            function dayBoundsIso(dateIso) {
+                const start = new Date(`${dateIso}T00:00:00`);
+                const end = new Date(`${dateIso}T23:59:59.999`);
+                return { start: start.toISOString(), end: end.toISOString() };
             }
 
-            // Lấy chỉ số mới nhất hôm nay của TẤT CẢ cư dân (dùng cho bảng danh sách)
-            async function loadTodayVitalsMap() {
+            // Lấy chỉ số mới nhất của TẤT CẢ cư dân trong MỘT ngày cụ thể (dùng cho bảng danh sách)
+            async function loadVitalsMapForDate(dateIso) {
+                const { start, end } = dayBoundsIso(dateIso);
                 const { data, error } = await window.sb
                     .from("health_records")
                     .select("resident_id, systolic, diastolic, heart_rate, temperature, oxygen_saturation, weight, blood_sugar, recorded_at, note")
-                    .gte("recorded_at", startOfTodayIso())
+                    .gte("recorded_at", start)
+                    .lte("recorded_at", end)
                     .order("recorded_at", { ascending: false });
 
                 if (error) {
@@ -500,7 +511,7 @@
                     spo2: null,
                     weight: null,
                     bloodSugar: null,
-                    time: "Chưa đo hôm nay",
+                    time: selectedViewDate === todayKey ? "Chưa đo hôm nay" : "Chưa đo ngày này",
                     note: "",
                     isMeasured: false
                 };
@@ -590,7 +601,7 @@
                         const bpDisplay = vitals.isMeasured ? `<strong>${vitals.sys}/${vitals.dia}</strong>` : `<span style="color:#98a2b3;">--/--</span>`;
                         const hrDisplay = vitals.isMeasured ? `<strong>${vitals.hr}</strong>` : `<span style="color:#98a2b3;">--</span>`;
                         const tempDisplay = vitals.isMeasured ? `<strong>${vitals.temp}</strong>` : `<span style="color:#98a2b3;">--</span>`;
-                        const timeDisplay = vitals.isMeasured ? vitals.time : `<span style="color:#667085; font-style:italic;">Chưa đo hôm nay</span>`;
+                        const timeDisplay = vitals.isMeasured ? vitals.time : `<span style="color:#667085; font-style:italic;">${vitals.time}</span>`;
                         const badgeStyle = (sev.Text === "Chưa đo") ? `background:#f2f4f7; color:#667085; font-weight:500;` : ``;
 
                         tr.innerHTML = `
@@ -663,7 +674,7 @@
                         const note = this.getAttribute("data-note");
 
                         modalTitle.innerText = `Cập nhật chỉ số - ${name}`;
-                        if (inputDate) inputDate.value = todayKey;
+                        if (inputDate) inputDate.value = selectedViewDate;
                         inputSys.value = sys || "120";
                         inputDia.value = dia || "80";
                         inputHr.value = hr || "75";
@@ -753,7 +764,14 @@
                         });
 
                         closeModal();
-                        todayVitalsMap = await loadTodayVitalsMap();
+
+                        // Chuyển bảng danh sách sang đúng ngày vừa lưu để thấy ngay kết quả
+                        selectedViewDate = targetDateKey;
+                        const dateFilterInput = document.getElementById("health-date-filter");
+                        if (dateFilterInput) dateFilterInput.value = selectedViewDate;
+                        updateHealthSubtitle();
+
+                        todayVitalsMap = await loadVitalsMapForDate(selectedViewDate);
                         renderHealthTable();
                         await drawChart();
                     } catch (err) {
@@ -1069,9 +1087,49 @@
                 });
             }
 
+            // ==========================================================================
+            // BỘ LỌC THEO NGÀY
+            // ==========================================================================
+            function updateHealthSubtitle() {
+                const subtitleEl = document.getElementById("health-last-updated-subtitle");
+                if (!subtitleEl) return;
+                if (selectedViewDate === todayKey) {
+                    subtitleEl.textContent = "Chỉ số sức khỏe hôm nay · Tự động cập nhật theo ngày";
+                } else {
+                    const [y, m, d] = selectedViewDate.split("-");
+                    subtitleEl.textContent = `Chỉ số sức khỏe ngày ${d}/${m}/${y}`;
+                }
+            }
+
+            const dateFilterInput = document.getElementById("health-date-filter");
+            const btnDateToday = document.getElementById("btn-health-date-today");
+
+            if (dateFilterInput) {
+                dateFilterInput.value = selectedViewDate;
+                dateFilterInput.max = todayKey;
+                dateFilterInput.addEventListener("change", async function () {
+                    if (!this.value) return;
+                    selectedViewDate = this.value;
+                    updateHealthSubtitle();
+                    todayVitalsMap = await loadVitalsMapForDate(selectedViewDate);
+                    renderHealthTable();
+                });
+            }
+
+            if (btnDateToday) {
+                btnDateToday.addEventListener("click", async function () {
+                    selectedViewDate = todayKey;
+                    if (dateFilterInput) dateFilterInput.value = todayKey;
+                    updateHealthSubtitle();
+                    todayVitalsMap = await loadVitalsMapForDate(selectedViewDate);
+                    renderHealthTable();
+                });
+            }
+
             // Initial execution
             await loadResidents();
-            todayVitalsMap = await loadTodayVitalsMap();
+            updateHealthSubtitle();
+            todayVitalsMap = await loadVitalsMapForDate(selectedViewDate);
             renderHealthTable();
             await drawChart();
 

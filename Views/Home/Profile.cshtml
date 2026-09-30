@@ -497,7 +497,7 @@
                 <div class="settings-toggle-item">
                     <div>
                         <div class="settings-toggle-label">Cảnh báo sức khỏe</div>
-                        <div class="settings-toggle-desc">Nhận thông báo khi có cảnh báo AI về sức khỏe</div>
+                        <div class="settings-toggle-desc">Nhận thông báo khi có cảnh báo về sức khỏe</div>
                     </div>
                     <label class="switch">
                         <input type="checkbox" checked />
@@ -505,19 +505,7 @@
                     </label>
                 </div>
 
-                <!-- 2. Nhắc uống thuốc -->
-                <div class="settings-toggle-item">
-                    <div>
-                        <div class="settings-toggle-label">Nhắc uống thuốc</div>
-                        <div class="settings-toggle-desc">Thông báo khi đến giờ cấp thuốc</div>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" checked />
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <!-- 3. Lịch chăm sóc -->
+                <!-- 2. Lịch chăm sóc -->
                 <div class="settings-toggle-item">
                     <div>
                         <div class="settings-toggle-label">Lịch chăm sóc</div>
@@ -576,12 +564,6 @@
                 <div class="permission-row-item">
                     <span class="permission-title">Nhập chỉ số sức khỏe</span>
                     <span class="permission-status-badge" data-permission="edit_health">—</span>
-                </div>
-
-                <!-- 4. Xác nhận cấp thuốc -->
-                <div class="permission-row-item">
-                    <span class="permission-title">Xác nhận cấp thuốc</span>
-                    <span class="permission-status-badge" data-permission="edit_medication">—</span>
                 </div>
 
                 <!-- 5. Xuất báo cáo PDF -->
@@ -685,7 +667,6 @@
         const PERMISSION_MATRIX = {
             edit_residents:   ["admin", "manager", "staff"],
             edit_health:      ["admin", "manager", "staff"],
-            edit_medication:  ["admin", "manager", "staff"],
             reports:          ["admin", "manager", "staff"],
             user_management:  ["admin"],
             system_settings:  ["admin"]

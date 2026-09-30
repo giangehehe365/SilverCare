@@ -124,7 +124,7 @@
     /* 4-KPI Metric Cards Grid */
     .report-kpi-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 20px;
         margin-bottom: 24px;
     }
@@ -402,7 +402,7 @@
     </div>
 </div>
 
-<!-- 4 KPI Summary Cards -->
+<!-- 3 KPI Summary Cards -->
 <div class="report-kpi-grid">
     <!-- Card 1: Tổng số cư dân -->
     <div class="report-kpi-card">
@@ -411,21 +411,14 @@
         <div class="kpi-sub-title">Tổng số cư dân</div>
     </div>
 
-    <!-- Card 2: Tổng liều thuốc đã cấp -->
-    <div class="report-kpi-card">
-        <div class="kpi-dot dot-green"></div>
-        <div class="kpi-main-val" id="kpi-total-meds">0</div>
-        <div class="kpi-sub-title">Tổng liều thuốc đã cấp</div>
-    </div>
-
-    <!-- Card 3: Số lượng cảnh báo -->
+    <!-- Card 2: Số lượng cảnh báo -->
     <div class="report-kpi-card">
         <div class="kpi-dot dot-red"></div>
         <div class="kpi-main-val" id="kpi-total-alerts">0</div>
         <div class="kpi-sub-title">Số lượng cảnh báo</div>
     </div>
 
-    <!-- Card 4: Tỷ lệ hoàn thành TB -->
+    <!-- Card 3: Tỷ lệ hoàn thành TB -->
     <div class="report-kpi-card">
         <div class="kpi-dot dot-orange"></div>
         <div class="kpi-main-val" id="kpi-avg-rate">0%</div>
@@ -455,10 +448,6 @@
             <span>Đã hoàn thành</span>
         </div>
         <div class="legend-item">
-            <div class="legend-box legend-green"></div>
-            <span>Liều thuốc</span>
-        </div>
-        <div class="legend-item">
             <div class="legend-box legend-red"></div>
             <span>Cảnh báo</span>
         </div>
@@ -476,7 +465,6 @@
                     <th>NGÀY</th>
                     <th>LỊCH CHĂM SÓC</th>
                     <th>ĐÃ HOÀN THÀNH</th>
-                    <th>LIỀU THUỐC ĐÃ CẤP</th>
                     <th>SỐ CẢNH BÁO</th>
                     <th>TỶ LỆ HOÀN THÀNH</th>
                 </tr>
@@ -513,11 +501,10 @@
 
             // =========================================================================
             // 1. TẢI DỮ LIỆU THẬT TỪ SUPABASE (residents / care_schedules /
-            //    medication_administrations / health_alerts)
+            //    health_alerts)
             // =========================================================================
             let residentCount = 0;
             let rawSchedules = [];
-            let rawMeds = [];
             let rawAlerts = [];
 
             async function loadResidentCount() {
@@ -527,13 +514,11 @@
 
             // Tải toàn bộ dữ liệu vận hành trong một khoảng ngày [start, end] (yyyy-mm-dd)
             async function loadOperationalData(start, end) {
-                const [schedulesRes, medsRes, alertsRes] = await Promise.all([
+                const [schedulesRes, alertsRes] = await Promise.all([
                     window.sb.from("care_schedules").select("schedule_date, status").gte("schedule_date", start).lte("schedule_date", end),
-                    window.sb.from("medication_administrations").select("scheduled_date").gte("scheduled_date", start).lte("scheduled_date", end),
                     window.sb.from("health_alerts").select("created_at").gte("created_at", start + "T00:00:00").lte("created_at", end + "T23:59:59")
                 ]);
                 rawSchedules = schedulesRes.data || [];
-                rawMeds = medsRes.data || [];
                 rawAlerts = alertsRes.data || [];
             }
 
@@ -545,36 +530,30 @@
                 };
             }
 
-            function countMeds(start, end) {
-                return rawMeds.filter(r => r.scheduled_date >= start && r.scheduled_date <= end).length;
-            }
-
             function countAlerts(start, end) {
                 return rawAlerts.filter(r => (r.created_at || "").substring(0, 10) >= start && (r.created_at || "").substring(0, 10) <= end).length;
             }
 
             function buildBucket(label, start, end, isFuture) {
                 if (isFuture) {
-                    return { dayName: label, isFuture: true, schedule: null, completed: null, meds: null, alerts: null, rate: null };
+                    return { dayName: label, isFuture: true, schedule: null, completed: null, alerts: null, rate: null };
                 }
                 const sched = countSchedules(start, end);
-                const meds = countMeds(start, end);
                 const alerts = countAlerts(start, end);
                 const rate = sched.total > 0 ? Math.round((sched.completed / sched.total) * 1000) / 10 : 0;
-                return { dayName: label, isFuture: false, schedule: sched.total, completed: sched.completed, meds: meds, alerts: alerts, rate: rate };
+                return { dayName: label, isFuture: false, schedule: sched.total, completed: sched.completed, alerts: alerts, rate: rate };
             }
 
             function summarize(dataList) {
-                let totalMedsSum = 0, totalAlertsSum = 0, rateSum = 0, activeDaysCount = 0;
+                let totalAlertsSum = 0, rateSum = 0, activeDaysCount = 0;
                 dataList.forEach(d => {
                     if (!d.isFuture) {
-                        totalMedsSum += d.meds;
                         totalAlertsSum += d.alerts;
                         rateSum += d.rate;
                         activeDaysCount++;
                     }
                 });
-                return { totalMedsSum, totalAlertsSum, rateSum, activeDaysCount };
+                return { totalAlertsSum, rateSum, activeDaysCount };
             }
 
             // =========================================================================
@@ -596,18 +575,16 @@
             await loadOperationalData(toIso(currentWeekDays[0]), toIso(currentWeekDays[6]));
 
             let currentWeekData = currentWeekDays.map(d => buildBucket(formatDDMM(d), toIso(d), toIso(d), d > today));
-            let { totalMedsSum, totalAlertsSum, rateSum, activeDaysCount } = summarize(currentWeekData);
+            let { totalAlertsSum, rateSum, activeDaysCount } = summarize(currentWeekData);
 
             // =========================================================================
-            // 3. RENDER 4 KPI METRIC CARDS
+            // 3. RENDER 3 KPI METRIC CARDS
             // =========================================================================
             const kpiResidents = document.getElementById("kpi-total-residents");
-            const kpiMeds = document.getElementById("kpi-total-meds");
             const kpiAlerts = document.getElementById("kpi-total-alerts");
             const kpiAvgRate = document.getElementById("kpi-avg-rate");
 
             if (kpiResidents) kpiResidents.innerText = residentCount;
-            if (kpiMeds) kpiMeds.innerText = totalMedsSum;
             if (kpiAlerts) kpiAlerts.innerText = totalAlertsSum;
 
             const avgRateVal = activeDaysCount > 0 ? (rateSum / activeDaysCount).toFixed(1) : "0.0";
@@ -638,7 +615,6 @@
                 dataList.forEach(d => {
                     if (!d.isFuture) {
                         if (d.completed > maxDataVal) maxDataVal = d.completed;
-                        if (d.meds > maxDataVal) maxDataVal = d.meds;
                         if (d.alerts > maxDataVal) maxDataVal = d.alerts;
                     }
                 });
@@ -705,7 +681,7 @@
                         // Bar 1: Completed (Blue)
                         const hCompleted = Math.max(d.completed * unitHeight, d.completed > 0 ? 3 : 0);
                         const yCompleted = barYZero - hCompleted;
-                        const xCompleted = centerX - (barWidth * 1.5 + spacing);
+                        const xCompleted = centerX - (barWidth + spacing / 2);
 
                         const rectComp = document.createElementNS("http://www.w3.org/2000/svg", "rect");
                         rectComp.setAttribute("x", xCompleted);
@@ -718,26 +694,10 @@
                         rectComp.innerHTML = `<title>${d.dayName} - Đã hoàn thành: ${d.completed} việc</title>`;
                         barsGroup.appendChild(rectComp);
 
-                        // Bar 2: Meds (Green)
-                        const hMeds = Math.max(d.meds * unitHeight, d.meds > 0 ? 3 : 0);
-                        const yMeds = barYZero - hMeds;
-                        const xMeds = centerX - (barWidth * 0.5);
-
-                        const rectMeds = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-                        rectMeds.setAttribute("x", xMeds);
-                        rectMeds.setAttribute("y", yMeds);
-                        rectMeds.setAttribute("width", barWidth);
-                        rectMeds.setAttribute("height", hMeds);
-                        rectMeds.setAttribute("rx", "3");
-                        rectMeds.setAttribute("fill", "#12b76a");
-                        rectMeds.setAttribute("class", "bar-rect");
-                        rectMeds.innerHTML = `<title>${d.dayName} - Liều thuốc đã cấp: ${d.meds} liều</title>`;
-                        barsGroup.appendChild(rectMeds);
-
-                        // Bar 3: Alerts (Red)
+                        // Bar 2: Alerts (Red)
                         const hAlerts = d.alerts > 0 ? Math.max(d.alerts * unitHeight, 4) : 0;
                         const yAlerts = barYZero - hAlerts;
-                        const xAlerts = centerX + (barWidth * 0.5 + spacing);
+                        const xAlerts = centerX + spacing / 2;
 
                         if (d.alerts > 0) {
                             const rectAlerts = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -798,7 +758,6 @@
                             <td class="cell-empty">-</td>
                             <td class="cell-empty">-</td>
                             <td class="cell-empty">-</td>
-                            <td class="cell-empty">-</td>
                         `;
                     } else {
                         // PAST / TODAY: Show exact actual data and colored rate badge
@@ -811,7 +770,6 @@
                             <td class="cell-date">${d.dayName}</td>
                             <td>${d.schedule}</td>
                             <td>${d.completed}</td>
-                            <td>${d.meds}</td>
                             <td>${d.alerts}</td>
                             <td>
                                 <span class="rate-pill ${badgeClass}">${d.rate}%</span>
@@ -832,7 +790,6 @@
             // =========================================================================
             function updateKpiCards(dataList) {
                 const s = summarize(dataList);
-                if (kpiMeds) kpiMeds.innerText = s.totalMedsSum;
                 if (kpiAlerts) kpiAlerts.innerText = s.totalAlertsSum;
                 const avg = s.activeDaysCount > 0 ? (s.rateSum / s.activeDaysCount).toFixed(1) : "0.0";
                 if (kpiAvgRate) kpiAvgRate.innerText = `${avg}%`;
