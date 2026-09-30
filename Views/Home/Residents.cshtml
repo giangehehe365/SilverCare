@@ -1,7 +1,7 @@
 @{
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewData["Title"] = "Hồ sơ người cao tuổi";
-    ViewData["AllowedRoles"] = "admin,manager,staff";
+    ViewData["AllowedRoles"] = "admin,manager,staff,family";
 }
 
 <!-- Custom Styles for Residents Page -->
@@ -645,7 +645,7 @@
 <!-- Header -->
 <div class="residents-header">
     <h1 class="residents-title">Hồ sơ người cao tuổi</h1>
-    <div class="residents-actions-group">
+    <div class="residents-actions-group" data-roles="admin,manager,staff">
         <!-- Import Excel -->
         <button class="btn-secondary-action" id="btn-import-excel">
             <svg viewBox="0 0 24 24">
@@ -654,6 +654,16 @@
                 <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
             <span>Import Excel</span>
+        </button>
+
+        <!-- Export Excel -->
+        <button class="btn-secondary-action" id="btn-export-excel">
+            <svg viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Export Excel</span>
         </button>
 
         <!-- Thêm hồ sơ mới -->
@@ -684,6 +694,7 @@
         <button class="resident-pill" data-filter="Đang ổn định">Đang ổn định</button>
         <button class="resident-pill" data-filter="Cần theo dõi">Cần theo dõi</button>
         <button class="resident-pill" data-filter="Trung bình">Trung bình</button>
+        <button class="resident-pill" data-filter="__inactive__" data-roles="admin,manager,staff" style="color:#667085;">Ngừng hoạt động</button>
     </div>
 </div>
 
@@ -786,6 +797,13 @@
                 </select>
             </div>
 
+            <div class="form-group" data-roles="admin,manager">
+                <label class="form-label" for="inp-package">Gói dịch vụ</label>
+                <select class="form-select" id="inp-package">
+                    <option value="">-- Không gán gói --</option>
+                </select>
+            </div>
+
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="inp-family-name">Họ tên người nhà <span style="color: #f04438;">*</span></label>
@@ -828,6 +846,131 @@
         <div class="res-modal-footer">
             <button class="btn-secondary-action" id="btn-cancel-create-modal">Hủy</button>
             <button class="btn-primary-action" id="btn-save-new-resident">Lưu hồ sơ</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+   MODAL: SỬA HỒ SƠ NGƯỜI CAO TUỔI
+   ========================================================================== -->
+<div class="res-modal-overlay" id="edit-resident-modal">
+    <div class="res-modal-container">
+        <div class="res-modal-header">
+            <h2 class="res-modal-title">Chỉnh sửa hồ sơ người cao tuổi</h2>
+            <button class="res-modal-close-btn" id="btn-close-edit-modal" title="Đóng">
+                <svg viewBox="0 0 24 24">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="res-modal-body">
+            <div class="form-group">
+                <label class="form-label" for="edit-fullname">Họ và tên <span style="color: #f04438;">*</span></label>
+                <input type="text" class="form-input" id="edit-fullname" required />
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="edit-age">Tuổi <span style="color: #f04438;">*</span></label>
+                    <input type="number" class="form-input" id="edit-age" min="50" max="120" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="edit-gender">Giới tính</label>
+                    <select class="form-select" id="edit-gender">
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="edit-room">Phòng <span style="color: #f04438;">*</span></label>
+                    <select class="form-select" id="edit-room" required>
+                        <option value="">Đang tải danh sách phòng...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="edit-blood">Nhóm máu</label>
+                    <select class="form-select" id="edit-blood">
+                        <option value="A+">A+</option>
+                        <option value="B+">B+</option>
+                        <option value="O+">O+</option>
+                        <option value="AB+">AB+</option>
+                        <option value="A-">A-</option>
+                        <option value="B-">B-</option>
+                        <option value="O-">O-</option>
+                        <option value="AB-">AB-</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-status">Tình trạng sức khỏe</label>
+                <select class="form-select" id="edit-status">
+                    <option value="Đang ổn định">Đang ổn định</option>
+                    <option value="Cần theo dõi">Cần theo dõi</option>
+                    <option value="Trung bình">Trung bình</option>
+                </select>
+            </div>
+
+            <div class="form-group" data-roles="admin,manager">
+                <label class="form-label" for="edit-package">Gói dịch vụ</label>
+                <select class="form-select" id="edit-package">
+                    <option value="">-- Không gán gói --</option>
+                </select>
+                <small style="color: #667085; font-size: 12px; display: block; margin-top: 4px;">
+                    Chọn gói khác với gói hiện tại sẽ tự kết thúc gói cũ và bắt đầu gói mới từ hôm nay.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-family-profile">Tài khoản người nhà liên hệ</label>
+                <select class="form-select" id="edit-family-profile">
+                    <option value="">-- Không liên kết tài khoản --</option>
+                </select>
+                <small style="color: #667085; font-size: 12px; display: block; margin-top: 4px;">
+                    Chưa có tài khoản phù hợp? Vào <a href="@Url.Action("UserManagement", "Home")" target="_blank">Quản lý tài khoản</a> tạo tài khoản vai trò "Người nhà" trước.
+                </small>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="edit-family-rel">Mối quan hệ</label>
+                    <select class="form-select" id="edit-family-rel">
+                        <option value="Con trai">Con trai</option>
+                        <option value="Con gái">Con gái</option>
+                        <option value="Chồng">Chồng</option>
+                        <option value="Vợ">Vợ</option>
+                        <option value="Cháu">Cháu</option>
+                        <option value="Khác">Khác</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="edit-family-phone">Số điện thoại liên hệ</label>
+                    <input type="tel" class="form-input" id="edit-family-phone" placeholder="0909090909" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-family-address">Địa chỉ người nhà</label>
+                <input type="text" class="form-input" id="edit-family-address" placeholder="123 Nguyễn Trãi, Quận 1, TP. HCM" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-admission">Ngày tiếp nhận</label>
+                <input type="date" class="form-input" id="edit-admission" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-notes">Ghi chú bệnh nền / sức khỏe</label>
+                <textarea class="form-textarea" id="edit-notes" placeholder="VD: Tiền sử huyết áp cao, dị ứng kháng sinh..."></textarea>
+            </div>
+        </div>
+        <div class="res-modal-footer">
+            <button class="btn-secondary-action" id="btn-cancel-edit-modal">Hủy</button>
+            <button class="btn-primary-action" id="btn-save-edit-resident">Lưu thay đổi</button>
         </div>
     </div>
 </div>
@@ -907,14 +1050,26 @@
             <div style="background: #f9fafb; padding: 12px 16px; border-radius: 8px; border: 1px solid #eaecf0; font-size: 13px; color: #344054;" id="detail-notes">
                 Theo dõi huyết áp định kỳ mỗi sáng, chế độ ăn giảm muối.
             </div>
+
+            <!-- Service package (chỉ xem — gán/đổi gói thực hiện ở form Chỉnh sửa / Tạo mới) -->
+            <div class="detail-section-title" style="margin-top: 16px;">Gói dịch vụ</div>
+            <div style="background: #f9fafb; padding: 12px 16px; border-radius: 8px; border: 1px solid #eaecf0; font-size: 13px; color: #344054;" id="detail-package-info">
+                Đang tải...
+            </div>
         </div>
-        <div class="res-modal-footer" style="justify-content: space-between;">
-            <div style="display: flex; gap: 8px;">
+        <div class="res-modal-footer" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <a href="@Url.Action("Health", "Home")" id="btn-detail-health" class="btn-secondary-action" style="font-size: 13px; padding: 8px 12px; text-decoration: none;">
                     📈 Sức khỏe
                 </a>
                 <button type="button" id="btn-detail-schedule" class="btn-secondary-action" style="font-size: 13px; padding: 8px 12px; cursor: pointer;">
                     🗓️ Lịch chăm sóc
+                </button>
+                <button type="button" id="btn-detail-edit" class="btn-primary-action" data-roles="admin,manager,staff" style="font-size: 13px; padding: 8px 12px; cursor: pointer;">
+                    ✏️ Chỉnh sửa
+                </button>
+                <button type="button" id="btn-detail-toggle-active" class="btn-secondary-action" data-roles="admin,manager" style="font-size: 13px; padding: 8px 12px; cursor: pointer; color: #d92d20;">
+                    ⏻ Ngừng hoạt động
                 </button>
             </div>
             <button class="btn-secondary-action" id="btn-close-detail-footer">Đóng</button>
@@ -968,7 +1123,7 @@
    MODAL: IMPORT EXCEL
    ========================================================================== -->
 <div class="res-modal-overlay" id="import-excel-modal">
-    <div class="res-modal-container" style="max-width: 480px;">
+    <div class="res-modal-container" style="max-width: 600px;">
         <div class="res-modal-header">
             <h2 class="res-modal-title">Import danh sách từ Excel</h2>
             <button class="res-modal-close-btn" id="btn-close-import-modal" title="Đóng">
@@ -991,10 +1146,16 @@
                 <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleExcelSelect(event);" />
             </div>
             <div id="import-file-name" style="font-size: 13px; font-weight: 600; color: #0ba5ec; margin-top: 12px; display: none;"></div>
+            <div style="font-size: 12.5px; color: #667085; margin-top: 14px; text-align: left; line-height: 1.6;">
+                Cột bắt buộc: <b>Họ và tên</b>, <b>Tuổi</b>, <b>Phòng</b> (mã phòng). Dòng có <b>Mã hồ sơ</b> trùng với hồ sơ đã có sẽ được cập nhật, các dòng còn lại được thêm mới.
+                Thông tin người nhà không bắt buộc.
+                <a href="#" id="btn-download-template" style="color: #0ba5ec; font-weight: 600; white-space: nowrap;">Tải file mẫu</a>
+            </div>
+            <div id="import-preview" style="display: none; margin-top: 16px; text-align: left;"></div>
         </div>
         <div class="res-modal-footer">
             <button class="btn-secondary-action" id="btn-cancel-import">Hủy</button>
-            <button class="btn-primary-action" id="btn-submit-import">Tải lên & Xử lý</button>
+            <button class="btn-primary-action" id="btn-submit-import" disabled>Nhập dữ liệu</button>
         </div>
     </div>
 </div>
@@ -1005,6 +1166,7 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@@0.18.5/dist/xlsx.full.min.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", async function () {
             // Dữ liệu cư dân giờ lấy thật từ Supabase (bảng residents/rooms/family_members).
@@ -1018,6 +1180,16 @@
                 return `${parts[2]}/${parts[1]}/${parts[0]}`;
             }
 
+            function formatVND(n) {
+                return (n || 0).toLocaleString("vi-VN") + " đ";
+            }
+
+            function escapeHtml(str) {
+                const div = document.createElement("div");
+                div.innerText = str == null ? "" : String(str);
+                return div.innerHTML;
+            }
+
             function mapResidentRow(row) {
                 const contacts = row.family_members || [];
                 const primary = contacts.find(f => f.is_primary_contact) || contacts[0] || {};
@@ -1028,14 +1200,19 @@
                     name: row.full_name,
                     age: row.age,
                     gender: row.gender,
+                    roomId: row.room_id,
                     room: row.rooms ? row.rooms.room_code : "",
                     blood: row.blood_type,
                     status: row.status,
+                    isActive: row.is_active !== false,
+                    familyMemberId: primary.family_member_id || null,
+                    familyProfileId: primary.profile_id || null,
                     familyName: primary.full_name,
                     familyPhone: primary.phone,
                     familyRel: primary.relationship,
                     familyAddress: primary.address,
                     admissionDate: formatDateVN(row.admission_date),
+                    admissionDateIso: row.admission_date,
                     notes: row.notes
                 };
             }
@@ -1086,9 +1263,8 @@
                 const { data, error } = await window.sb
                     .from("residents")
                     .select(
-                        "resident_id, resident_code, full_name, age, gender, blood_type, status, admission_date, notes, room_id, rooms(room_code, room_name), family_members(full_name, relationship, phone, address, is_primary_contact)"
+                        "resident_id, resident_code, full_name, age, gender, blood_type, status, admission_date, notes, room_id, is_active, rooms(room_code, room_name), family_members(family_member_id, profile_id, full_name, relationship, phone, address, is_primary_contact)"
                     )
-                    .eq("is_active", true)
                     .order("resident_id");
 
                 if (error) {
@@ -1139,11 +1315,121 @@
                 return (rooms || []).filter(r => (occupancy[r.room_id] || 0) < r.capacity);
             }
 
+            // Danh sách phòng dùng khi SỬA hồ sơ — phải bao gồm cả phòng hiện tại
+            // của cư dân đó (dù phòng đã đầy), chỉ loại các phòng đầy KHÁC.
+            async function loadRoomsForEdit(residentId, currentRoomId) {
+                const { data: rooms, error: roomsError } = await window.sb
+                    .from("rooms")
+                    .select("room_id, room_code, room_name, capacity")
+                    .eq("is_active", true)
+                    .order("room_code");
+
+                if (roomsError) {
+                    console.error(roomsError);
+                    return [];
+                }
+
+                const { data: occupants, error: occError } = await window.sb
+                    .from("residents")
+                    .select("resident_id, room_id")
+                    .eq("is_active", true);
+
+                if (occError) console.error(occError);
+
+                const occupancy = {};
+                (occupants || []).forEach(r => {
+                    if (r.room_id && r.resident_id !== residentId) {
+                        occupancy[r.room_id] = (occupancy[r.room_id] || 0) + 1;
+                    }
+                });
+
+                return (rooms || []).filter(r => r.room_id === currentRoomId || (occupancy[r.room_id] || 0) < r.capacity);
+            }
+
+            // Danh sách tài khoản có vai trò "Người nhà" — dùng cho dropdown liên hệ
+            let familyProfilesCache = [];
+            async function loadFamilyProfiles() {
+                const { data, error } = await window.sb
+                    .from("profiles")
+                    .select("id, full_name, email, phone")
+                    .eq("role", "family")
+                    .eq("is_active", true)
+                    .order("full_name");
+
+                if (error) {
+                    console.error(error);
+                    familyProfilesCache = [];
+                    return familyProfilesCache;
+                }
+                familyProfilesCache = data || [];
+                return familyProfilesCache;
+            }
+
+            // Danh sách gói dịch vụ đang mở bán — dùng cho dropdown gán gói ở
+            // phần chi tiết hồ sơ (đồng bộ với "Thanh toán & viện phí").
+            let servicePackagesCache = [];
+            async function loadServicePackages() {
+                const { data, error } = await window.sb
+                    .from("service_packages")
+                    .select("service_package_id, name, monthly_price, is_active")
+                    .eq("is_active", true)
+                    .order("monthly_price");
+
+                if (error) {
+                    console.error(error);
+                    servicePackagesCache = [];
+                    return servicePackagesCache;
+                }
+                servicePackagesCache = data || [];
+                return servicePackagesCache;
+            }
+
+            // Dùng chung cho dropdown "Gói dịch vụ" ở form Tạo mới / Chỉnh sửa
+            function populatePackageSelect(selectEl, selectedId) {
+                if (!selectEl) return;
+                selectEl.innerHTML = `<option value="">-- Không gán gói --</option>` + servicePackagesCache.map(p =>
+                    `<option value="${p.service_package_id}"${String(p.service_package_id) === String(selectedId) ? " selected" : ""}>${escapeHtml(p.name)} (${formatVND(p.monthly_price)}/tháng)</option>`
+                ).join("");
+            }
+
+            // Hiển thị gói dịch vụ đang áp dụng (end_date null, mới nhất theo start_date)
+            async function loadCurrentPackageForResident(residentId) {
+                const infoEl = document.getElementById("detail-package-info");
+                if (!infoEl) return;
+                infoEl.innerText = "Đang tải...";
+
+                const { data, error } = await window.sb
+                    .from("resident_service_packages")
+                    .select("start_date, service_packages(name, monthly_price)")
+                    .eq("resident_id", residentId)
+                    .is("end_date", null)
+                    .order("start_date", { ascending: false })
+                    .limit(1);
+
+                if (error || !data || data.length === 0) {
+                    infoEl.innerText = "Chưa gán gói dịch vụ nào.";
+                    return;
+                }
+                const pkg = data[0];
+                infoEl.innerText = `Đang áp dụng: ${pkg.service_packages.name} (${formatVND(pkg.service_packages.monthly_price)}/tháng) — từ ${formatDateVN(pkg.start_date)}`;
+            }
+
+            async function assignPackageToResident(residentId, packageId, startDate) {
+                const { error } = await window.sb.from("resident_service_packages").insert({
+                    resident_id: residentId,
+                    service_package_id: parseInt(packageId, 10),
+                    start_date: startDate
+                });
+                if (error) { alert("Không thể gán gói: " + error.message); return false; }
+                return true;
+            }
+
             // Tạo hồ sơ cư dân mới + người liên hệ chính (2 lệnh ghi, cùng một giao dịch nghiệp vụ)
             async function createResident(payload) {
                 const { data: resident, error } = await window.sb
                     .from("residents")
                     .insert({
+                        resident_code: payload.code,
                         full_name: payload.name,
                         age: payload.age,
                         gender: payload.gender,
@@ -1158,18 +1444,122 @@
 
                 if (error) throw error;
 
-                const { error: famError } = await window.sb.from("family_members").insert({
-                    resident_id: resident.resident_id,
-                    full_name: payload.familyName,
-                    relationship: payload.familyRel,
-                    phone: payload.familyPhone,
-                    address: payload.familyAddress || null,
-                    is_primary_contact: true
-                });
+                // Người liên hệ không bắt buộc (import Excel có thể bỏ trống)
+                if (payload.familyName) {
+                    const { error: famError } = await window.sb.from("family_members").insert({
+                        resident_id: resident.resident_id,
+                        full_name: payload.familyName,
+                        relationship: payload.familyRel || null,
+                        phone: payload.familyPhone || null,
+                        address: payload.familyAddress || null,
+                        is_primary_contact: true
+                    });
 
-                if (famError) throw famError;
+                    if (famError) throw famError;
+                }
+
+                if (payload.packageId) {
+                    const { error: pkgError } = await window.sb.from("resident_service_packages").insert({
+                        resident_id: resident.resident_id,
+                        service_package_id: parseInt(payload.packageId, 10),
+                        start_date: new Date().toISOString().slice(0, 10)
+                    });
+                    if (pkgError) throw pkgError;
+                }
 
                 return resident;
+            }
+
+            // Gói dịch vụ đang áp dụng (end_date null, mới nhất) — dùng để so
+            // sánh khi Lưu thay đổi ở form Chỉnh sửa, và để hiển thị ở form Chi tiết.
+            async function getCurrentActivePackage(residentId) {
+                const { data, error } = await window.sb
+                    .from("resident_service_packages")
+                    .select("resident_service_package_id, service_package_id, start_date, service_packages(name, monthly_price)")
+                    .eq("resident_id", residentId)
+                    .is("end_date", null)
+                    .order("start_date", { ascending: false })
+                    .limit(1);
+                if (error || !data || data.length === 0) return null;
+                return data[0];
+            }
+
+            // Chỉ tạo dòng resident_service_packages MỚI khi gói thực sự thay đổi
+            // (tránh mỗi lần bấm "Lưu thay đổi" lại đẻ thêm 1 dòng trùng gói cũ).
+            async function updateResidentPackage(residentId, newPackageId, currentPackage) {
+                const currentId = currentPackage ? String(currentPackage.service_package_id) : "";
+                const newId = newPackageId ? String(newPackageId) : "";
+                if (currentId === newId) return;
+
+                const today = new Date().toISOString().slice(0, 10);
+
+                if (currentPackage) {
+                    const { error } = await window.sb
+                        .from("resident_service_packages")
+                        .update({ end_date: today })
+                        .eq("resident_service_package_id", currentPackage.resident_service_package_id);
+                    if (error) throw error;
+                }
+
+                if (newId) {
+                    const { error } = await window.sb.from("resident_service_packages").insert({
+                        resident_id: residentId,
+                        service_package_id: parseInt(newId, 10),
+                        start_date: today
+                    });
+                    if (error) throw error;
+                }
+            }
+
+            // Cập nhật hồ sơ cư dân + người liên hệ chính (update nếu đã có dòng
+            // family_members, insert nếu hồ sơ cũ chưa có người liên hệ nào)
+            async function updateResident(residentId, familyMemberId, payload, currentPackage) {
+                const { error } = await window.sb
+                    .from("residents")
+                    .update({
+                        full_name: payload.name,
+                        age: payload.age,
+                        gender: payload.gender,
+                        room_id: payload.roomId,
+                        blood_type: payload.blood,
+                        status: payload.status,
+                        admission_date: payload.admissionIso || null,
+                        notes: payload.notes || null,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq("resident_id", residentId);
+
+                if (error) throw error;
+
+                // Tài khoản người nhà không bắt buộc: bỏ chọn = gỡ liên kết tài khoản
+                // (giữ nguyên tên người liên hệ cũ); hồ sơ chưa có người liên hệ và
+                // không chọn tài khoản thì không tạo dòng family_members.
+                const familyProfile = familyProfilesCache.find(p => p.id === payload.familyProfileId);
+                const familyPayload = {
+                    resident_id: residentId,
+                    profile_id: familyProfile ? familyProfile.id : null,
+                    relationship: payload.familyRel,
+                    phone: payload.familyPhone || (familyProfile ? familyProfile.phone : null),
+                    address: payload.familyAddress || null,
+                    is_primary_contact: true
+                };
+                if (familyProfile) {
+                    familyPayload.full_name = familyProfile.full_name;
+                    familyPayload.email = familyProfile.email;
+                }
+
+                if (familyMemberId) {
+                    const { error: famError } = await window.sb
+                        .from("family_members")
+                        .update(familyPayload)
+                        .eq("family_member_id", familyMemberId);
+                    if (famError) throw famError;
+                } else if (familyProfile) {
+                    const { error: famError } = await window.sb.from("family_members").insert(familyPayload);
+                    if (famError) throw famError;
+                }
+
+                await updateResidentPackage(residentId, payload.packageId, currentPackage);
             }
 
             // Helper to get initials
@@ -1185,7 +1575,11 @@
             }
 
             // Helper for status badge
-            function getStatusBadgeHtml(status) {
+            function getStatusBadgeHtml(res) {
+                if (!res.isActive) {
+                    return `<span class="status-pill" style="background:#f2f4f7; color:#667085;">Ngừng hoạt động</span>`;
+                }
+                const status = res.status;
                 if (status === "Đang ổn định") {
                     return `<span class="status-pill status-pill-stable">Đang ổn định</span>`;
                 } else if (status === "Cần theo dõi") {
@@ -1196,6 +1590,24 @@
                 return `<span class="status-pill" style="background:#f2f4f7; color:#344054;">${status}</span>`;
             }
 
+            // Hồ sơ khớp bộ lọc + ô tìm kiếm hiện tại (dùng cho bảng và Export Excel)
+            function getVisibleResidents() {
+                const activePill = document.querySelector(".resident-pill.active");
+                const selectedFilter = activePill ? activePill.getAttribute("data-filter") : "all";
+                const searchVal = document.getElementById("residents-search").value.toLowerCase().trim();
+
+                return currentResidents.filter(res => {
+                    // Mọi pill trạng thái sức khỏe chỉ áp dụng cho hồ sơ đang hoạt động;
+                    // pill "Ngừng hoạt động" tách riêng.
+                    const matchesFilter = selectedFilter === "__inactive__"
+                        ? !res.isActive
+                        : (res.isActive && (selectedFilter === "all" || res.status === selectedFilter));
+
+                    const textToSearch = `${res.id} ${res.name} ${res.room} ${res.familyName || ""} ${res.familyPhone || ""}`.toLowerCase();
+                    return matchesFilter && textToSearch.includes(searchVal);
+                });
+            }
+
             // Render Table Rows
             function renderTable() {
                 const tbody = document.getElementById("residents-table-body");
@@ -1204,49 +1616,47 @@
 
                 tbody.innerHTML = "";
 
-                const activePill = document.querySelector(".resident-pill.active");
-                const selectedFilter = activePill ? activePill.getAttribute("data-filter") : "all";
-                const searchVal = document.getElementById("residents-search").value.toLowerCase().trim();
+                const visibleResidents = getVisibleResidents();
+                const visibleCount = visibleResidents.length;
 
-                let visibleCount = 0;
-
-                currentResidents.forEach(res => {
-                    // Check filter
-                    const matchesFilter = (selectedFilter === "all" || res.status === selectedFilter);
-                    
-                    // Check search
-                    const textToSearch = `${res.id} ${res.name} ${res.room} ${res.familyName} ${res.familyPhone}`.toLowerCase();
-                    const matchesSearch = textToSearch.includes(searchVal);
-
-                    if (matchesFilter && matchesSearch) {
-                        visibleCount++;
-                        const tr = document.createElement("tr");
-                        tr.innerHTML = `
-                            <td class="cell-id">${res.id}</td>
-                            <td>
-                                <div class="profile-cell">
-                                    <div class="profile-avatar">${res.initials || computeInitials(res.name)}</div>
-                                    <span class="profile-name">${res.name}</span>
-                                </div>
-                            </td>
-                            <td class="cell-age">${res.age}</td>
-                            <td class="cell-gender">${res.gender}</td>
-                            <td class="cell-room">${res.room}</td>
-                            <td class="cell-blood">${res.blood}</td>
-                            <td>${getStatusBadgeHtml(res.status)}</td>
-                            <td class="cell-contact" title="${res.familyName} - ${res.familyPhone}">${res.familyName} - ${res.familyPhone}</td>
-                            <td style="text-align: right;">
-                                <a href="#" class="btn-view-detail" data-id="${res.id}">
-                                    <svg viewBox="0 0 24 24">
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                        <circle cx="12" cy="12" r="3"></circle>
-                                    </svg>
-                                    <span>Xem chi tiết</span>
-                                </a>
-                            </td>
-                        `;
-                        tbody.appendChild(tr);
-                    }
+                visibleResidents.forEach(res => {
+                    const tr = document.createElement("tr");
+                    if (!res.isActive) tr.style.opacity = "0.65";
+                    const contactText = res.familyName
+                        ? `${res.familyName}${res.familyPhone ? " - " + res.familyPhone : ""}`
+                        : "Chưa có";
+                    tr.innerHTML = `
+                        <td class="cell-id">${res.id}</td>
+                        <td>
+                            <div class="profile-cell">
+                                <div class="profile-avatar">${res.initials || computeInitials(res.name)}</div>
+                                <span class="profile-name">${res.name}</span>
+                            </div>
+                        </td>
+                        <td class="cell-age">${res.age}</td>
+                        <td class="cell-gender">${res.gender}</td>
+                        <td class="cell-room">${res.room}</td>
+                        <td class="cell-blood">${res.blood}</td>
+                        <td>${getStatusBadgeHtml(res)}</td>
+                        <td class="cell-contact" title="${contactText}">${contactText}</td>
+                        <td style="text-align: right; white-space: nowrap;">
+                            <a href="#" class="btn-view-detail" data-id="${res.id}">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <span>Xem chi tiết</span>
+                            </a>
+                            <a href="#" class="btn-view-detail btn-edit-resident" data-id="${res.id}" data-roles="admin,manager,staff" style="margin-left: 12px;">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                                <span>Sửa</span>
+                            </a>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
                 });
 
                 if (visibleCount === 0) {
@@ -1256,12 +1666,30 @@
                 }
 
                 // Bind detail view triggers
-                document.querySelectorAll(".btn-view-detail").forEach(btn => {
+                document.querySelectorAll(".btn-view-detail:not(.btn-edit-resident)").forEach(btn => {
                     btn.addEventListener("click", function (e) {
                         e.preventDefault();
                         const id = this.getAttribute("data-id");
                         openDetailModal(id);
                     });
+                });
+
+                // Bind edit triggers
+                document.querySelectorAll(".btn-edit-resident").forEach(btn => {
+                    btn.addEventListener("click", function (e) {
+                        e.preventDefault();
+                        const id = this.getAttribute("data-id");
+                        openEditModal(id);
+                    });
+                });
+
+                if (window.currentUser) applyDataRolesWithin(tbody, window.currentUser.role);
+            }
+
+            function applyDataRolesWithin(container, role) {
+                container.querySelectorAll("[data-roles]").forEach(el => {
+                    const allowed = el.getAttribute("data-roles").split(",").map(r => r.trim());
+                    el.style.display = allowed.indexOf(role) === -1 ? "none" : "";
                 });
             }
 
@@ -1293,7 +1721,7 @@
             const btnCloseDetailFooter = document.getElementById("btn-close-detail-footer");
             let activeDetailResident = null;
 
-            function openDetailModal(id) {
+            async function openDetailModal(id) {
                 const res = currentResidents.find(r => r.id === id);
                 if (!res) return;
                 activeDetailResident = res;
@@ -1310,8 +1738,23 @@
                 document.getElementById("detail-room").innerText = `Phòng ${res.room}`;
                 
                 const statusEl = document.getElementById("detail-status");
-                statusEl.innerText = res.status;
-                statusEl.className = "status-pill " + (res.status === "Đang ổn định" ? "status-pill-stable" : (res.status === "Cần theo dõi" ? "status-pill-monitoring" : "status-pill-medium"));
+                if (!res.isActive) {
+                    statusEl.innerText = "Ngừng hoạt động";
+                    statusEl.className = "status-pill";
+                    statusEl.style.background = "#f2f4f7";
+                    statusEl.style.color = "#667085";
+                } else {
+                    statusEl.innerText = res.status;
+                    statusEl.className = "status-pill " + (res.status === "Đang ổn định" ? "status-pill-stable" : (res.status === "Cần theo dõi" ? "status-pill-monitoring" : "status-pill-medium"));
+                    statusEl.style.background = "";
+                    statusEl.style.color = "";
+                }
+
+                const btnToggleActive = document.getElementById("btn-detail-toggle-active");
+                if (btnToggleActive) {
+                    btnToggleActive.innerText = res.isActive ? "⏻ Ngừng hoạt động" : "⏻ Kích hoạt lại";
+                    btnToggleActive.style.color = res.isActive ? "#d92d20" : "#027a48";
+                }
 
                 document.getElementById("detail-age").innerText = res.age;
                 document.getElementById("detail-gender").innerText = res.gender;
@@ -1324,6 +1767,8 @@
                 document.getElementById("detail-family-address").innerText = res.familyAddress || "123 Nguyễn Trãi, Quận 1, TP. HCM";
 
                 document.getElementById("detail-notes").innerText = res.notes || "Chưa có ghi chú đặc biệt.";
+
+                loadCurrentPackageForResident(res.residentId);
 
                 detailModal.classList.add("active");
             }
@@ -1339,6 +1784,45 @@
                     if (e.target === detailModal) closeDetailModal();
                 });
             }
+
+            const btnDetailEdit = document.getElementById("btn-detail-edit");
+            if (btnDetailEdit) {
+                btnDetailEdit.addEventListener("click", function () {
+                    if (!activeDetailResident) return;
+                    closeDetailModal();
+                    openEditModal(activeDetailResident.id);
+                });
+            }
+
+            const btnDetailToggleActive = document.getElementById("btn-detail-toggle-active");
+            if (btnDetailToggleActive) {
+                btnDetailToggleActive.addEventListener("click", async function () {
+                    if (!activeDetailResident) return;
+                    const res = activeDetailResident;
+                    const willActivate = !res.isActive;
+                    const confirmMsg = willActivate
+                        ? `Kích hoạt lại hồ sơ của ${res.name}?`
+                        : `Ngừng hoạt động hồ sơ của ${res.name}? Cư dân sẽ không còn xuất hiện trong danh sách hoạt động (vẫn xem được qua bộ lọc "Ngừng hoạt động").`;
+
+                    if (!confirm(confirmMsg)) return;
+
+                    const { error } = await window.sb
+                        .from("residents")
+                        .update({ is_active: willActivate, updated_at: new Date().toISOString() })
+                        .eq("resident_id", res.residentId);
+
+                    if (error) {
+                        alert("Không thể cập nhật trạng thái: " + error.message);
+                        return;
+                    }
+
+                    closeDetailModal();
+                    await loadResidents();
+                    renderTable();
+                    showToast(willActivate ? `Đã kích hoạt lại hồ sơ: ${res.name}` : `Đã ngừng hoạt động hồ sơ: ${res.name}`);
+                });
+            }
+
 
             // ==========================================================================
             // CARE SCHEDULE POPUP MODAL LOGIC
@@ -1501,6 +1985,9 @@
                 document.getElementById("inp-admission").valueAsDate = new Date();
                 document.getElementById("inp-notes").value = "";
 
+                if (servicePackagesCache.length === 0) await loadServicePackages();
+                populatePackageSelect(document.getElementById("inp-package"), "");
+
                 const roomSelect = document.getElementById("inp-room");
                 roomSelect.innerHTML = '<option value="">Đang tải danh sách phòng...</option>';
 
@@ -1543,6 +2030,7 @@
                     const familyAddress = document.getElementById("inp-family-address").value.trim();
                     const admissionVal = document.getElementById("inp-admission").value;
                     const notes = document.getElementById("inp-notes").value.trim();
+                    const packageId = document.getElementById("inp-package").value;
 
                     if (!name || isNaN(age) || !roomId || !familyName || !familyPhone) {
                         alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
@@ -1565,7 +2053,8 @@
                             familyRel,
                             familyAddress,
                             admissionIso: admissionVal,
-                            notes
+                            notes,
+                            packageId
                         });
 
                         closeCreateModal();
@@ -1583,21 +2072,339 @@
             }
 
             // ==========================================================================
-            // IMPORT EXCEL MODAL LOGIC
+            // EDIT MODAL LOGIC
             // ==========================================================================
+            const editModal = document.getElementById("edit-resident-modal");
+            const btnCloseEdit = document.getElementById("btn-close-edit-modal");
+            const btnCancelEdit = document.getElementById("btn-cancel-edit-modal");
+            const btnSaveEditResident = document.getElementById("btn-save-edit-resident");
+            const editFamilyProfileSelect = document.getElementById("edit-family-profile");
+            let activeEditResident = null;
+            let activeEditResidentPackage = null;
+
+            async function openEditModal(id) {
+                const res = currentResidents.find(r => r.id === id);
+                if (!res) return;
+                activeEditResident = res;
+
+                document.getElementById("edit-fullname").value = res.name || "";
+                document.getElementById("edit-age").value = res.age || "";
+                document.getElementById("edit-gender").value = res.gender || "Nam";
+                document.getElementById("edit-blood").value = res.blood || "O+";
+                document.getElementById("edit-status").value = res.status || "Đang ổn định";
+                document.getElementById("edit-family-rel").value = res.familyRel || "Con trai";
+                document.getElementById("edit-family-phone").value = res.familyPhone || "";
+                document.getElementById("edit-family-address").value = res.familyAddress || "";
+                document.getElementById("edit-admission").value = res.admissionDateIso || "";
+                document.getElementById("edit-notes").value = res.notes || "";
+
+                const roomSelect = document.getElementById("edit-room");
+                roomSelect.innerHTML = '<option value="">Đang tải danh sách phòng...</option>';
+                editFamilyProfileSelect.innerHTML = '<option value="">Đang tải danh sách tài khoản...</option>';
+                document.getElementById("edit-package").innerHTML = '<option value="">Đang tải...</option>';
+
+                editModal.classList.add("active");
+
+                const [rooms] = await Promise.all([
+                    loadRoomsForEdit(res.residentId, res.roomId),
+                    loadFamilyProfiles(),
+                    servicePackagesCache.length === 0 ? loadServicePackages() : null
+                ]);
+                activeEditResidentPackage = await getCurrentActivePackage(res.residentId);
+
+                roomSelect.innerHTML = rooms
+                    .map(r => `<option value="${r.room_id}" ${r.room_id === res.roomId ? "selected" : ""}>${r.room_code}${r.room_name ? " - " + r.room_name : ""}</option>`)
+                    .join("");
+
+                editFamilyProfileSelect.innerHTML = '<option value="">-- Không liên kết tài khoản --</option>' +
+                    familyProfilesCache
+                        .map(p => `<option value="${p.id}" ${p.id === res.familyProfileId ? "selected" : ""}>${p.full_name}${p.email ? " (" + p.email + ")" : ""}</option>`)
+                        .join("");
+
+                populatePackageSelect(document.getElementById("edit-package"), activeEditResidentPackage ? activeEditResidentPackage.service_package_id : "");
+            }
+
+            function closeEditModal() {
+                editModal.classList.remove("active");
+            }
+
+            if (btnCloseEdit) btnCloseEdit.addEventListener("click", closeEditModal);
+            if (btnCancelEdit) btnCancelEdit.addEventListener("click", closeEditModal);
+            if (editModal) {
+                editModal.addEventListener("click", function (e) {
+                    if (e.target === editModal) closeEditModal();
+                });
+            }
+
+            // Tự điền số điện thoại từ tài khoản được chọn nếu ô đang trống
+            if (editFamilyProfileSelect) {
+                editFamilyProfileSelect.addEventListener("change", function () {
+                    const profile = familyProfilesCache.find(p => p.id === this.value);
+                    const phoneInput = document.getElementById("edit-family-phone");
+                    if (profile && profile.phone && !phoneInput.value.trim()) {
+                        phoneInput.value = profile.phone;
+                    }
+                });
+            }
+
+            if (btnSaveEditResident) {
+                btnSaveEditResident.addEventListener("click", async function () {
+                    if (!activeEditResident) return;
+
+                    const name = document.getElementById("edit-fullname").value.trim();
+                    const age = parseInt(document.getElementById("edit-age").value);
+                    const gender = document.getElementById("edit-gender").value;
+                    const roomId = document.getElementById("edit-room").value;
+                    const blood = document.getElementById("edit-blood").value;
+                    const status = document.getElementById("edit-status").value;
+                    const familyProfileId = editFamilyProfileSelect.value;
+                    const familyRel = document.getElementById("edit-family-rel").value;
+                    const familyPhone = document.getElementById("edit-family-phone").value.trim();
+                    const familyAddress = document.getElementById("edit-family-address").value.trim();
+                    const admissionVal = document.getElementById("edit-admission").value;
+                    const notes = document.getElementById("edit-notes").value.trim();
+                    const packageId = document.getElementById("edit-package").value;
+
+                    if (!name || isNaN(age) || !roomId) {
+                        alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*).");
+                        return;
+                    }
+
+                    btnSaveEditResident.disabled = true;
+                    btnSaveEditResident.textContent = "Đang lưu...";
+
+                    try {
+                        await updateResident(activeEditResident.residentId, activeEditResident.familyMemberId, {
+                            name,
+                            age,
+                            gender,
+                            roomId: parseInt(roomId, 10),
+                            blood,
+                            status,
+                            familyProfileId,
+                            familyRel,
+                            familyPhone,
+                            familyAddress,
+                            admissionIso: admissionVal,
+                            notes,
+                            packageId
+                        }, activeEditResidentPackage);
+
+                        closeEditModal();
+                        await loadResidents();
+                        renderTable();
+                        showToast(`Đã cập nhật hồ sơ: ${name}`);
+                    } catch (err) {
+                        console.error(err);
+                        alert("Không thể lưu thay đổi: " + err.message);
+                    } finally {
+                        btnSaveEditResident.disabled = false;
+                        btnSaveEditResident.textContent = "Lưu thay đổi";
+                    }
+                });
+            }
+
+            // ==========================================================================
+            // IMPORT / EXPORT EXCEL (SheetJS)
+            // Cùng một bộ cột cho file export, file mẫu và file import, để có thể
+            // export -> sửa trong Excel -> import lại (cập nhật theo Mã hồ sơ).
+            // ==========================================================================
+            const EXCEL_COLUMNS = [
+                { key: "code", header: "Mã hồ sơ", width: 12 },
+                { key: "name", header: "Họ và tên", width: 26 },
+                { key: "age", header: "Tuổi", width: 8 },
+                { key: "gender", header: "Giới tính", width: 10 },
+                { key: "room", header: "Phòng", width: 10 },
+                { key: "blood", header: "Nhóm máu", width: 10 },
+                { key: "status", header: "Tình trạng sức khỏe", width: 20 },
+                { key: "admission", header: "Ngày nhập viện", width: 15 },
+                { key: "notes", header: "Ghi chú", width: 30 },
+                { key: "familyName", header: "Họ tên người nhà", width: 24 },
+                { key: "familyRel", header: "Mối quan hệ", width: 14 },
+                { key: "familyPhone", header: "SĐT người nhà", width: 15 },
+                { key: "familyAddress", header: "Địa chỉ người nhà", width: 34 }
+            ];
+            // Chỉ có trong file export, bị bỏ qua khi import
+            const EXPORT_ONLY_COLUMNS = [{ key: "active", header: "Trạng thái hồ sơ", width: 18 }];
+            const VALID_BLOOD_TYPES = ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"];
+            const VALID_STATUSES = ["Đang ổn định", "Cần theo dõi", "Trung bình"];
+
+            function normalizeKey(s) {
+                return String(s == null ? "" : s)
+                    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+                    .replace(/đ/gi, "d")
+                    .replace(/[^a-z0-9]/gi, "")
+                    .toLowerCase();
+            }
+
+            const HEADER_LOOKUP = { hoten: "name", maphong: "room", sodienthoai: "familyPhone", sdt: "familyPhone", tinhtrang: "status" };
+            EXCEL_COLUMNS.forEach(c => { HEADER_LOOKUP[normalizeKey(c.header)] = c.key; });
+
+            function pad2(n) { return String(n).padStart(2, "0"); }
+
+            function todayStamp() {
+                const d = new Date();
+                return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
+            }
+
+            function cellText(v) {
+                return v == null ? "" : String(v).trim();
+            }
+
+            // Ô ngày có thể là số serial của Excel hoặc chuỗi dd/mm/yyyy / yyyy-mm-dd
+            function parseExcelDate(v) {
+                if (cellText(v) === "") return { iso: null };
+                let y, m, d;
+                if (typeof v === "number") {
+                    const parsed = XLSX.SSF.parse_date_code(v);
+                    if (!parsed) return { error: "Ngày nhập viện không hợp lệ" };
+                    y = parsed.y; m = parsed.m; d = parsed.d;
+                } else {
+                    const s = cellText(v);
+                    let match = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+                    if (match) {
+                        d = +match[1]; m = +match[2]; y = +match[3];
+                    } else if ((match = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) {
+                        y = +match[1]; m = +match[2]; d = +match[3];
+                    } else {
+                        return { error: `Ngày nhập viện "${s}" không đúng định dạng dd/mm/yyyy` };
+                    }
+                }
+                const dt = new Date(y, m - 1, d);
+                if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) {
+                    return { error: "Ngày nhập viện không tồn tại" };
+                }
+                return { iso: `${y}-${pad2(m)}-${pad2(d)}` };
+            }
+
+            // Excel hay làm mất số 0 đầu khi ô SĐT là kiểu số
+            function normalizePhone(v) {
+                let s = cellText(v).replace(/\s+/g, "");
+                if (typeof v === "number" && /^\d{9}$/.test(s)) s = "0" + s;
+                return s;
+            }
+
+            function normalizeGender(v) {
+                const k = normalizeKey(v);
+                if (!k) return { value: null };
+                if (["nam", "male", "m"].includes(k)) return { value: "Nam" };
+                if (["nu", "female", "f"].includes(k)) return { value: "Nữ" };
+                return { error: `Giới tính "${cellText(v)}" không hợp lệ (Nam/Nữ)` };
+            }
+
+            function normalizeBlood(v) {
+                const s = cellText(v).toUpperCase().replace(/\s+/g, "");
+                if (!s) return { value: null };
+                if (VALID_BLOOD_TYPES.includes(s)) return { value: s };
+                return { error: `Nhóm máu "${cellText(v)}" không hợp lệ` };
+            }
+
+            function normalizeStatus(v) {
+                const k = normalizeKey(v);
+                if (!k) return { value: null };
+                const found = VALID_STATUSES.find(s => normalizeKey(s) === k);
+                if (found) return { value: found };
+                return { error: `Tình trạng "${cellText(v)}" không hợp lệ (${VALID_STATUSES.join(" / ")})` };
+            }
+
+            function ensureXlsxLoaded() {
+                if (typeof XLSX !== "undefined") return true;
+                alert("Không tải được thư viện Excel. Vui lòng kiểm tra kết nối mạng và thử lại.");
+                return false;
+            }
+
+            // ---------- EXPORT ----------
+            function exportResidentsToExcel() {
+                if (!ensureXlsxLoaded()) return;
+                const list = getVisibleResidents();
+                if (list.length === 0) {
+                    showToast("Không có hồ sơ nào để xuất.");
+                    return;
+                }
+
+                const cols = EXCEL_COLUMNS.concat(EXPORT_ONLY_COLUMNS);
+                const rows = list.map(res => ({
+                    code: res.id,
+                    name: res.name,
+                    age: res.age,
+                    gender: res.gender,
+                    room: res.room,
+                    blood: res.blood,
+                    status: res.status,
+                    admission: res.admissionDate,
+                    notes: res.notes,
+                    familyName: res.familyName,
+                    familyRel: res.familyRel,
+                    familyPhone: res.familyPhone,
+                    familyAddress: res.familyAddress,
+                    active: res.isActive ? "Đang hoạt động" : "Ngừng hoạt động"
+                }));
+
+                const aoa = [cols.map(c => c.header)].concat(rows.map(r => cols.map(c => r[c.key] == null ? "" : r[c.key])));
+                const ws = XLSX.utils.aoa_to_sheet(aoa);
+                ws["!cols"] = cols.map(c => ({ wch: c.width }));
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Hồ sơ người cao tuổi");
+                XLSX.writeFile(wb, `DanhSachHoSo_${todayStamp()}.xlsx`);
+                showToast(`Đã xuất ${list.length} hồ sơ ra file Excel.`);
+            }
+
+            function downloadImportTemplate() {
+                if (!ensureXlsxLoaded()) return;
+                const sample = {
+                    code: "", name: "Nguyễn Văn An", age: 78, gender: "Nam", room: "201", blood: "O+",
+                    status: "Đang ổn định", admission: "01/09/2026", notes: "",
+                    familyName: "Nguyễn Văn Hải", familyRel: "Con trai", familyPhone: "0909090909",
+                    familyAddress: "123 Nguyễn Trãi, Quận 1, TP. HCM"
+                };
+                const ws = XLSX.utils.aoa_to_sheet([
+                    EXCEL_COLUMNS.map(c => c.header),
+                    EXCEL_COLUMNS.map(c => sample[c.key])
+                ]);
+                ws["!cols"] = EXCEL_COLUMNS.map(c => ({ wch: c.width }));
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Mẫu import");
+                XLSX.writeFile(wb, "MauImportHoSo.xlsx");
+            }
+
+            const btnExportExcel = document.getElementById("btn-export-excel");
+            if (btnExportExcel) btnExportExcel.addEventListener("click", exportResidentsToExcel);
+
+            const btnDownloadTemplate = document.getElementById("btn-download-template");
+            if (btnDownloadTemplate) {
+                btnDownloadTemplate.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    downloadImportTemplate();
+                });
+            }
+
+            // ---------- IMPORT ----------
             const importModal = document.getElementById("import-excel-modal");
             const btnOpenImport = document.getElementById("btn-import-excel");
             const btnCloseImport = document.getElementById("btn-close-import-modal");
             const btnCancelImport = document.getElementById("btn-cancel-import");
             const btnSubmitImport = document.getElementById("btn-submit-import");
+            const importPreview = document.getElementById("import-preview");
+            let importPlan = [];      // các dòng hợp lệ, sẵn sàng ghi
+            let importRunning = false;
+
+            function resetImportState() {
+                importPlan = [];
+                importPreview.style.display = "none";
+                importPreview.innerHTML = "";
+                btnSubmitImport.disabled = true;
+                btnSubmitImport.textContent = "Nhập dữ liệu";
+            }
 
             function openImportModal() {
                 document.getElementById("import-file-name").style.display = "none";
                 document.getElementById("excel-file-input").value = "";
+                resetImportState();
                 importModal.classList.add("active");
             }
 
             function closeImportModal() {
+                if (importRunning) return;
                 importModal.classList.remove("active");
             }
 
@@ -1610,24 +2417,288 @@
                 });
             }
 
-            window.handleExcelSelect = function(e) {
+            // Đọc + kiểm tra toàn bộ file, chưa ghi gì vào CSDL
+            async function buildImportPlan(file) {
+                const buffer = await file.arrayBuffer();
+                const wb = XLSX.read(buffer, { type: "array" });
+                const sheet = wb.Sheets[wb.SheetNames[0]];
+                const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true, blankrows: false });
+                if (rawRows.length < 2) {
+                    return { fatal: "File không có dòng dữ liệu nào (dòng đầu tiên phải là tiêu đề cột)." };
+                }
+
+                const colKeys = rawRows[0].map(h => HEADER_LOOKUP[normalizeKey(h)] || null);
+                const missing = ["name", "age", "room"]
+                    .filter(k => !colKeys.includes(k))
+                    .map(k => EXCEL_COLUMNS.find(c => c.key === k).header);
+                if (missing.length > 0) {
+                    return { fatal: `File thiếu cột bắt buộc: ${missing.join(", ")}. Hãy dùng "Tải file mẫu".` };
+                }
+
+                const { data: rooms, error: roomsError } = await window.sb
+                    .from("rooms")
+                    .select("room_id, room_code, capacity")
+                    .eq("is_active", true);
+                if (roomsError) throw roomsError;
+
+                const roomByCode = {};
+                (rooms || []).forEach(r => { roomByCode[normalizeKey(r.room_code)] = r; });
+
+                // Số chỗ đã dùng mỗi phòng, cập nhật dần theo từng dòng import
+                const occupancy = {};
+                currentResidents.forEach(r => {
+                    if (r.isActive && r.roomId) occupancy[r.roomId] = (occupancy[r.roomId] || 0) + 1;
+                });
+
+                const residentByCode = {};
+                currentResidents.forEach(r => { residentByCode[normalizeKey(r.id)] = r; });
+
+                const seenCodes = {};
+                const valid = [];
+                const invalid = [];
+
+                for (let i = 1; i < rawRows.length; i++) {
+                    const raw = {};
+                    colKeys.forEach((key, idx) => { if (key) raw[key] = rawRows[i][idx]; });
+                    if (Object.values(raw).every(v => cellText(v) === "")) continue;
+
+                    const rowNum = i + 1;
+                    const errors = [];
+                    const code = cellText(raw.code);
+                    const existing = code ? residentByCode[normalizeKey(code)] : null;
+
+                    if (code) {
+                        const k = normalizeKey(code);
+                        if (seenCodes[k]) errors.push(`Mã hồ sơ ${code} trùng với dòng ${seenCodes[k]}`);
+                        else seenCodes[k] = rowNum;
+                    }
+
+                    const name = cellText(raw.name);
+                    if (!name) errors.push("Thiếu Họ và tên");
+
+                    const ageText = cellText(raw.age);
+                    const age = /^\d+$/.test(ageText) ? parseInt(ageText, 10) : NaN;
+                    if (isNaN(age)) errors.push("Thiếu hoặc sai Tuổi");
+                    else if (age < 50 || age > 120) errors.push("Tuổi phải từ 50 đến 120");
+
+                    const roomText = cellText(raw.room);
+                    const room = roomText ? roomByCode[normalizeKey(roomText)] : null;
+                    if (!roomText) errors.push("Thiếu Phòng");
+                    else if (!room) errors.push(`Phòng "${roomText}" không tồn tại hoặc đã ngừng sử dụng`);
+
+                    const gender = normalizeGender(raw.gender);
+                    const blood = normalizeBlood(raw.blood);
+                    const status = normalizeStatus(raw.status);
+                    const admission = parseExcelDate(raw.admission);
+                    [gender, blood, status, admission].forEach(r => { if (r.error) errors.push(r.error); });
+
+                    const familyName = cellText(raw.familyName);
+                    const familyPhone = normalizePhone(raw.familyPhone);
+                    const familyRel = cellText(raw.familyRel);
+                    const familyAddress = cellText(raw.familyAddress);
+                    if (!familyName && (familyPhone || familyRel || familyAddress) && !(existing && existing.familyMemberId)) {
+                        errors.push("Có thông tin người nhà nhưng thiếu Họ tên người nhà");
+                    }
+
+                    // Kiểm tra sức chứa khi thêm mới hoặc chuyển sang phòng khác
+                    const movesIntoRoom = room && (!existing || !existing.isActive || existing.roomId !== room.room_id);
+                    if (errors.length === 0 && movesIntoRoom && (occupancy[room.room_id] || 0) >= room.capacity) {
+                        errors.push(`Phòng ${room.room_code} đã đủ ${room.capacity} người`);
+                    }
+
+                    if (errors.length > 0) {
+                        invalid.push({ rowNum, name, errors });
+                        continue;
+                    }
+
+                    if (movesIntoRoom) {
+                        occupancy[room.room_id] = (occupancy[room.room_id] || 0) + 1;
+                        if (existing && existing.isActive && existing.roomId) occupancy[existing.roomId]--;
+                    }
+
+                    valid.push({
+                        rowNum,
+                        action: existing ? "update" : "create",
+                        existing,
+                        data: {
+                            code, name, age,
+                            roomId: room.room_id,
+                            gender: gender.value,
+                            blood: blood.value,
+                            status: status.value,
+                            admissionIso: admission.iso,
+                            notes: cellText(raw.notes),
+                            familyName, familyPhone, familyRel, familyAddress
+                        }
+                    });
+                }
+
+                return { valid, invalid };
+            }
+
+            function renderImportErrorTable(rows) {
+                return `<div style="max-height: 200px; overflow-y: auto; border: 1px solid #fecdca; border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12.5px;">
+                        <thead><tr style="background: #fef3f2; color: #b42318; text-align: left;">
+                            <th style="padding: 6px 10px;">Dòng</th><th style="padding: 6px 10px;">Họ tên</th><th style="padding: 6px 10px;">Lỗi</th>
+                        </tr></thead>
+                        <tbody>${rows.map(r => `<tr style="border-top: 1px solid #fee4e2;">
+                            <td style="padding: 6px 10px; white-space: nowrap;">${r.rowNum}</td>
+                            <td style="padding: 6px 10px;">${escapeHtml(r.name || "")}</td>
+                            <td style="padding: 6px 10px; color: #b42318;">${r.errors.map(escapeHtml).join("<br>")}</td>
+                        </tr>`).join("")}</tbody>
+                    </table>
+                </div>`;
+            }
+
+            function showImportMessage(html) {
+                importPreview.style.display = "block";
+                importPreview.innerHTML = html;
+            }
+
+            function showImportFatal(msg) {
+                showImportMessage(`<div style="color: #b42318; background: #fef3f2; border-radius: 8px; padding: 10px 12px; font-size: 13px;">${escapeHtml(msg)}</div>`);
+            }
+
+            function renderImportPreview(result) {
+                const creates = result.valid.filter(r => r.action === "create").length;
+                const updates = result.valid.length - creates;
+                let html = `<div style="font-size: 13.5px; color: #344054; margin-bottom: 8px;">
+                        <b style="color: #027a48;">${result.valid.length}</b> dòng hợp lệ
+                        (${creates} thêm mới, ${updates} cập nhật) ·
+                        <b style="color: ${result.invalid.length ? "#b42318" : "#344054"};">${result.invalid.length}</b> dòng lỗi
+                    </div>`;
+                if (result.invalid.length > 0) {
+                    html += renderImportErrorTable(result.invalid);
+                    if (result.valid.length > 0) {
+                        html += `<div style="font-size: 12px; color: #667085; margin-top: 6px;">Các dòng lỗi sẽ được bỏ qua. Sửa file rồi import lại nếu cần.</div>`;
+                    }
+                }
+                showImportMessage(html);
+            }
+
+            window.handleExcelSelect = async function(e) {
                 const file = e.target.files[0];
-                if (file) {
-                    const label = document.getElementById("import-file-name");
-                    label.innerText = `Đã chọn: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-                    label.style.display = "block";
+                resetImportState();
+                if (!file) return;
+
+                const label = document.getElementById("import-file-name");
+                label.innerText = `Đã chọn: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                label.style.display = "block";
+
+                if (file.size > 10 * 1024 * 1024) {
+                    showImportFatal("File vượt quá 10MB.");
+                    return;
+                }
+                if (typeof XLSX === "undefined") {
+                    showImportFatal("Không tải được thư viện Excel. Vui lòng kiểm tra kết nối mạng và thử lại.");
+                    return;
+                }
+
+                showImportMessage(`<div style="font-size: 13px; color: #667085;">Đang đọc và kiểm tra file...</div>`);
+                try {
+                    const result = await buildImportPlan(file);
+                    if (result.fatal) {
+                        showImportFatal(result.fatal);
+                        return;
+                    }
+                    renderImportPreview(result);
+                    if (result.valid.length > 0) {
+                        importPlan = result.valid;
+                        btnSubmitImport.disabled = false;
+                        btnSubmitImport.textContent = `Nhập ${importPlan.length} hồ sơ`;
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showImportFatal("Không đọc được file: " + err.message);
                 }
             };
 
+            // Cập nhật hồ sơ đã có theo Mã hồ sơ — ô trống trong file giữ nguyên giá trị cũ
+            async function applyImportUpdate(res, d) {
+                const residentPatch = {
+                    full_name: d.name,
+                    age: d.age,
+                    room_id: d.roomId,
+                    updated_at: new Date().toISOString()
+                };
+                if (d.gender) residentPatch.gender = d.gender;
+                if (d.blood) residentPatch.blood_type = d.blood;
+                if (d.status) residentPatch.status = d.status;
+                if (d.admissionIso) residentPatch.admission_date = d.admissionIso;
+                if (d.notes) residentPatch.notes = d.notes;
+
+                const { error } = await window.sb.from("residents").update(residentPatch).eq("resident_id", res.residentId);
+                if (error) throw error;
+
+                const familyPatch = {};
+                if (d.familyName) familyPatch.full_name = d.familyName;
+                if (d.familyRel) familyPatch.relationship = d.familyRel;
+                if (d.familyPhone) familyPatch.phone = d.familyPhone;
+                if (d.familyAddress) familyPatch.address = d.familyAddress;
+                if (Object.keys(familyPatch).length === 0) return;
+
+                if (res.familyMemberId) {
+                    const { error: famError } = await window.sb.from("family_members").update(familyPatch).eq("family_member_id", res.familyMemberId);
+                    if (famError) throw famError;
+                } else if (d.familyName) {
+                    const { error: famError } = await window.sb.from("family_members").insert(
+                        Object.assign({ resident_id: res.residentId, is_primary_contact: true }, familyPatch)
+                    );
+                    if (famError) throw famError;
+                }
+            }
+
             if (btnSubmitImport) {
-                btnSubmitImport.addEventListener("click", function() {
-                    const fileInput = document.getElementById("excel-file-input");
-                    if (!fileInput.files || fileInput.files.length === 0) {
-                        alert("Vui lòng chọn một file Excel hoặc CSV để tải lên!");
-                        return;
+                btnSubmitImport.addEventListener("click", async function() {
+                    if (importPlan.length === 0 || importRunning) return;
+
+                    importRunning = true;
+                    btnSubmitImport.disabled = true;
+                    btnCancelImport.disabled = true;
+
+                    let created = 0, updated = 0;
+                    const failures = [];
+
+                    for (let i = 0; i < importPlan.length; i++) {
+                        const row = importPlan[i];
+                        btnSubmitImport.textContent = `Đang nhập ${i + 1}/${importPlan.length}...`;
+                        try {
+                            if (row.action === "update") {
+                                await applyImportUpdate(row.existing, row.data);
+                                updated++;
+                            } else {
+                                await createResident(Object.assign({}, row.data, {
+                                    code: row.data.code || undefined,
+                                    status: row.data.status || "Đang ổn định"
+                                }));
+                                created++;
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            failures.push({ rowNum: row.rowNum, name: row.data.name, errors: [err.message] });
+                        }
                     }
-                    closeImportModal();
-                    showToast("Đã xử lý và import dữ liệu Excel thành công!");
+
+                    importRunning = false;
+                    importPlan = [];
+                    btnCancelImport.disabled = false;
+                    btnSubmitImport.textContent = "Nhập dữ liệu";
+
+                    await loadResidents();
+                    renderTable();
+
+                    const summary = `Đã nhập ${created + updated} hồ sơ (${created} thêm mới, ${updated} cập nhật)`;
+                    if (failures.length === 0) {
+                        closeImportModal();
+                        showToast(summary);
+                    } else {
+                        showToast(`${summary}, ${failures.length} dòng lỗi`);
+                        showImportMessage(
+                            `<div style="font-size: 13.5px; color: #344054; margin-bottom: 8px;">${escapeHtml(summary)}. Các dòng sau không lưu được:</div>` +
+                            renderImportErrorTable(failures)
+                        );
+                    }
                 });
             }
 

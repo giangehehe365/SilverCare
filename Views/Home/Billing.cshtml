@@ -1,0 +1,1040 @@
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewData["Title"] = "Thanh toán & viện phí";
+    ViewData["AllowedRoles"] = "admin,manager,family";
+}
+
+<style>
+    .bil-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    .bil-title { font-size: 22px; font-weight: 700; color: #101828; margin: 0; }
+    .bil-subtitle { font-size: 13.5px; color: #667085; margin: 4px 0 0; }
+
+    .btn-primary-action {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: var(--color-primary); color: #fff; border: none; border-radius: 8px;
+        padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .btn-secondary-action {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: #fff; color: #344054; border: 1px solid #d0d5dd; border-radius: 8px;
+        padding: 9px 16px; font-size: 13.5px; font-weight: 600; cursor: pointer;
+    }
+    .btn-danger-text { color: #d92d20; background: #fff; border: 1px solid #fda29b; }
+
+    .bil-card {
+        background: #fff; border: 1px solid var(--border-color); border-radius: 14px;
+        box-shadow: 0 1px 3px rgba(16,24,40,.05); margin-bottom: 24px; overflow: hidden;
+    }
+    .bil-card-header { padding: 18px 22px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .bil-card-title { font-size: 16px; font-weight: 700; color: #101828; margin: 0; }
+    .bil-card-body { padding: 18px 22px; }
+
+    .bil-filters { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 22px; border-bottom: 1px solid var(--border-color); }
+    .bil-filters select, .bil-filters input {
+        border: 1px solid #d0d5dd; border-radius: 8px; padding: 8px 12px; font-size: 13.5px; color: #344054;
+    }
+
+    table.bil-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    table.bil-table th {
+        text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #667085;
+        font-weight: 600; padding: 12px 22px; border-bottom: 1px solid var(--border-color); background: #fafbfc; white-space: nowrap;
+    }
+    table.bil-table td { padding: 12px 22px; border-bottom: 1px solid #f2f4f7; color: #344054; vertical-align: middle; }
+    table.bil-table tr:last-child td { border-bottom: none; }
+    table.bil-table tr:hover { background: #f9fafb; }
+
+    .bil-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .bil-badge-unpaid { background: #fef0c7; color: #b54708; }
+    .bil-badge-paid { background: #ecfdf3; color: #027a48; }
+    .bil-badge-overdue { background: #fee4e2; color: #b42318; }
+    .bil-badge-cancelled { background: #f2f4f7; color: #667085; }
+    .bil-badge-pending { background: #e0f2fe; color: #026aa2; }
+    .bil-badge-success { background: #ecfdf3; color: #027a48; }
+    .bil-badge-failed { background: #fee4e2; color: #b42318; }
+
+    .bil-link { color: var(--color-primary); font-weight: 600; text-decoration: none; cursor: pointer; }
+    .bil-link:hover { text-decoration: underline; }
+
+    .bil-empty { padding: 40px 22px; text-align: center; color: #667085; font-size: 14px; }
+
+    /* Modal */
+    .bil-modal-overlay {
+        position: fixed; inset: 0; background: rgba(16,24,40,.6); display: flex; align-items: center; justify-content: center;
+        z-index: 1000; opacity: 0; visibility: hidden; transition: all .2s ease; padding: 16px;
+    }
+    .bil-modal-overlay.active { opacity: 1; visibility: visible; }
+    .bil-modal-container {
+        background: #fff; border-radius: 16px; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto;
+        box-shadow: 0 20px 24px -4px rgba(16,24,40,.08), 0 8px 8px -4px rgba(16,24,40,.03);
+    }
+    .bil-modal-container.narrow { max-width: 460px; }
+    .bil-modal-header { padding: 18px 22px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+    .bil-modal-title { font-size: 17px; font-weight: 700; color: #101828; margin: 0; }
+    .bil-modal-close { background: none; border: none; cursor: pointer; color: #667085; padding: 4px; }
+    .bil-modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+    .bil-modal-footer { padding: 14px 22px; border-top: 1px solid var(--border-color); background: #fafbfc; display: flex; justify-content: flex-end; gap: 10px; }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-label { font-size: 13px; font-weight: 600; color: #344054; }
+    .form-input, .form-select, .form-textarea {
+        width: 100%; padding: 9px 12px; border: 1px solid #d0d5dd; border-radius: 8px; font-size: 14px; box-sizing: border-box;
+    }
+    .form-textarea { min-height: 60px; resize: vertical; }
+
+    .bil-items-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    .bil-items-table th { text-align: left; font-size: 11px; color: #667085; text-transform: uppercase; padding: 6px 4px; }
+    .bil-items-table td { padding: 4px; vertical-align: middle; }
+    .bil-items-table input { width: 100%; padding: 7px 8px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+    .bil-item-amount { font-size: 13px; font-weight: 600; color: #344054; white-space: nowrap; padding-left: 8px; }
+    .bil-item-remove { background: none; border: none; color: #d92d20; cursor: pointer; font-size: 16px; padding: 4px; }
+    .bil-items-total { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; font-size: 15px; font-weight: 700; color: #101828; }
+
+    .bil-bank-box { background: #f0f9ff; border: 1px solid #b9e6fe; border-radius: 10px; padding: 14px 16px; font-size: 13.5px; color: #026aa2; line-height: 1.6; }
+    .bil-payment-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #eaecf0; font-size: 13px; }
+    .bil-payment-row:last-child { border-bottom: none; }
+
+    .toast-popup {
+        position: fixed; bottom: 28px; right: 28px; background: #101828; color: #fff; padding: 12px 20px; border-radius: 10px;
+        font-size: 14px; font-weight: 500; z-index: 1100; opacity: 0; transform: translateY(20px); transition: all .3s ease; pointer-events: none;
+    }
+    .toast-popup.show { opacity: 1; transform: translateY(0); }
+</style>
+
+<div class="bil-header">
+    <div>
+        <h1 class="bil-title">Thanh toán &amp; viện phí</h1>
+        <p class="bil-subtitle" data-roles="admin,manager">Quản lý gói dịch vụ, hóa đơn và xác nhận thanh toán của cư dân.</p>
+        <p class="bil-subtitle" data-roles="family">Xem hóa đơn viện phí và ghi nhận thanh toán cho người thân của bạn.</p>
+    </div>
+    <button type="button" class="btn-primary-action" id="btn-open-create-invoice" data-roles="admin,manager">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>Tạo hóa đơn</span>
+    </button>
+</div>
+
+<!-- Invoice list -->
+<div class="bil-card">
+    <div class="bil-filters">
+        <select id="filter-resident" data-roles="admin,manager"><option value="all">Tất cả cư dân</option></select>
+        <select id="filter-status">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="Chưa thanh toán">Chưa thanh toán</option>
+            <option value="Đã thanh toán">Đã thanh toán</option>
+            <option value="Quá hạn">Quá hạn</option>
+            <option value="Đã hủy">Đã hủy</option>
+        </select>
+        <input type="month" id="filter-month" title="Lọc theo kỳ" />
+        <button type="button" class="btn-secondary-action" id="btn-clear-filters">Xóa lọc</button>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="bil-table">
+            <thead>
+                <tr>
+                    <th>Mã hóa đơn</th>
+                    <th data-roles="admin,manager">Cư dân</th>
+                    <th>Kỳ</th>
+                    <th>Tổng tiền</th>
+                    <th>Trạng thái</th>
+                    <th>Hạn thanh toán</th>
+                    <th style="text-align:right;">Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="invoices-table-body"></tbody>
+        </table>
+        <div class="bil-empty" id="invoices-empty" style="display:none;">Chưa có hóa đơn nào.</div>
+    </div>
+</div>
+
+<!-- Service packages management -->
+<div class="bil-card" data-roles="admin,manager">
+    <div class="bil-card-header">
+        <h2 class="bil-card-title">Gói dịch vụ</h2>
+        <button type="button" class="btn-secondary-action" id="btn-open-create-package">+ Thêm gói</button>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="bil-table">
+            <thead>
+                <tr>
+                    <th>Tên gói</th>
+                    <th>Mô tả</th>
+                    <th>Giá / tháng</th>
+                    <th>Trạng thái</th>
+                    <th style="text-align:right;">Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="packages-table-body"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- ============================= MODAL: TẠO / SỬA HÓA ĐƠN ============================= -->
+<div class="bil-modal-overlay" id="invoice-modal">
+    <div class="bil-modal-container">
+        <div class="bil-modal-header">
+            <h2 class="bil-modal-title" id="invoice-modal-title">Tạo hóa đơn</h2>
+            <button class="bil-modal-close" id="btn-close-invoice-modal">✕</button>
+        </div>
+        <div class="bil-modal-body">
+            <div class="form-group">
+                <label class="form-label">Cư dân <span style="color:#f04438;">*</span></label>
+                <select class="form-select" id="invoice-resident" required></select>
+                <small id="invoice-resident-package-hint" style="font-size:12px; color:#667085;"></small>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Kỳ thanh toán <span style="color:#f04438;">*</span></label>
+                    <input type="month" class="form-input" id="invoice-period" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Hạn thanh toán</label>
+                    <input type="date" class="form-input" id="invoice-due-date" />
+                </div>
+            </div>
+
+            <div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label class="form-label">Dòng mục hóa đơn</label>
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" class="btn-secondary-action" style="padding:6px 12px; font-size:12.5px;" id="btn-add-package-line">+ Theo gói hiện tại</button>
+                        <button type="button" class="btn-secondary-action" style="padding:6px 12px; font-size:12.5px;" id="btn-add-item-line">+ Thêm dòng</button>
+                    </div>
+                </div>
+                <table class="bil-items-table">
+                    <thead>
+                        <tr><th style="width:44%;">Mô tả</th><th style="width:16%;">SL</th><th style="width:22%;">Đơn giá</th><th style="width:16%;">Thành tiền</th><th></th></tr>
+                    </thead>
+                    <tbody id="invoice-items-body"></tbody>
+                </table>
+                <div class="bil-items-total">Tổng cộng: <span id="invoice-total-display">0 đ</span></div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Ghi chú</label>
+                <textarea class="form-textarea" id="invoice-note"></textarea>
+            </div>
+        </div>
+        <div class="bil-modal-footer">
+            <button type="button" class="btn-secondary-action" id="btn-cancel-invoice">Hủy</button>
+            <button type="button" class="btn-primary-action" id="btn-save-invoice">Lưu hóa đơn</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================= MODAL: CHI TIẾT HÓA ĐƠN ============================= -->
+<div class="bil-modal-overlay" id="invoice-detail-modal">
+    <div class="bil-modal-container">
+        <div class="bil-modal-header">
+            <h2 class="bil-modal-title">Chi tiết hóa đơn <span id="detail-invoice-code"></span></h2>
+            <button class="bil-modal-close" id="btn-close-invoice-detail">✕</button>
+        </div>
+        <div class="bil-modal-body">
+            <div class="form-row">
+                <div><div class="form-label">Cư dân</div><div id="detail-resident-name" style="font-size:14px; font-weight:600; color:#101828;">-</div></div>
+                <div><div class="form-label">Kỳ</div><div id="detail-period" style="font-size:14px; font-weight:600; color:#101828;">-</div></div>
+            </div>
+            <div class="form-row">
+                <div><div class="form-label">Trạng thái</div><div id="detail-status-badge">-</div></div>
+                <div><div class="form-label">Hạn thanh toán</div><div id="detail-due-date" style="font-size:14px; color:#344054;">-</div></div>
+            </div>
+
+            <div>
+                <div class="form-label" style="margin-bottom:6px;">Dòng mục</div>
+                <table class="bil-table" style="border:1px solid #eaecf0; border-radius:8px;">
+                    <thead><tr><th>Mô tả</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
+                    <tbody id="detail-items-body"></tbody>
+                </table>
+                <div class="bil-items-total">Tổng cộng: <span id="detail-total-display">0 đ</span></div>
+            </div>
+
+            <div id="detail-note-section">
+                <div class="form-label">Ghi chú</div>
+                <div id="detail-note-text" style="font-size:13.5px; color:#475467;">-</div>
+            </div>
+
+            <div>
+                <div class="form-label" style="margin-bottom:6px;">Lịch sử thanh toán</div>
+                <div id="detail-payments-list"></div>
+                <div class="bil-empty" id="detail-payments-empty" style="display:none; padding:16px;">Chưa có khoản thanh toán nào.</div>
+            </div>
+
+            <!-- Family: thanh toán online. KHÔNG gắn data-roles ở đây — hiện/ẩn
+                 đã do JS tự kiểm soát theo cả role LẪN trạng thái hóa đơn
+                 (canPay); nếu thêm data-roles, applyDataRolesWithin() chạy sau
+                 sẽ ghi đè set lại display="" bất kể hóa đơn đã thanh toán hay chưa. -->
+            <div id="family-payment-section" style="display:none;">
+                <div class="bil-bank-box" id="bank-info-box">Chưa có thông tin ngân hàng.</div>
+                <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap:wrap;">
+                    <button type="button" class="btn-primary-action" id="btn-pay-vnpay">
+                        Thanh toán online qua VNPay
+                    </button>
+                </div>
+                <div id="vnpay-status-msg" style="display:none; margin-top:10px; font-size:13px; color:#667085;"></div>
+            </div>
+
+        </div>
+        <div class="bil-modal-footer" data-roles="admin,manager">
+            <button type="button" class="btn-danger-text" id="btn-delete-invoice">Xóa hóa đơn</button>
+            <button type="button" class="btn-secondary-action" id="btn-edit-invoice">Sửa hóa đơn</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================= MODAL: THÊM / SỬA GÓI DỊCH VỤ ============================= -->
+<div class="bil-modal-overlay" id="package-modal">
+    <div class="bil-modal-container narrow">
+        <div class="bil-modal-header">
+            <h2 class="bil-modal-title" id="package-modal-title">Thêm gói dịch vụ</h2>
+            <button class="bil-modal-close" id="btn-close-package-modal">✕</button>
+        </div>
+        <div class="bil-modal-body">
+            <div class="form-group">
+                <label class="form-label">Tên gói <span style="color:#f04438;">*</span></label>
+                <input type="text" class="form-input" id="package-name" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mô tả</label>
+                <textarea class="form-textarea" id="package-description"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Giá / tháng (VNĐ) <span style="color:#f04438;">*</span></label>
+                <input type="number" class="form-input" id="package-price" min="0" step="1000" required />
+            </div>
+            <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; color:#344054;">
+                <input type="checkbox" id="package-is-active" checked /> Đang áp dụng
+            </label>
+        </div>
+        <div class="bil-modal-footer">
+            <button type="button" class="btn-secondary-action" id="btn-cancel-package">Hủy</button>
+            <button type="button" class="btn-primary-action" id="btn-save-package">Lưu gói dịch vụ</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-popup" id="toast-notify"><span id="toast-text"></span></div>
+
+@section Scripts {
+<script>
+    let residentsCache = [];
+    let packagesCache = [];
+    let invoicesCache = [];
+    let invoiceItemRows = [];
+    let editingInvoiceId = null;
+    let editingPackageId = null;
+    let activeInvoiceId = null;
+    let currentResidentPackage = null;
+
+    function formatVND(n) {
+        if (n === null || n === undefined || isNaN(n)) return "0 đ";
+        return Number(n).toLocaleString("vi-VN") + " đ";
+    }
+
+    function formatDateVN(iso) {
+        if (!iso) return "";
+        const parts = iso.split("-");
+        if (parts.length !== 3) return iso;
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+
+    function escapeHtml(text) {
+        return String(text || "")
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById("toast-notify");
+        document.getElementById("toast-text").innerText = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 3500);
+    }
+
+    function applyDataRolesWithin(container, role) {
+        if (!container || !role) return;
+        container.querySelectorAll("[data-roles]").forEach(el => {
+            const allowed = el.getAttribute("data-roles").split(",").map(r => r.trim());
+            el.style.display = allowed.indexOf(role) === -1 ? "none" : "";
+        });
+    }
+
+    // ==========================================================================
+    // RESIDENTS / PACKAGES CACHE
+    // ==========================================================================
+    async function loadResidentsCache() {
+        const { data, error } = await window.sb
+            .from("residents")
+            .select("resident_id, full_name, rooms(room_code)")
+            .eq("is_active", true)
+            .order("full_name");
+
+        residentsCache = error ? [] : (data || []).map(r => ({
+            id: r.resident_id,
+            name: r.full_name,
+            room: r.rooms ? r.rooms.room_code : "---"
+        }));
+    }
+
+    function populateResidentSelects() {
+        const opts = residentsCache.map(r => `<option value="${r.id}">${escapeHtml(r.name)} - Phòng ${escapeHtml(r.room)}</option>`).join("");
+
+        const invoiceResident = document.getElementById("invoice-resident");
+        if (invoiceResident) invoiceResident.innerHTML = `<option value="" disabled selected>-- Chọn --</option>` + opts;
+
+        const filterResident = document.getElementById("filter-resident");
+        if (filterResident) filterResident.innerHTML = `<option value="all">Tất cả cư dân</option>` + opts;
+    }
+
+    async function loadPackagesCache() {
+        const { data, error } = await window.sb
+            .from("service_packages")
+            .select("service_package_id, name, description, monthly_price, is_active")
+            .order("name");
+
+        packagesCache = error ? [] : (data || []).map(p => ({
+            id: p.service_package_id,
+            name: p.name,
+            description: p.description,
+            price: p.monthly_price,
+            isActive: p.is_active
+        }));
+    }
+
+    function renderPackagesTable() {
+        const tbody = document.getElementById("packages-table-body");
+        if (!tbody) return;
+        tbody.innerHTML = packagesCache.map(p => `
+            <tr>
+                <td style="font-weight:600;">${escapeHtml(p.name)}</td>
+                <td style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.description || "")}</td>
+                <td>${formatVND(p.price)}</td>
+                <td><span class="bil-badge ${p.isActive ? "bil-badge-paid" : "bil-badge-cancelled"}">${p.isActive ? "Đang áp dụng" : "Ngừng"}</span></td>
+                <td style="text-align:right;"><a href="#" class="bil-link" data-id="${p.id}" data-action="edit-package">Sửa</a></td>
+            </tr>
+        `).join("");
+    }
+
+    async function loadBankInfo() {
+        const { data } = await window.sb.from("app_settings").select("bank_name, bank_account_no, bank_account_holder").eq("id", 1).single();
+        const box = document.getElementById("bank-info-box");
+        if (!box) return;
+        if (data && (data.bank_name || data.bank_account_no)) {
+            box.innerHTML = `<b>Thông tin chuyển khoản:</b><br/>Ngân hàng: ${escapeHtml(data.bank_name || "")}<br/>Số tài khoản: ${escapeHtml(data.bank_account_no || "")}<br/>Chủ tài khoản: ${escapeHtml(data.bank_account_holder || "")}<br/><i>Vui lòng ghi rõ mã hóa đơn trong nội dung chuyển khoản.</i>`;
+        } else {
+            box.innerText = "Trung tâm chưa cập nhật thông tin ngân hàng. Vui lòng liên hệ nhân viên.";
+        }
+    }
+
+    // ==========================================================================
+    // INVOICES LIST
+    // ==========================================================================
+    async function loadInvoices() {
+        const { data, error } = await window.sb
+            .from("invoices")
+            .select("invoice_id, invoice_code, resident_id, billing_month, billing_year, due_date, total_amount, status, note, residents(full_name)")
+            .order("created_at", { ascending: false });
+
+        if (error) {
+            console.error(error);
+            showToast("Không tải được danh sách hóa đơn: " + error.message);
+            invoicesCache = [];
+        } else {
+            invoicesCache = (data || []).map(row => ({
+                id: row.invoice_id,
+                code: row.invoice_code,
+                residentId: row.resident_id,
+                residentName: row.residents ? row.residents.full_name : "",
+                month: row.billing_month,
+                year: row.billing_year,
+                dueDate: row.due_date,
+                total: row.total_amount,
+                status: row.status,
+                note: row.note
+            }));
+        }
+        renderInvoicesTable();
+    }
+
+    function statusBadgeClass(status) {
+        if (status === "Đã thanh toán") return "bil-badge-paid";
+        if (status === "Quá hạn") return "bil-badge-overdue";
+        if (status === "Đã hủy") return "bil-badge-cancelled";
+        return "bil-badge-unpaid";
+    }
+
+    function renderInvoicesTable() {
+        const tbody = document.getElementById("invoices-table-body");
+        const empty = document.getElementById("invoices-empty");
+        if (!tbody) return;
+
+        const residentFilterEl = document.getElementById("filter-resident");
+        const residentFilter = residentFilterEl ? residentFilterEl.value : "all";
+        const statusFilter = document.getElementById("filter-status").value;
+        const monthFilter = document.getElementById("filter-month").value;
+
+        const filtered = invoicesCache.filter(inv => {
+            if (residentFilter !== "all" && String(inv.residentId) !== residentFilter) return false;
+            if (statusFilter !== "all" && inv.status !== statusFilter) return false;
+            if (monthFilter) {
+                const [y, m] = monthFilter.split("-").map(Number);
+                if (inv.year !== y || inv.month !== m) return false;
+            }
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = "";
+            empty.style.display = "block";
+            return;
+        }
+        empty.style.display = "none";
+
+        tbody.innerHTML = filtered.map(inv => `
+            <tr>
+                <td><a href="#" class="bil-link" data-id="${inv.id}" data-action="open-detail">${escapeHtml(inv.code || ("#" + inv.id))}</a></td>
+                <td data-roles="admin,manager">${escapeHtml(inv.residentName)}</td>
+                <td>${String(inv.month).padStart(2, "0")}/${inv.year}</td>
+                <td>${formatVND(inv.total)}</td>
+                <td><span class="bil-badge ${statusBadgeClass(inv.status)}">${inv.status}</span></td>
+                <td>${inv.dueDate ? formatDateVN(inv.dueDate) : "-"}</td>
+                <td style="text-align:right;"><a href="#" class="bil-link" data-id="${inv.id}" data-action="open-detail">Xem</a></td>
+            </tr>
+        `).join("");
+
+        if (window.currentUser) applyDataRolesWithin(tbody, window.currentUser.role);
+    }
+
+    // ==========================================================================
+    // CREATE / EDIT INVOICE MODAL
+    // ==========================================================================
+    function renderItemRows() {
+        const tbody = document.getElementById("invoice-items-body");
+        tbody.innerHTML = invoiceItemRows.map((row, idx) => `
+            <tr>
+                <td><input type="text" value="${escapeHtml(row.description)}" data-idx="${idx}" data-field="description" class="item-input" /></td>
+                <td><input type="number" min="0" step="0.5" value="${row.quantity}" data-idx="${idx}" data-field="quantity" class="item-input" /></td>
+                <td><input type="number" min="0" step="1000" value="${row.unitPrice}" data-idx="${idx}" data-field="unitPrice" class="item-input" /></td>
+                <td class="bil-item-amount">${formatVND(row.quantity * row.unitPrice)}</td>
+                <td><button type="button" class="bil-item-remove" data-idx="${idx}" data-action="remove-item">✕</button></td>
+            </tr>
+        `).join("");
+        updateInvoiceTotalDisplay();
+    }
+
+    function updateInvoiceTotalDisplay() {
+        const total = invoiceItemRows.reduce((s, r) => s + (r.quantity * r.unitPrice), 0);
+        document.getElementById("invoice-total-display").innerText = formatVND(total);
+    }
+
+    function addItemRow(description, quantity, unitPrice) {
+        invoiceItemRows.push({ description: description || "", quantity: quantity || 1, unitPrice: unitPrice || 0 });
+        renderItemRows();
+    }
+
+    document.addEventListener("input", function (e) {
+        if (!e.target.classList.contains("item-input")) return;
+        const idx = parseInt(e.target.getAttribute("data-idx"), 10);
+        const field = e.target.getAttribute("data-field");
+        let value = e.target.value;
+        if (field === "quantity" || field === "unitPrice") value = parseFloat(value) || 0;
+        invoiceItemRows[idx][field] = value;
+        if (field !== "description") updateInvoiceTotalDisplay();
+        // Cập nhật lại số tiền hiển thị trên chính dòng đang gõ mà không mất focus
+        const row = e.target.closest("tr");
+        const amountCell = row.querySelector(".bil-item-amount");
+        if (amountCell) amountCell.innerText = formatVND(invoiceItemRows[idx].quantity * invoiceItemRows[idx].unitPrice);
+    });
+
+    document.addEventListener("click", function (e) {
+        const removeBtn = e.target.closest("[data-action='remove-item']");
+        if (removeBtn) {
+            invoiceItemRows.splice(parseInt(removeBtn.getAttribute("data-idx"), 10), 1);
+            renderItemRows();
+            return;
+        }
+        const openDetailLink = e.target.closest("[data-action='open-detail']");
+        if (openDetailLink) {
+            e.preventDefault();
+            openInvoiceDetail(parseInt(openDetailLink.getAttribute("data-id"), 10));
+            return;
+        }
+        const editPackageLink = e.target.closest("[data-action='edit-package']");
+        if (editPackageLink) {
+            e.preventDefault();
+            openEditPackageModal(parseInt(editPackageLink.getAttribute("data-id"), 10));
+            return;
+        }
+        const confirmPaymentBtn = e.target.closest("[data-action='confirm-payment']");
+        if (confirmPaymentBtn) {
+            e.preventDefault();
+            confirmPayment(parseInt(confirmPaymentBtn.getAttribute("data-id"), 10));
+            return;
+        }
+        const syncVnpayBtn = e.target.closest("[data-action='sync-vnpay']");
+        if (syncVnpayBtn) {
+            e.preventDefault();
+            syncVnpayStatus(syncVnpayBtn.getAttribute("data-txnref"), syncVnpayBtn);
+        }
+    });
+
+    const invoiceModal = document.getElementById("invoice-modal");
+
+    function closeInvoiceModal() {
+        invoiceModal.classList.remove("active");
+    }
+
+    async function openCreateInvoiceModal() {
+        editingInvoiceId = null;
+        currentResidentPackage = null;
+        document.getElementById("invoice-modal-title").innerText = "Tạo hóa đơn";
+        document.getElementById("invoice-resident").selectedIndex = 0;
+        document.getElementById("invoice-resident").disabled = false;
+
+        const now = new Date();
+        document.getElementById("invoice-period").value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        document.getElementById("invoice-due-date").value = "";
+        document.getElementById("invoice-note").value = "";
+        document.getElementById("invoice-resident-package-hint").innerText = "";
+
+        invoiceItemRows = [];
+        renderItemRows();
+        invoiceModal.classList.add("active");
+    }
+
+    async function openEditInvoiceModal(invoiceId) {
+        const inv = invoicesCache.find(i => i.id === invoiceId);
+        if (!inv) return;
+        editingInvoiceId = invoiceId;
+
+        document.getElementById("invoice-modal-title").innerText = "Sửa hóa đơn " + (inv.code || "");
+        document.getElementById("invoice-resident").value = inv.residentId;
+        document.getElementById("invoice-period").value = `${inv.year}-${String(inv.month).padStart(2, "0")}`;
+        document.getElementById("invoice-due-date").value = inv.dueDate || "";
+        document.getElementById("invoice-note").value = inv.note || "";
+        document.getElementById("invoice-resident-package-hint").innerText = "";
+
+        const { data } = await window.sb
+            .from("invoice_items")
+            .select("description, quantity, unit_price")
+            .eq("invoice_id", invoiceId)
+            .order("invoice_item_id");
+
+        invoiceItemRows = (data || []).map(r => ({ description: r.description, quantity: Number(r.quantity), unitPrice: Number(r.unit_price) }));
+        renderItemRows();
+
+        invoiceModal.classList.add("active");
+    }
+
+    document.getElementById("btn-open-create-invoice").addEventListener("click", openCreateInvoiceModal);
+    document.getElementById("btn-close-invoice-modal").addEventListener("click", closeInvoiceModal);
+    document.getElementById("btn-cancel-invoice").addEventListener("click", closeInvoiceModal);
+    invoiceModal.addEventListener("click", function (e) { if (e.target === invoiceModal) closeInvoiceModal(); });
+
+    document.getElementById("invoice-resident").addEventListener("change", async function () {
+        const residentId = this.value;
+        const hintEl = document.getElementById("invoice-resident-package-hint");
+        if (!residentId) { hintEl.innerText = ""; currentResidentPackage = null; return; }
+
+        const { data } = await window.sb
+            .from("resident_service_packages")
+            .select("service_packages(name, monthly_price)")
+            .eq("resident_id", residentId)
+            .is("end_date", null)
+            .order("start_date", { ascending: false })
+            .limit(1);
+
+        if (data && data.length > 0 && data[0].service_packages) {
+            currentResidentPackage = { name: data[0].service_packages.name, price: data[0].service_packages.monthly_price };
+            hintEl.innerText = `Gói hiện tại: ${currentResidentPackage.name} (${formatVND(currentResidentPackage.price)}/tháng)`;
+        } else {
+            currentResidentPackage = null;
+            hintEl.innerText = "Cư dân chưa được gán gói dịch vụ nào.";
+        }
+    });
+
+    document.getElementById("btn-add-package-line").addEventListener("click", function () {
+        if (!currentResidentPackage) { alert("Cư dân này chưa có gói dịch vụ đang áp dụng, hoặc bạn chưa chọn cư dân."); return; }
+        addItemRow(`Phí dịch vụ - ${currentResidentPackage.name}`, 1, currentResidentPackage.price);
+    });
+    document.getElementById("btn-add-item-line").addEventListener("click", function () { addItemRow("", 1, 0); });
+
+    document.getElementById("btn-save-invoice").addEventListener("click", async function () {
+        const residentId = document.getElementById("invoice-resident").value;
+        const period = document.getElementById("invoice-period").value;
+        const dueDate = document.getElementById("invoice-due-date").value || null;
+        const note = document.getElementById("invoice-note").value.trim();
+
+        if (!residentId || !period || invoiceItemRows.length === 0) {
+            alert("Vui lòng chọn cư dân, kỳ thanh toán và ít nhất 1 dòng mục.");
+            return;
+        }
+
+        const [year, month] = period.split("-").map(Number);
+        const btn = this;
+        btn.disabled = true;
+        btn.textContent = "Đang lưu...";
+
+        try {
+            let invoiceId = editingInvoiceId;
+            if (!invoiceId) {
+                const { data, error } = await window.sb.from("invoices").insert({
+                    resident_id: parseInt(residentId, 10),
+                    billing_month: month,
+                    billing_year: year,
+                    due_date: dueDate,
+                    note: note || null
+                }).select("invoice_id").single();
+                if (error) throw error;
+                invoiceId = data.invoice_id;
+            } else {
+                const { error } = await window.sb.from("invoices").update({
+                    resident_id: parseInt(residentId, 10),
+                    billing_month: month,
+                    billing_year: year,
+                    due_date: dueDate,
+                    note: note || null,
+                    updated_at: new Date().toISOString()
+                }).eq("invoice_id", invoiceId);
+                if (error) throw error;
+
+                const { error: delErr } = await window.sb.from("invoice_items").delete().eq("invoice_id", invoiceId);
+                if (delErr) throw delErr;
+            }
+
+            const itemRows = invoiceItemRows.map(r => ({
+                invoice_id: invoiceId,
+                description: r.description || "(Không có mô tả)",
+                quantity: r.quantity,
+                unit_price: r.unitPrice,
+                amount: r.quantity * r.unitPrice
+            }));
+            const { error: itemsError } = await window.sb.from("invoice_items").insert(itemRows);
+            if (itemsError) throw itemsError;
+
+            closeInvoiceModal();
+            showToast(editingInvoiceId ? "Đã cập nhật hóa đơn." : "Đã tạo hóa đơn mới.");
+            await loadInvoices();
+        } catch (err) {
+            console.error(err);
+            alert("Không thể lưu hóa đơn: " + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Lưu hóa đơn";
+        }
+    });
+
+    // ==========================================================================
+    // INVOICE DETAIL MODAL
+    // ==========================================================================
+    const invoiceDetailModal = document.getElementById("invoice-detail-modal");
+
+    function closeInvoiceDetailModal() {
+        invoiceDetailModal.classList.remove("active");
+        activeInvoiceId = null;
+    }
+
+    async function openInvoiceDetail(invoiceId) {
+        const inv = invoicesCache.find(i => i.id === invoiceId);
+        if (!inv) return;
+        activeInvoiceId = invoiceId;
+
+        document.getElementById("detail-invoice-code").innerText = inv.code || ("#" + inv.id);
+        document.getElementById("detail-resident-name").innerText = inv.residentName;
+        document.getElementById("detail-period").innerText = `${String(inv.month).padStart(2, "0")}/${inv.year}`;
+        document.getElementById("detail-due-date").innerText = inv.dueDate ? formatDateVN(inv.dueDate) : "Không có";
+        document.getElementById("detail-note-text").innerText = inv.note || "Không có";
+        document.getElementById("detail-status-badge").innerHTML = `<span class="bil-badge ${statusBadgeClass(inv.status)}">${inv.status}</span>`;
+
+        const { data: items } = await window.sb
+            .from("invoice_items")
+            .select("description, quantity, unit_price, amount")
+            .eq("invoice_id", invoiceId)
+            .order("invoice_item_id");
+
+        document.getElementById("detail-items-body").innerHTML = (items || []).map(it => `
+            <tr><td>${escapeHtml(it.description)}</td><td>${it.quantity}</td><td>${formatVND(it.unit_price)}</td><td>${formatVND(it.amount)}</td></tr>
+        `).join("");
+        document.getElementById("detail-total-display").innerText = formatVND(inv.total);
+
+        await loadAndRenderPayments(invoiceId);
+
+        const canPay = inv.status !== "Đã thanh toán" && inv.status !== "Đã hủy";
+        const familySection = document.getElementById("family-payment-section");
+        if (familySection) {
+            familySection.style.display = (window.currentUser && window.currentUser.role === "family" && canPay) ? "block" : "none";
+        }
+        // Hóa đơn đã thanh toán bị khóa ở tầng DB (trigger trg_protect_paid_invoice
+        // chặn cả admin) — ẩn luôn nút Sửa/Xóa ở đây để không hiện lỗi khó hiểu.
+        const isPaid = inv.status === "Đã thanh toán";
+        document.getElementById("btn-delete-invoice").style.display = isPaid ? "none" : "";
+        document.getElementById("btn-edit-invoice").style.display = isPaid ? "none" : "";
+
+        if (window.currentUser) applyDataRolesWithin(invoiceDetailModal, window.currentUser.role);
+        invoiceDetailModal.classList.add("active");
+    }
+
+    async function loadAndRenderPayments(invoiceId) {
+        const { data } = await window.sb
+            .from("payments")
+            .select("payment_id, amount, method, status, transaction_ref, paid_at, profiles(full_name)")
+            .eq("invoice_id", invoiceId)
+            .order("paid_at", { ascending: false });
+
+        const list = document.getElementById("detail-payments-list");
+        const empty = document.getElementById("detail-payments-empty");
+
+        if (!data || data.length === 0) {
+            list.innerHTML = "";
+            empty.style.display = "block";
+            return;
+        }
+        empty.style.display = "none";
+
+        const isStaff = window.currentUser && ["admin", "manager"].indexOf(window.currentUser.role) !== -1;
+        list.innerHTML = data.map(p => {
+            const badgeClass = p.status === "Thành công" ? "bil-badge-success" : (p.status === "Thất bại" ? "bil-badge-failed" : "bil-badge-pending");
+            const confirmBtn = (isStaff && p.status === "Chờ xác nhận")
+                ? `<button type="button" data-action="confirm-payment" data-id="${p.payment_id}" style="margin-left:8px; border:none; background:none; color:var(--color-primary); font-weight:600; cursor:pointer;">Xác nhận</button>`
+                : "";
+            // Nút đối soát thủ công: dùng khi IPN của VNPay chưa gọi về được —
+            // chủ động hỏi thẳng VNPay qua API querydr thay vì ngồi chờ.
+            const syncBtn = (p.method === "VNPay" && p.status === "Chờ xác nhận" && p.transaction_ref)
+                ? `<button type="button" data-action="sync-vnpay" data-txnref="${escapeHtml(p.transaction_ref)}" style="margin-left:8px; border:none; background:none; color:#667085; font-weight:600; cursor:pointer;">Đồng bộ với VNPay</button>`
+                : "";
+            return `<div class="bil-payment-row">
+                <span>${formatDateVN((p.paid_at || "").substring(0, 10))} &middot; ${escapeHtml(p.method)} &middot; ${escapeHtml(p.profiles ? p.profiles.full_name : "")}${p.transaction_ref ? " &middot; " + escapeHtml(p.transaction_ref) : ""}</span>
+                <span>${formatVND(p.amount)} <span class="bil-badge ${badgeClass}">${p.status}</span>${confirmBtn}${syncBtn}</span>
+            </div>`;
+        }).join("");
+    }
+
+    async function syncVnpayStatus(transactionRef, btnEl) {
+        if (!transactionRef) return;
+        const originalText = btnEl.textContent;
+        btnEl.disabled = true;
+        btnEl.textContent = "Đang đồng bộ...";
+
+        const { data, error } = await window.sb.functions.invoke("vnpay-query-status", {
+            body: { transaction_ref: transactionRef }
+        });
+
+        btnEl.disabled = false;
+        btnEl.textContent = originalText;
+
+        if (error || !data || data.error) {
+            alert("Không thể đồng bộ: " + ((data && data.error) || (error && error.message) || "Lỗi không xác định"));
+            return;
+        }
+
+        if (data.status === "Chờ xác nhận") {
+            showToast(data.message || "VNPay vẫn chưa xử lý xong giao dịch này.");
+            return;
+        }
+
+        showToast(data.status === "Thành công" ? "Đã đồng bộ: thanh toán thành công!" : "Đã đồng bộ: giao dịch thất bại.");
+        await loadInvoices();
+        if (activeInvoiceId) await openInvoiceDetail(activeInvoiceId);
+    }
+
+    async function confirmPayment(paymentId) {
+        if (!confirm("Xác nhận đã nhận được khoản thanh toán này?")) return;
+        const { error } = await window.sb.from("payments").update({ status: "Thành công" }).eq("payment_id", paymentId);
+        if (error) { alert("Không thể xác nhận: " + error.message); return; }
+        showToast("Đã xác nhận thanh toán.");
+        await loadInvoices();
+        await openInvoiceDetail(activeInvoiceId);
+    }
+
+    document.getElementById("btn-close-invoice-detail").addEventListener("click", closeInvoiceDetailModal);
+    invoiceDetailModal.addEventListener("click", function (e) { if (e.target === invoiceDetailModal) closeInvoiceDetailModal(); });
+
+    document.getElementById("btn-pay-vnpay").addEventListener("click", async function () {
+        if (!activeInvoiceId) return;
+        const btn = this;
+        const statusMsg = document.getElementById("vnpay-status-msg");
+        btn.disabled = true;
+        statusMsg.style.display = "block";
+        statusMsg.textContent = "Đang tạo liên kết thanh toán VNPay...";
+
+        const returnUrl = window.location.origin + window.location.pathname + "?vnpay_return=1&invoice_id=" + activeInvoiceId;
+        const { data, error } = await window.sb.functions.invoke("vnpay-create-payment", {
+            body: { invoice_id: activeInvoiceId, return_url: returnUrl }
+        });
+
+        if (error || !data || data.error || !data.paymentUrl) {
+            const msg = (data && data.error) || (error && error.message) || "Không thể tạo liên kết thanh toán.";
+            statusMsg.textContent = "Lỗi: " + msg;
+            btn.disabled = false;
+            return;
+        }
+
+        statusMsg.textContent = "Đang chuyển tới trang thanh toán VNPay (sandbox)...";
+        window.location.href = data.paymentUrl;
+    });
+
+    document.getElementById("btn-delete-invoice").addEventListener("click", async function () {
+        if (!activeInvoiceId) return;
+        if (!confirm("Xóa hóa đơn này? Toàn bộ dòng mục và lịch sử thanh toán liên quan cũng sẽ bị xóa.")) return;
+
+        const { error } = await window.sb.from("invoices").delete().eq("invoice_id", activeInvoiceId);
+        if (error) { alert("Không thể xóa: " + error.message); return; }
+
+        closeInvoiceDetailModal();
+        showToast("Đã xóa hóa đơn.");
+        await loadInvoices();
+    });
+
+    document.getElementById("btn-edit-invoice").addEventListener("click", function () {
+        if (!activeInvoiceId) return;
+        const id = activeInvoiceId;
+        closeInvoiceDetailModal();
+        openEditInvoiceModal(id);
+    });
+
+    // ==========================================================================
+    // SERVICE PACKAGE MODAL
+    // ==========================================================================
+    const packageModal = document.getElementById("package-modal");
+
+    function closePackageModal() {
+        packageModal.classList.remove("active");
+    }
+
+    function openCreatePackageModal() {
+        editingPackageId = null;
+        document.getElementById("package-modal-title").innerText = "Thêm gói dịch vụ";
+        document.getElementById("package-name").value = "";
+        document.getElementById("package-description").value = "";
+        document.getElementById("package-price").value = "";
+        document.getElementById("package-is-active").checked = true;
+        packageModal.classList.add("active");
+    }
+
+    function openEditPackageModal(id) {
+        const p = packagesCache.find(x => x.id === id);
+        if (!p) return;
+        editingPackageId = id;
+        document.getElementById("package-modal-title").innerText = "Sửa gói dịch vụ";
+        document.getElementById("package-name").value = p.name;
+        document.getElementById("package-description").value = p.description || "";
+        document.getElementById("package-price").value = p.price;
+        document.getElementById("package-is-active").checked = p.isActive;
+        packageModal.classList.add("active");
+    }
+
+    document.getElementById("btn-open-create-package").addEventListener("click", openCreatePackageModal);
+    document.getElementById("btn-close-package-modal").addEventListener("click", closePackageModal);
+    document.getElementById("btn-cancel-package").addEventListener("click", closePackageModal);
+    packageModal.addEventListener("click", function (e) { if (e.target === packageModal) closePackageModal(); });
+
+    document.getElementById("btn-save-package").addEventListener("click", async function () {
+        const name = document.getElementById("package-name").value.trim();
+        const description = document.getElementById("package-description").value.trim();
+        const price = parseFloat(document.getElementById("package-price").value);
+        const isActive = document.getElementById("package-is-active").checked;
+
+        if (!name || isNaN(price)) { alert("Vui lòng nhập đủ tên gói và giá."); return; }
+
+        try {
+            if (editingPackageId) {
+                const { error } = await window.sb.from("service_packages").update({
+                    name, description: description || null, monthly_price: price, is_active: isActive
+                }).eq("service_package_id", editingPackageId);
+                if (error) throw error;
+            } else {
+                const { error } = await window.sb.from("service_packages").insert({
+                    name, description: description || null, monthly_price: price, is_active: isActive
+                });
+                if (error) throw error;
+            }
+
+            closePackageModal();
+            showToast("Đã lưu gói dịch vụ.");
+            await loadPackagesCache();
+            renderPackagesTable();
+        } catch (err) {
+            alert("Không thể lưu gói dịch vụ: " + err.message);
+        }
+    });
+
+    // ==========================================================================
+    // FILTERS
+    // ==========================================================================
+    document.getElementById("filter-resident").addEventListener("change", renderInvoicesTable);
+    document.getElementById("filter-status").addEventListener("change", renderInvoicesTable);
+    document.getElementById("filter-month").addEventListener("change", renderInvoicesTable);
+    document.getElementById("btn-clear-filters").addEventListener("click", function () {
+        document.getElementById("filter-resident").value = "all";
+        document.getElementById("filter-status").value = "all";
+        document.getElementById("filter-month").value = "";
+        renderInvoicesTable();
+    });
+
+    // ==========================================================================
+    // INIT
+    // ==========================================================================
+    document.addEventListener("DOMContentLoaded", async function () {
+        await Promise.all([loadResidentsCache(), loadPackagesCache(), loadBankInfo()]);
+        populateResidentSelects();
+        renderPackagesTable();
+        await loadInvoices();
+    });
+
+    document.addEventListener("silvercare:auth-ready", async function () {
+        // RLS đã tự lọc dữ liệu theo vai trò — chỉ cần tải lại để phản ánh đúng quyền
+        await loadInvoices();
+        await handleVnpayReturn();
+    });
+
+    // Sau khi VNPay chuyển trình duyệt về đây, KHÔNG tin bất kỳ tham số nào
+    // trên URL (người dùng có thể tự sửa vnp_ResponseCode=00 trên thanh địa
+    // chỉ). Trạng thái thật chỉ do vnpay-ipn ghi vào DB. Vì IPN có thể chưa
+    // được VNPay gọi kịp (hoặc chưa cấu hình xong ở phía VNPay), ở đây CHỦ
+    // ĐỘNG gọi thẳng vnpay-query-status để tự đối soát — không ngồi chờ thụ
+    // động — nên người dùng không cần tự bấm nút "Đồng bộ với VNPay" nữa.
+    async function handleVnpayReturn() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("vnpay_return") !== "1") return;
+        const invoiceId = parseInt(params.get("invoice_id"), 10);
+
+        // Xóa query string khỏi URL để không xử lý lại nếu người dùng F5
+        history.replaceState(null, "", window.location.pathname);
+
+        if (!invoiceId) return;
+        showToast("Đang xác nhận kết quả thanh toán VNPay...");
+
+        const { data: pendingPays } = await window.sb
+            .from("payments")
+            .select("transaction_ref, status")
+            .eq("invoice_id", invoiceId)
+            .eq("method", "VNPay")
+            .order("payment_id", { ascending: false })
+            .limit(1);
+        const txnRef = pendingPays && pendingPays[0] ? pendingPays[0].transaction_ref : null;
+
+        let finalStatus = null;
+        for (let i = 0; i < 5; i++) {
+            await new Promise((r) => setTimeout(r, 1500));
+
+            // Ưu tiên hỏi thẳng VNPay (đường chủ động) — nếu IPN đã tự cập
+            // nhật trước đó thì query-status trả về ngay trạng thái đã có,
+            // không gọi lại VNPay lần nữa.
+            if (txnRef) {
+                const { data: syncData } = await window.sb.functions.invoke("vnpay-query-status", { body: { transaction_ref: txnRef } });
+                if (syncData && syncData.status === "Thành công") { finalStatus = "success"; break; }
+                if (syncData && syncData.status === "Thất bại") { finalStatus = "failed"; break; }
+            }
+        }
+
+        await loadInvoices();
+        await openInvoiceDetail(invoiceId);
+
+        if (finalStatus === "success") {
+            showToast("Thanh toán VNPay thành công!");
+        } else if (finalStatus === "failed") {
+            showToast("Thanh toán VNPay không thành công.");
+        } else {
+            showToast("Chưa nhận được xác nhận từ VNPay — bấm \"Đồng bộ với VNPay\" trong vài phút nữa để kiểm tra lại.");
+        }
+    }
+</script>
+}

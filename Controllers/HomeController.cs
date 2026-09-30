@@ -75,14 +75,14 @@ namespace SilverCare.Controllers
 
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
         [HttpGet]
-        public IActionResult Medicine()
+        public IActionResult Report()
         {
             return View();
         }
 
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
         [HttpGet]
-        public IActionResult Report()
+        public IActionResult Billing()
         {
             return View();
         }

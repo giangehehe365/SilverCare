@@ -78,11 +78,37 @@
     </form>
 </div>
 
+<div class="ss-card" style="margin-top: 20px;">
+    <h2 class="ss-section-title">Thông tin ngân hàng nhận thanh toán</h2>
+    <p style="font-size: 13px; color: #667085; margin-top: -10px; margin-bottom: 18px;">
+        Hiển thị cho người nhà khi chuyển khoản viện phí ở trang "Thanh toán &amp; viện phí".
+    </p>
+    <form id="bankForm">
+        <div class="form-group">
+            <label class="form-label" for="bank-name">Ngân hàng</label>
+            <input type="text" id="bank-name" class="form-input" placeholder="VD: Vietcombank - CN Quận 1" />
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="bank-account-no">Số tài khoản</label>
+            <input type="text" id="bank-account-no" class="form-input" placeholder="VD: 0123456789" />
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="bank-account-holder">Chủ tài khoản</label>
+            <input type="text" id="bank-account-holder" class="form-input" placeholder="VD: TRUNG TAM DUONG LAO SILVERCARE" />
+        </div>
+        <button type="submit" class="btn-primary-action">Lưu thông tin ngân hàng</button>
+    </form>
+</div>
+
 <div class="ss-roadmap">
     <b>Đang trong lộ trình phát triển:</b> quản lý ca trực nhân viên, nhật ký audit,
-    tích hợp gửi email/SMS thật, và tuỳ chỉnh ngưỡng cảnh báo sức khỏe sẽ được bổ
-    sung vào trang này ở các giai đoạn tiếp theo (xem tài liệu SilverCare Blueprint,
-    mục 3.3).
+    tích hợp gửi email/SMS thật, tích hợp cổng thanh toán MoMo, và tuỳ chỉnh ngưỡng
+    cảnh báo sức khỏe sẽ được bổ sung ở các giai đoạn tiếp theo.
+    VNPay đã được tích hợp ở môi trường <b>sandbox/test</b> (xem
+    <code>supabase/functions/vnpay-create-payment</code> và
+    <code>supabase/functions/vnpay-ipn</code>) — cần cấu hình
+    <code>VNPAY_TMN_CODE</code>/<code>VNPAY_HASH_SECRET</code> thật (merchant sandbox
+    của VNPay) trước khi test, và đổi sang URL production khi triển khai thật.
 </div>
 
 <div class="toast-popup" id="toast-notify"><span id="toast-text"></span></div>
@@ -100,7 +126,7 @@
             async function loadSettings() {
                 const { data, error } = await window.sb
                     .from("app_settings")
-                    .select("org_name, org_address, org_hotline")
+                    .select("org_name, org_address, org_hotline, bank_name, bank_account_no, bank_account_holder")
                     .eq("id", 1)
                     .single();
 
@@ -112,6 +138,9 @@
                 document.getElementById("org-name").value = data.org_name || "";
                 document.getElementById("org-address").value = data.org_address || "";
                 document.getElementById("org-hotline").value = data.org_hotline || "";
+                document.getElementById("bank-name").value = data.bank_name || "";
+                document.getElementById("bank-account-no").value = data.bank_account_no || "";
+                document.getElementById("bank-account-holder").value = data.bank_account_holder || "";
             }
 
             document.getElementById("settingsForm").addEventListener("submit", async function (e) {
@@ -131,6 +160,25 @@
                     return;
                 }
                 showToast("Đã lưu cấu hình hệ thống.");
+            });
+
+            document.getElementById("bankForm").addEventListener("submit", async function (e) {
+                e.preventDefault();
+                const { error } = await window.sb
+                    .from("app_settings")
+                    .update({
+                        bank_name: document.getElementById("bank-name").value.trim(),
+                        bank_account_no: document.getElementById("bank-account-no").value.trim(),
+                        bank_account_holder: document.getElementById("bank-account-holder").value.trim(),
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq("id", 1);
+
+                if (error) {
+                    alert("Không thể lưu thông tin ngân hàng: " + error.message);
+                    return;
+                }
+                showToast("Đã lưu thông tin ngân hàng.");
             });
 
             document.addEventListener("silvercare:auth-ready", loadSettings);
