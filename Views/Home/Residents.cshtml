@@ -1105,6 +1105,10 @@
                 currentResidents.forEach(res => {
                     res.status = getUpdatedStatusFromHealth(res.id, res.status);
                 });
+
+                try {
+                    localStorage.setItem("silvercare_elderly_profiles_v3", JSON.stringify(currentResidents));
+                } catch (e) {}
             }
 
             // Danh sách phòng còn chỗ trống, dùng cho dropdown ở modal Thêm hồ sơ

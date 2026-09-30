@@ -281,7 +281,7 @@
 
 @section Scripts {
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        document.addEventListener("DOMContentLoaded", async function () {
             const modalOverlay = document.getElementById("update-modal-overlay");
             const modalTitle = document.getElementById("modal-title-text");
             const btnClose = document.getElementById("btn-modal-close");
@@ -308,6 +308,7 @@
             const defaultResidents = [
                 {
                     id: "NCT001",
+                    residentId: 1,
                     initials: "NVA",
                     name: "Nguyễn Văn An",
                     age: 78,
@@ -324,6 +325,7 @@
                 },
                 {
                     id: "NCT002",
+                    residentId: 2,
                     initials: "LVB",
                     name: "Lê Văn Bình",
                     age: 82,
@@ -340,6 +342,7 @@
                 },
                 {
                     id: "NCT003",
+                    residentId: 3,
                     initials: "PTC",
                     name: "Phạm Thị Cúc",
                     age: 75,
@@ -353,6 +356,23 @@
                     familyAddress: "789 Cách Mạng Tháng 8, Quận 3, TP. HCM",
                     admissionDate: "20/02/2024",
                     notes: "Tiền sử đường huyết dao động, kiểm tra sức khỏe hàng ngày."
+                },
+                {
+                    id: "NCT005",
+                    residentId: 5,
+                    initials: "NVĐ",
+                    name: "Nguyễn Văn Đạt",
+                    age: 80,
+                    gender: "Nam",
+                    room: "102",
+                    blood: "O+",
+                    status: "Cần theo dõi",
+                    familyName: "Nguyễn Văn D",
+                    familyPhone: "0123456789",
+                    familyRel: "Con trai",
+                    familyAddress: "Hà Nội",
+                    admissionDate: "20/05/2024",
+                    notes: "Cần theo dõi huyết áp cao và tim mạch."
                 }
             ];
 
@@ -385,22 +405,53 @@
             }
 
             // ==========================================================================
-            // 1. LOAD RESIDENTS
+            // 1. LOAD RESIDENTS (Tải danh sách cư dân từ Supabase & Fallback LocalStorage)
             // ==========================================================================
-            function loadResidents() {
-                const raw = localStorage.getItem(ELDERLY_STORAGE_KEY);
-                if (raw) {
-                    try {
-                        const parsed = JSON.parse(raw);
-                        if (Array.isArray(parsed) && parsed.length > 0) {
-                            currentResidents = parsed;
-                        } else {
-                            currentResidents = [...defaultResidents];
+            async function loadResidents() {
+                try {
+                    if (window.sb) {
+                        const { data, error } = await window.sb
+                            .from("residents")
+                            .select("resident_id, resident_code, full_name, age, gender, blood_type, status, room_id, rooms(room_code, room_name)")
+                            .eq("is_active", true)
+                            .order("resident_id");
+
+                        if (!error && Array.isArray(data) && data.length > 0) {
+                            currentResidents = data.map(r => ({
+                                id: r.resident_code || (`NCT` + String(r.resident_id).padStart(3, '0')),
+                                residentId: r.resident_id,
+                                initials: computeInitials(r.full_name),
+                                name: r.full_name || "Chưa có tên",
+                                age: r.age || 70,
+                                gender: r.gender || "Nam",
+                                room: (r.rooms && r.rooms.room_code) ? r.rooms.room_code : (r.room ? String(r.room) : "---"),
+                                blood: r.blood_type || "---",
+                                status: r.status || "Đang ổn định"
+                            }));
+
+                            localStorage.setItem(ELDERLY_STORAGE_KEY, JSON.stringify(currentResidents));
                         }
-                    } catch (e) {
-                        currentResidents = [...defaultResidents];
                     }
-                } else {
+                } catch (e) {
+                    console.warn("[Health] Không tải được cư dân từ Supabase:", e);
+                }
+
+                if (!currentResidents || currentResidents.length === 0) {
+                    const raw = localStorage.getItem(ELDERLY_STORAGE_KEY);
+                    if (raw) {
+                        try {
+                            const parsed = JSON.parse(raw);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                currentResidents = parsed.map(r => ({
+                                    ...r,
+                                    room: (r.room !== null && r.room !== undefined) ? String(r.room) : "---"
+                                }));
+                            }
+                        } catch (e) {}
+                    }
+                }
+
+                if (!currentResidents || currentResidents.length === 0) {
                     currentResidents = [...defaultResidents];
                     localStorage.setItem(ELDERLY_STORAGE_KEY, JSON.stringify(currentResidents));
                 }
@@ -413,6 +464,7 @@
                 if (targetId) {
                     const found = currentResidents.find(r => 
                         r.id === targetId || 
+                        String(r.residentId) === targetId ||
                         (targetId === 'row-1' && r.id === 'NCT001') || 
                         (targetId === 'row-2' && r.id === 'NCT002') || 
                         (targetId === 'row-3' && r.id === 'NCT003') || 
@@ -434,25 +486,55 @@
             }
 
             // ==========================================================================
-            // 2. DAILY HEALTH RECORDS PERSISTENCE (silvercare_health_records_v4)
+            // 2. DAILY HEALTH RECORDS PERSISTENCE (Supabase + LocalStorage)
             // ==========================================================================
+            async function loadSupabaseHealthRecords() {
+                try {
+                    if (window.sb) {
+                        const { data, error } = await window.sb
+                            .from("health_records")
+                            .select("health_record_id, resident_id, recorded_at, systolic, diastolic, heart_rate, temperature, health_status, note, residents(resident_code)")
+                            .order("recorded_at", { ascending: false });
+
+                        if (!error && Array.isArray(data) && data.length > 0) {
+                            const records = loadHealthRecords();
+                            data.forEach(hr => {
+                                const resCode = hr.residents ? hr.residents.resident_code : (`NCT` + String(hr.resident_id).padStart(3, '0'));
+                                if (!records[resCode]) records[resCode] = {};
+                                const d = new Date(hr.recorded_at);
+                                const dateKey = getLocalDateKey(d);
+                                const hh = String(d.getHours()).padStart(2, '0');
+                                const mm = String(d.getMinutes()).padStart(2, '0');
+
+                                records[resCode][dateKey] = {
+                                    sys: hr.systolic,
+                                    dia: hr.diastolic,
+                                    hr: hr.heart_rate,
+                                    temp: hr.temperature ? parseFloat(hr.temperature) : 36.5,
+                                    time: (dateKey === todayKey) ? `${hh}:${mm} hôm nay` : `${hh}:${mm}`,
+                                    note: hr.note || "",
+                                    updatedAt: hr.recorded_at
+                                };
+                            });
+                            localStorage.setItem(HEALTH_RECORDS_KEY, JSON.stringify(records));
+                        }
+                    }
+                } catch (e) {
+                    console.warn("[Health] Không tải được health_records từ Supabase:", e);
+                }
+            }
+
             function loadHealthRecords() {
+                let records = {};
                 const raw = localStorage.getItem(HEALTH_RECORDS_KEY);
                 if (raw) {
                     try {
                         const parsed = JSON.parse(raw);
                         if (parsed && typeof parsed === "object") {
-                            return parsed;
+                            records = parsed;
                         }
                     } catch (e) {}
                 }
-
-                // Initial Seed: Generate realistic history for default residents for past 6 days (D-6 to D-1)
-                const initialRecords = {
-                    "NCT001": {},
-                    "NCT002": {},
-                    "NCT003": {}
-                };
 
                 const baseTemplates = {
                     "NCT001": {
@@ -472,29 +554,47 @@
                         dia: [78, 79, 80, 82, 81, 79],
                         hr: [68, 70, 72, 71, 69, 68],
                         temp: [36.4, 36.6, 36.5, 36.8, 36.7, 36.5]
+                    },
+                    "NCT005": {
+                        sys: [142, 145, 148, 144, 150, 146],
+                        dia: [90, 92, 95, 91, 96, 92],
+                        hr: [82, 85, 88, 84, 89, 86],
+                        temp: [36.8, 37.0, 36.9, 37.1, 37.0, 36.9]
                     }
                 };
 
                 const now = new Date();
-                for (let i = 6; i >= 1; i--) {
-                    const d = new Date(now);
-                    d.setDate(now.getDate() - i);
-                    const dateKey = getLocalDateKey(d);
-                    const dayIdx = 6 - i; // 0 to 5
+                const residentsToCheck = (currentResidents && currentResidents.length > 0) ? currentResidents : defaultResidents;
 
-                    ["NCT001", "NCT002", "NCT003"].forEach(resId => {
-                        const t = baseTemplates[resId];
-                        initialRecords[resId][dateKey] = {
-                            sys: t.sys[dayIdx],
-                            dia: t.dia[dayIdx],
-                            hr: t.hr[dayIdx],
-                            temp: t.temp[dayIdx],
-                            time: "09:15",
-                            note: "Đo định kỳ",
-                            updatedAt: d.toISOString()
+                residentsToCheck.forEach(res => {
+                    const resId = res.id;
+                    if (!records[resId] || Object.keys(records[resId]).length === 0) {
+                        records[resId] = {};
+                        const tmpl = baseTemplates[resId] || {
+                            sys: [122, 124, 126, 125, 128, 124],
+                            dia: [80, 82, 83, 81, 84, 82],
+                            hr: [72, 74, 76, 73, 75, 74],
+                            temp: [36.5, 36.6, 36.5, 36.7, 36.6, 36.5]
                         };
-                    });
-                }
+
+                        for (let i = 6; i >= 1; i--) {
+                            const d = new Date(now);
+                            d.setDate(now.getDate() - i);
+                            const dateKey = getLocalDateKey(d);
+                            const dayIdx = 6 - i;
+
+                            records[resId][dateKey] = {
+                                sys: tmpl.sys[dayIdx],
+                                dia: tmpl.dia[dayIdx],
+                                hr: tmpl.hr[dayIdx],
+                                temp: tmpl.temp[dayIdx],
+                                time: "09:15",
+                                note: "Đo định kỳ",
+                                updatedAt: d.toISOString()
+                            };
+                        }
+                    }
+                });
 
                 // Import today's measurements if already present in legacy key
                 try {
@@ -504,8 +604,8 @@
                         if (parsedToday._date === todayKey) {
                             Object.keys(parsedToday).forEach(k => {
                                 if (k !== "_date" && parsedToday[k] && typeof parsedToday[k].sys === "number") {
-                                    if (!initialRecords[k]) initialRecords[k] = {};
-                                    initialRecords[k][todayKey] = {
+                                    if (!records[k]) records[k] = {};
+                                    records[k][todayKey] = {
                                         sys: parsedToday[k].sys,
                                         dia: parsedToday[k].dia,
                                         hr: parsedToday[k].hr,
@@ -520,15 +620,15 @@
                     }
                 } catch(e) {}
 
-                localStorage.setItem(HEALTH_RECORDS_KEY, JSON.stringify(initialRecords));
-                return initialRecords;
+                localStorage.setItem(HEALTH_RECORDS_KEY, JSON.stringify(records));
+                return records;
             }
 
             function getHealthRecords() {
                 return loadHealthRecords();
             }
 
-            function saveHealthMeasurement(residentId, dateKey, data) {
+            async function saveHealthMeasurement(residentId, dateKey, data) {
                 const records = getHealthRecords();
                 if (!records[residentId]) {
                     records[residentId] = {};
@@ -545,10 +645,47 @@
                     } catch(e) {}
                     todayMap._date = todayKey;
                     todayMap[residentId] = data;
-                    delete todayMap["row-1"];
-                    delete todayMap["row-2"];
-                    delete todayMap["row-3"];
                     localStorage.setItem(HEALTH_TODAY_KEY, JSON.stringify(todayMap));
+                }
+
+                // Lưu vào Supabase health_records
+                try {
+                    if (window.sb) {
+                        const targetRes = currentResidents.find(r => r.id === residentId);
+                        let dbResidentId = targetRes ? targetRes.residentId : null;
+
+                        if (!dbResidentId && residentId.startsWith("NCT")) {
+                            dbResidentId = parseInt(residentId.replace("NCT", ""), 10);
+                        }
+
+                        if (dbResidentId) {
+                            const { data: sessionData } = await window.sb.auth.getSession();
+                            const userId = sessionData?.session?.user?.id || null;
+
+                            await window.sb.from("health_records").insert({
+                                resident_id: dbResidentId,
+                                recorded_by: userId,
+                                systolic: data.sys,
+                                diastolic: data.dia,
+                                heart_rate: data.hr,
+                                temperature: data.temp,
+                                health_status: calculateSeverity(data.sys, data.dia, data.hr, data.temp).Text,
+                                note: data.note || null,
+                                recorded_at: (dateKey === todayKey) ? new Date().toISOString() : `${dateKey}T09:00:00Z`
+                            });
+
+                            if (dateKey === todayKey) {
+                                const sev = calculateSeverity(data.sys, data.dia, data.hr, data.temp);
+                                let residentStatus = "Đang ổn định";
+                                if (sev.Text === "Cao") residentStatus = "Cần theo dõi";
+                                else if (sev.Text === "Trung bình") residentStatus = "Trung bình";
+
+                                await window.sb.from("residents").update({ status: residentStatus }).eq("resident_id", dbResidentId);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn("[Health] Không ghi được vào Supabase:", err);
                 }
             }
 
@@ -662,15 +799,20 @@
                         selectedSeverity === "Tất cả" || 
                         sev.Text === selectedSeverity
                     );
-                    const textToSearch = `${res.id} ${res.name} ${res.room}`.toLowerCase();
+
+                    const rawRoom = (res.room !== null && res.room !== undefined) ? String(res.room).trim() : "";
+                    const roomDisplay = rawRoom.startsWith("Phòng") ? rawRoom : (rawRoom ? "Phòng " + rawRoom : "Chưa có phòng");
+                    const resName = res.name || "Chưa có tên";
+                    const resId = res.id || "";
+                    const textToSearch = `${resId} ${resName} ${rawRoom}`.toLowerCase();
                     const matchesQuery = textToSearch.includes(query);
 
                     if (matchesSeverity && matchesQuery) {
                         visibleCount++;
                         const tr = document.createElement("tr");
-                        tr.id = res.id;
+                        tr.id = resId;
                         tr.setAttribute("data-severity", sev.Text);
-                        if (res.id === selectedPatientId) {
+                        if (resId === selectedPatientId) {
                             tr.classList.add("selected-row");
                         }
 
@@ -683,11 +825,11 @@
                         tr.innerHTML = `
                             <td>
                                 <div class="table-profile-cell">
-                                    <div class="table-avatar text-blue">${res.initials || computeInitials(res.name)}</div>
-                                    <span class="table-name">${res.name}</span>
+                                    <div class="table-avatar text-blue">${res.initials || computeInitials(resName)}</div>
+                                    <span class="table-name">${resName}</span>
                                 </div>
                             </td>
-                            <td>${res.room.startsWith("Phòng") ? res.room : "Phòng " + res.room}</td>
+                            <td>${roomDisplay}</td>
                             <td class="cell-bp"><span class="bp-val">${bpDisplay}</span> mmHg</td>
                             <td class="cell-hr"><span class="hr-val">${hrDisplay}</span> lần/phút</td>
                             <td class="cell-temp"><span class="temp-val">${tempDisplay}</span>&deg;C</td>
@@ -697,8 +839,8 @@
                             </td>
                             <td>
                                 <a href="#" class="table-action-link btn-update-trigger"
-                                   data-row-id="${res.id}"
-                                   data-name="${res.name}"
+                                   data-row-id="${resId}"
+                                   data-name="${resName}"
                                    data-sys="${vitals.isMeasured ? vitals.sys : ''}"
                                    data-dia="${vitals.isMeasured ? vitals.dia : ''}"
                                    data-hr="${vitals.isMeasured ? vitals.hr : ''}"
@@ -717,7 +859,7 @@
                             if (e.target.closest("td") && e.target.closest("td").cellIndex === 7) return;
                             document.querySelectorAll(".health-table tbody tr").forEach(r => r.classList.remove("selected-row"));
                             this.classList.add("selected-row");
-                            selectedPatientId = res.id;
+                            selectedPatientId = resId;
                             drawChart();
                         });
 
@@ -790,7 +932,7 @@
 
             // Save Health Update
             if (btnSave) {
-                btnSave.addEventListener("click", function () {
+                btnSave.addEventListener("click", async function () {
                     const targetDateKey = inputDate ? (inputDate.value || todayKey) : todayKey;
                     const sys = parseInt(inputSys.value);
                     const dia = parseInt(inputDia.value);
@@ -803,14 +945,17 @@
                         return;
                     }
 
+                    btnSave.disabled = true;
+                    btnSave.textContent = "Đang lưu...";
+
                     const now = new Date();
                     const hh = String(now.getHours()).padStart(2, '0');
                     const mm = String(now.getMinutes()).padStart(2, '0');
                     const isPickedToday = (targetDateKey === todayKey);
                     const timeStr = isPickedToday ? `${hh}:${mm} hôm nay` : `${hh}:${mm}`;
 
-                    // 1. Save measurement to permanent history
-                    saveHealthMeasurement(currentEditingRowId, targetDateKey, {
+                    // 1. Save measurement to permanent history & Supabase
+                    await saveHealthMeasurement(currentEditingRowId, targetDateKey, {
                         sys: sys,
                         dia: dia,
                         hr: hr,
@@ -856,6 +1001,8 @@
                         localStorage.setItem("silvercare_recent_activities_v2", JSON.stringify(acts.slice(0, 30)));
                     } catch (e) {}
 
+                    btnSave.disabled = false;
+                    btnSave.textContent = "Lưu cập nhật";
                     closeModal();
                     renderHealthTable();
                     drawChart();
@@ -1167,7 +1314,8 @@
             }
 
             // Initial execution
-            loadResidents();
+            await loadResidents();
+            await loadSupabaseHealthRecords();
             renderHealthTable();
             drawChart();
 
