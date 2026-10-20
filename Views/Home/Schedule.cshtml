@@ -286,6 +286,58 @@
         color: #027a48;
     }
 
+    .badge-failed {
+        background-color: #fef3f2;
+        color: #b42318;
+    }
+
+    .result-outcome-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .result-outcome-option {
+        flex: 1;
+        min-width: 160px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #344054;
+        cursor: pointer;
+    }
+    .result-outcome-option:has(input:checked) {
+        border-color: #0ba5ec;
+        background-color: #f0f9ff;
+    }
+    .result-reason-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .result-reason-chip {
+        border: 1px solid #d0d5dd;
+        background: #ffffff;
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-size: 12.5px;
+        color: #344054;
+        cursor: pointer;
+    }
+    .result-reason-chip:hover {
+        border-color: #0ba5ec;
+        color: #026aa2;
+    }
+    .result-task-label {
+        font-size: 13.5px;
+        color: #475467;
+        margin: 0 0 14px 0;
+    }
+
     /* Action buttons & links */
     .btn-detail {
         font-size: 14px;
@@ -658,6 +710,7 @@
         <option value="Chưa thực hiện">Chưa thực hiện</option>
         <option value="Đang thực hiện">Đang thực hiện</option>
         <option value="Hoàn thành">Hoàn thành</option>
+        <option value="Không thực hiện được">Không thực hiện được</option>
     </select>
 
     <!-- Staff Filter (chỉ Admin/Manager) -->
@@ -847,13 +900,20 @@
                         <option value="Chưa thực hiện">Chưa thực hiện</option>
                         <option value="Đang thực hiện">Đang thực hiện</option>
                         <option value="Hoàn thành">Hoàn thành</option>
+                        <option value="Không thực hiện được">Không thực hiện được</option>
+                        <option value="Đã hủy">Đã hủy</option>
                     </select>
                 </div>
             </div>
 
-            <div class="schedule-form-group" style="margin-bottom: 0;">
+            <div class="schedule-form-group">
                 <label class="schedule-form-label" for="edit-schedule-textarea-note">Ghi chú</label>
                 <textarea class="schedule-form-textarea" id="edit-schedule-textarea-note" placeholder="Nhập ghi chú..."></textarea>
+            </div>
+
+            <div class="schedule-form-group" style="margin-bottom: 0;">
+                <label class="schedule-form-label" for="edit-schedule-textarea-result">Kết quả / lý do</label>
+                <textarea class="schedule-form-textarea" id="edit-schedule-textarea-result" placeholder="Bắt buộc khi trạng thái là Hoàn thành hoặc Không thực hiện được"></textarea>
             </div>
         </div>
 
@@ -909,23 +969,82 @@
                 <span class="detail-modal-label">Ghi chú</span>
                 <div class="detail-modal-note-box" id="detail-val-note">-</div>
             </div>
+            <div class="detail-modal-note-section" id="detail-row-result" style="display: none;">
+                <span class="detail-modal-label" id="detail-label-result">Kết quả thực hiện</span>
+                <div class="detail-modal-note-box" id="detail-val-result">-</div>
+                <div style="font-size: 12px; color: #667085; margin-top: 6px;" id="detail-val-completed-meta"></div>
+            </div>
         </div>
 
         <!-- Footer -->
         <div class="schedule-modal-footer" style="flex-wrap: wrap;">
             <button class="btn-modal-cancel" id="btn-detail-modal-close-footer" style="flex: 1;">Đóng</button>
-            <button class="btn-modal-cancel" id="btn-detail-modal-delete" data-roles="admin,manager,staff" style="flex: 1; color: #d92d20; border-color: #fda29b;">
+            <button class="btn-modal-cancel" id="btn-detail-modal-delete" style="flex: 1; color: #d92d20; border-color: #fda29b;">
                 🗑️ Xóa
             </button>
-            <button class="btn-modal-cancel" id="btn-detail-modal-edit" data-roles="admin,manager,staff" style="flex: 1;">
+            <button class="btn-modal-cancel" id="btn-detail-modal-edit" style="flex: 1;">
                 ✏️ Sửa
             </button>
             <button class="btn-modal-save" id="btn-detail-modal-complete" style="flex: 1.5; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background-color: #0ba5ec;">
                 <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; stroke-width: 2.5; fill: none;">
                     <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
-                <span>Đánh dấu hoàn thành</span>
+                <span>Ghi nhận kết quả</span>
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- Result Schedule Modal — ghi nhận kết quả thực hiện (bắt buộc trước khi chốt lịch) -->
+<div class="schedule-modal-overlay" id="result-schedule-modal-overlay">
+    <div class="schedule-modal-container" style="max-width: 480px;">
+        <div class="schedule-modal-header">
+            <h2 class="schedule-modal-title">Ghi nhận kết quả</h2>
+            <button class="schedule-modal-close-btn" id="btn-result-modal-close" title="Đóng">
+                <svg viewBox="0 0 24 24">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <div class="schedule-modal-body">
+            <p class="result-task-label" id="result-task-label"></p>
+
+            <div class="schedule-form-group">
+                <label class="schedule-form-label">Kết quả <span class="required-asterisk">*</span></label>
+                <div class="result-outcome-group">
+                    <label class="result-outcome-option">
+                        <input type="radio" name="result-outcome" value="Hoàn thành" checked />
+                        <span>Đã hoàn thành</span>
+                    </label>
+                    <label class="result-outcome-option">
+                        <input type="radio" name="result-outcome" value="Không thực hiện được" />
+                        <span>Không thực hiện được</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="schedule-form-group" id="result-reason-group" style="display: none;">
+                <label class="schedule-form-label">Lý do thường gặp</label>
+                <div class="result-reason-chips">
+                    <button type="button" class="result-reason-chip">Cư dân từ chối</button>
+                    <button type="button" class="result-reason-chip">Cư dân đang ngủ / mệt</button>
+                    <button type="button" class="result-reason-chip">Cư dân đi khám / nhập viện</button>
+                    <button type="button" class="result-reason-chip">Thiếu vật tư / thuốc</button>
+                    <button type="button" class="result-reason-chip">Có việc khẩn cấp khác</button>
+                </div>
+            </div>
+
+            <div class="schedule-form-group" style="margin-bottom: 0;">
+                <label class="schedule-form-label" for="result-note-input" id="result-note-label">Ghi chú kết quả <span class="required-asterisk">*</span></label>
+                <textarea class="schedule-form-textarea" id="result-note-input" style="height: 100px;" placeholder="VD: Đã hỗ trợ tắm, da khô, không có vết đỏ; cư dân ăn hết suất..."></textarea>
+            </div>
+        </div>
+
+        <div class="schedule-modal-footer">
+            <button class="btn-modal-cancel" id="btn-result-modal-cancel">Hủy</button>
+            <button class="btn-modal-save" id="btn-result-modal-save">Lưu kết quả</button>
         </div>
     </div>
 </div>
@@ -1008,41 +1127,40 @@
             }
 
             const timeLabel = currentViewMode === "day" ? task.time : `${formatDateShortVN(task.date)} ${task.time}`;
+            const badgeClass = STATUS_BADGE_CLASS[task.status] || "badge-todo";
 
-            const manageButtonsHtml = `
-                <a href="#" class="btn-detail btn-edit-schedule" data-roles="admin,manager,staff" data-id="${task.id}">Sửa</a>
-                <a href="#" class="btn-detail btn-delete-schedule" data-roles="admin,manager,staff" data-id="${task.id}" style="color: #d92d20;">Xóa</a>
+            let actionsHtml = `
+                <span class="status-badge ${badgeClass}" id="badge-${task.id}">${escapeHtml(task.status)}</span>
+                <a href="#" class="btn-detail btn-open-detail">Chi tiết</a>
             `;
 
-            let actionsHtml = "";
-            if (task.status === "Hoàn thành") {
-                actionsHtml = `
-                    <span class="status-badge badge-done">Hoàn thành</span>
-                    <a href="#" class="btn-detail">Chi tiết</a>
-                    ${manageButtonsHtml}
-                `;
-            } else {
-                const badgeClass = task.status === "Đang thực hiện" ? "badge-pending" : "badge-todo";
-                actionsHtml = `
-                    <span class="status-badge ${badgeClass}" id="badge-${task.id}">${task.status}</span>
-                    <a href="#" class="btn-detail">Chi tiết</a>
-                    <button class="btn-complete" data-roles="admin,manager,staff" onclick="markCompleted(${task.id})">
+            if (canWorkOnTask(task)) {
+                if (task.status === "Chưa thực hiện") {
+                    actionsHtml += `<a href="#" class="btn-detail btn-start-task" data-id="${task.id}">Bắt đầu</a>`;
+                }
+                actionsHtml += `
+                    <button class="btn-complete" onclick="openResultModal(${task.id})">
                         <svg viewBox="0 0 24 24">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
-                        <span>Hoàn thành</span>
+                        <span>Ghi nhận</span>
                     </button>
-                    ${manageButtonsHtml}
                 `;
+            }
+            if (canEditTask(task)) {
+                actionsHtml += `<a href="#" class="btn-detail btn-edit-schedule" data-id="${task.id}">Sửa</a>`;
+            }
+            if (canDeleteTask(task)) {
+                actionsHtml += `<a href="#" class="btn-detail btn-delete-schedule" data-id="${task.id}" style="color: #d92d20;">Xóa</a>`;
             }
 
             return `
-            <div class="schedule-item" data-room="${task.patientRoom}" data-status="${task.status}" data-staff-id="${task.assignedStaffId}" id="task-${task.id}" data-id="${task.id}" data-name="${escapeHtmlAttr(task.name)}" data-time="${task.time}" data-date="${task.date}" data-patient="${escapeHtmlAttr(task.patientName)}" data-staff="${escapeHtmlAttr(task.staffName || "Chưa phân công")}" data-note="${escapeHtmlAttr(task.note || "")}">
+            <div class="schedule-item" data-room="${escapeHtml(task.patientRoom)}" data-status="${escapeHtml(task.status)}" data-staff-id="${task.assignedStaffId}" id="task-${task.id}" data-id="${task.id}">
                 <span class="schedule-time">${timeLabel}</span>
                 <div class="status-indicator ${indicatorClass}" id="indicator-${task.id}"></div>
                 <div class="schedule-info">
-                    <h3 class="schedule-task-name">${task.name}</h3>
-                    <p class="schedule-patient-meta">${task.patientName} - Phòng ${task.patientRoom || "---"}</p>
+                    <h3 class="schedule-task-name">${escapeHtml(task.name)}</h3>
+                    <p class="schedule-patient-meta">${escapeHtml(task.patientName)} - Phòng ${escapeHtml(task.patientRoom || "---")}</p>
                 </div>
                 <div class="schedule-actions">
                     ${actionsHtml}
@@ -1051,8 +1169,50 @@
             `;
         }
 
-        function escapeHtmlAttr(text) {
-            return String(text || "").replace(/"/g, "&quot;");
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = text == null ? "" : String(text);
+            return div.innerHTML.replace(/"/g, "&quot;");
+        }
+
+        // ==========================================
+        // QUYỀN THAO TÁC TRÊN TỪNG LỊCH (khớp với RLS + trigger guard_care_schedule)
+        // ==========================================
+        const FINAL_STATUSES = ["Hoàn thành", "Không thực hiện được", "Đã hủy"];
+        const STATUS_BADGE_CLASS = {
+            "Chưa thực hiện": "badge-todo",
+            "Đang thực hiện": "badge-pending",
+            "Hoàn thành": "badge-done",
+            "Không thực hiện được": "badge-failed",
+            "Đã hủy": "badge-failed"
+        };
+
+        function currentRole() {
+            return window.currentUser ? window.currentUser.role : null;
+        }
+
+        function isManagerRole() {
+            return ["admin", "manager"].indexOf(currentRole()) !== -1;
+        }
+
+        function isOwnStaffTask(task) {
+            return currentRole() === "staff" && task.assignedStaffId === window.currentUser.id;
+        }
+
+        // Ghi nhận bắt đầu / kết quả: quản lý hoặc chính nhân viên được giao, lịch chưa chốt
+        function canWorkOnTask(task) {
+            if (FINAL_STATUSES.indexOf(task.status) !== -1) return false;
+            return isManagerRole() || isOwnStaffTask(task);
+        }
+
+        // Sửa nội dung: quản lý; nhân viên chỉ với lịch do chính mình tạo và chưa bắt đầu
+        function canEditTask(task) {
+            if (isManagerRole()) return true;
+            return isOwnStaffTask(task) && task.createdBy === window.currentUser.id && task.status === "Chưa thực hiện";
+        }
+
+        function canDeleteTask(task) {
+            return canEditTask(task);
         }
 
         // Load and render (Supabase — bảng care_schedules)
@@ -1060,7 +1220,10 @@
             const range = getDateRangeForView(currentViewMode);
             let query = window.sb
                 .from("care_schedules")
-                .select("care_schedule_id, schedule_name, schedule_date, start_time, schedule_type, status, note, resident_id, assigned_staff_id, residents(full_name, rooms(room_code)), profiles(full_name)")
+                .select("care_schedule_id, schedule_name, schedule_date, start_time, schedule_type, status, note, result_note, created_by, completed_at, resident_id, assigned_staff_id, " +
+                    "residents(full_name, rooms(room_code)), " +
+                    "assignee:profiles!care_schedules_assigned_staff_id_fkey(full_name), " +
+                    "completer:profiles!care_schedules_completed_by_fkey(full_name)")
                 .gte("schedule_date", range.start)
                 .lte("schedule_date", range.end);
 
@@ -1084,8 +1247,12 @@
                     status: row.status,
                     type: row.schedule_type,
                     note: row.note || "",
+                    resultNote: row.result_note || "",
+                    createdBy: row.created_by || "",
+                    completedAt: row.completed_at,
+                    completedByName: row.completer ? row.completer.full_name : "",
                     assignedStaffId: row.assigned_staff_id || "",
-                    staffName: row.profiles ? row.profiles.full_name : ""
+                    staffName: row.assignee ? row.assignee.full_name : ""
                 }));
             }
 
@@ -1098,17 +1265,9 @@
                 sorted.forEach(task => {
                     container.insertAdjacentHTML("beforeend", createTaskHtml(task));
                 });
-                if (window.currentUser) applyDataRolesWithin(container, window.currentUser.role);
             }
 
             applyFilters();
-        }
-
-        function applyDataRolesWithin(container, role) {
-            container.querySelectorAll("[data-roles]").forEach(el => {
-                const allowed = el.getAttribute("data-roles").split(",").map(r => r.trim());
-                el.style.display = allowed.indexOf(role) === -1 ? "none" : "";
-            });
         }
 
         // Store total count of items visible under active filters
@@ -1144,21 +1303,116 @@
             }
         }
 
-        // Complete action — cập nhật thật vào care_schedules
-        window.markCompleted = async function (taskId) {
-            const { error } = await window.sb
+        // Cập nhật care_schedules và kiểm tra thật sự có dòng nào được ghi: RLS
+        // chặn update sẽ không báo lỗi mà chỉ trả về 0 dòng.
+        async function updateScheduleRow(taskId, changes) {
+            const { data, error } = await window.sb
                 .from("care_schedules")
-                .update({ status: "Hoàn thành", updated_at: new Date().toISOString() })
-                .eq("care_schedule_id", taskId);
+                .update(changes)
+                .eq("care_schedule_id", taskId)
+                .select("care_schedule_id");
+            if (error) throw error;
+            if (!data || data.length === 0) {
+                throw new Error("Bạn không có quyền cập nhật lịch chăm sóc này.");
+            }
+        }
 
-            if (error) {
-                alert("Không thể cập nhật: " + error.message);
+        async function startTask(taskId) {
+            try {
+                await updateScheduleRow(taskId, { status: "Đang thực hiện" });
+                showToast("Đã bắt đầu thực hiện.");
+                await loadAndRenderTasks();
+            } catch (err) {
+                console.error(err);
+                alert("Không thể cập nhật: " + err.message);
+            }
+        }
+
+        // ==========================================
+        // GHI NHẬN KẾT QUẢ (Hoàn thành / Không thực hiện được — bắt buộc có ghi chú)
+        // ==========================================
+        const resultModalOverlay = document.getElementById("result-schedule-modal-overlay");
+        const resultNoteInput = document.getElementById("result-note-input");
+        const resultNoteLabel = document.getElementById("result-note-label");
+        const resultReasonGroup = document.getElementById("result-reason-group");
+        const resultTaskLabel = document.getElementById("result-task-label");
+        const btnResultSave = document.getElementById("btn-result-modal-save");
+        let activeResultTaskId = null;
+
+        function getSelectedOutcome() {
+            const checked = document.querySelector('input[name="result-outcome"]:checked');
+            return checked ? checked.value : "Hoàn thành";
+        }
+
+        function syncResultOutcomeUi() {
+            const failed = getSelectedOutcome() === "Không thực hiện được";
+            resultReasonGroup.style.display = failed ? "block" : "none";
+            resultNoteLabel.innerHTML = (failed ? "Lý do không thực hiện được" : "Ghi chú kết quả") + ' <span class="required-asterisk">*</span>';
+            resultNoteInput.placeholder = failed
+                ? "Ghi rõ lý do và hướng xử lý tiếp theo (VD: cư dân từ chối tắm, sẽ thử lại lúc 16:00)..."
+                : "VD: Đã hỗ trợ tắm, da khô, không có vết đỏ; cư dân ăn hết suất...";
+        }
+
+        window.openResultModal = function (taskId) {
+            const task = currentTasks.find(t => t.id === Number(taskId));
+            if (!task || !canWorkOnTask(task)) return;
+            activeResultTaskId = task.id;
+            resultTaskLabel.innerText = `${task.name} — ${task.patientName} (${formatDateShortVN(task.date)} ${task.time})`;
+            document.querySelector('input[name="result-outcome"][value="Hoàn thành"]').checked = true;
+            resultNoteInput.value = "";
+            syncResultOutcomeUi();
+            resultModalOverlay.classList.add("active");
+            resultNoteInput.focus();
+        };
+
+        function closeResultModal() {
+            resultModalOverlay.classList.remove("active");
+            activeResultTaskId = null;
+        }
+
+        document.querySelectorAll('input[name="result-outcome"]').forEach(r => r.addEventListener("change", syncResultOutcomeUi));
+        document.querySelectorAll(".result-reason-chip").forEach(chip => {
+            chip.addEventListener("click", function () {
+                const reason = this.innerText.trim();
+                resultNoteInput.value = resultNoteInput.value.trim()
+                    ? `${resultNoteInput.value.trim()}; ${reason}`
+                    : reason;
+                resultNoteInput.focus();
+            });
+        });
+        document.getElementById("btn-result-modal-close").addEventListener("click", closeResultModal);
+        document.getElementById("btn-result-modal-cancel").addEventListener("click", closeResultModal);
+        resultModalOverlay.addEventListener("click", function (e) {
+            if (e.target === resultModalOverlay) closeResultModal();
+        });
+
+        btnResultSave.addEventListener("click", async function () {
+            if (!activeResultTaskId) return;
+            const outcome = getSelectedOutcome();
+            const note = resultNoteInput.value.trim();
+            if (note.length < 3) {
+                alert(outcome === "Hoàn thành"
+                    ? "Vui lòng ghi nhận kết quả thực hiện (tối thiểu vài từ mô tả)."
+                    : "Vui lòng ghi rõ lý do không thực hiện được.");
+                resultNoteInput.focus();
                 return;
             }
 
-            showToast("Đã đánh dấu hoàn thành!");
-            await loadAndRenderTasks();
-        };
+            btnResultSave.disabled = true;
+            btnResultSave.textContent = "Đang lưu...";
+            try {
+                await updateScheduleRow(activeResultTaskId, { status: outcome, result_note: note });
+                closeResultModal();
+                showToast(outcome === "Hoàn thành" ? "Đã ghi nhận hoàn thành!" : "Đã ghi nhận không thực hiện được.");
+                await loadAndRenderTasks();
+            } catch (err) {
+                console.error(err);
+                alert("Không thể lưu kết quả: " + err.message);
+            } finally {
+                btnResultSave.disabled = false;
+                btnResultSave.textContent = "Lưu kết quả";
+            }
+        });
 
         // Filtering logic (lọc trên tập dữ liệu đã tải từ Supabase)
         const roomFilter = document.getElementById("room-filter");
@@ -1340,9 +1594,10 @@
             if (selectStaff) {
                 selectStaff.innerHTML = `<option value="">-- Chưa phân công --</option>` +
                     staffCache.map(s => `<option value="${s.id}">${s.full_name}</option>`).join("");
-                if (window.currentUser && window.currentUser.role === "staff") {
-                    selectStaff.value = window.currentUser.id;
-                }
+                // Nhân viên tạo lịch thì lịch luôn giao cho chính mình (DB cũng ép như vậy)
+                const staffSelf = currentRole() === "staff";
+                if (staffSelf) selectStaff.value = window.currentUser.id;
+                selectStaff.disabled = staffSelf;
             }
         }
 
@@ -1481,6 +1736,7 @@
         const editSelectType = document.getElementById("edit-schedule-select-type");
         const editSelectStatus = document.getElementById("edit-schedule-select-status");
         const editTextareaNote = document.getElementById("edit-schedule-textarea-note");
+        const editTextareaResult = document.getElementById("edit-schedule-textarea-result");
 
         let activeEditTaskId = null;
 
@@ -1491,7 +1747,7 @@
 
         async function openEditScheduleModal(taskId) {
             const task = currentTasks.find(t => t.id === taskId);
-            if (!task) return;
+            if (!task || !canEditTask(task)) return;
             activeEditTaskId = taskId;
 
             await populateEditSelects();
@@ -1504,6 +1760,13 @@
             editSelectType.value = task.type || "Chăm sóc";
             editSelectStatus.value = task.status || "Chưa thực hiện";
             editTextareaNote.value = task.note || "";
+            editTextareaResult.value = task.resultNote || "";
+
+            // Nhân viên: không đổi người phụ trách; trạng thái/kết quả ghi nhận qua nút "Ghi nhận"
+            const staffSelf = currentRole() === "staff";
+            if (editSelectStaff) editSelectStaff.disabled = staffSelf;
+            editSelectStatus.disabled = staffSelf;
+            editTextareaResult.closest(".schedule-form-group").style.display = staffSelf ? "none" : "";
 
             if (editModalOverlay) editModalOverlay.classList.add("active");
         }
@@ -1532,9 +1795,15 @@
                 const type = editSelectType.value;
                 const status = editSelectStatus.value;
                 const note = editTextareaNote.value.trim();
+                const resultNote = editTextareaResult.value.trim();
 
                 if (!name || !residentId || !date || !time) {
                     alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
+                    return;
+                }
+                if ((status === "Hoàn thành" || status === "Không thực hiện được") && resultNote.length < 3) {
+                    alert("Vui lòng nhập Kết quả / lý do khi chốt lịch ở trạng thái \"" + status + "\".");
+                    editTextareaResult.focus();
                     return;
                 }
 
@@ -1542,22 +1811,20 @@
                 btnEditModalSave.textContent = "Đang lưu...";
 
                 try {
-                    const { error } = await window.sb
-                        .from("care_schedules")
-                        .update({
-                            resident_id: residentId,
-                            assigned_staff_id: staffId,
-                            schedule_name: name,
-                            schedule_date: date,
-                            start_time: time + ":00",
-                            schedule_type: type,
-                            status: status,
-                            note: note || null,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq("care_schedule_id", activeEditTaskId);
-
-                    if (error) throw error;
+                    const changes = {
+                        resident_id: residentId,
+                        schedule_name: name,
+                        schedule_date: date,
+                        start_time: time + ":00",
+                        schedule_type: type,
+                        note: note || null
+                    };
+                    if (isManagerRole()) {
+                        changes.assigned_staff_id = staffId;
+                        changes.status = status;
+                        changes.result_note = resultNote || null;
+                    }
+                    await updateScheduleRow(activeEditTaskId, changes);
 
                     closeEditScheduleModal();
                     showToast("Đã cập nhật lịch chăm sóc!");
@@ -1577,9 +1844,13 @@
             const label = task ? `"${task.name}" (${task.patientName})` : "lịch chăm sóc này";
             if (!confirm(`Bạn có chắc chắn muốn xóa ${label}? Hành động này không thể hoàn tác.`)) return;
 
-            const { error } = await window.sb.from("care_schedules").delete().eq("care_schedule_id", taskId);
+            const { data, error } = await window.sb.from("care_schedules").delete().eq("care_schedule_id", taskId).select("care_schedule_id");
             if (error) {
                 alert("Không thể xóa: " + error.message);
+                return;
+            }
+            if (!data || data.length === 0) {
+                alert("Bạn không có quyền xóa lịch chăm sóc này (chỉ xóa được lịch do chính mình tạo và chưa bắt đầu).");
                 return;
             }
 
@@ -1587,8 +1858,14 @@
             await loadAndRenderTasks();
         }
 
-        // Event delegation cho nút Sửa/Xóa trên từng dòng danh sách
+        // Event delegation cho nút Bắt đầu/Sửa/Xóa trên từng dòng danh sách
         document.addEventListener("click", function (e) {
+            const startBtn = e.target.closest(".btn-start-task");
+            if (startBtn) {
+                e.preventDefault();
+                startTask(parseInt(startBtn.getAttribute("data-id"), 10));
+                return;
+            }
             const editBtn = e.target.closest(".btn-edit-schedule");
             if (editBtn) {
                 e.preventDefault();
@@ -1607,43 +1884,54 @@
         // ==========================================
         let activeDetailTaskId = null;
 
+        function formatDateTimeVN(iso) {
+            if (!iso) return "";
+            const d = new Date(iso);
+            return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+        }
+
         function showDetailModal(taskId) {
-            const taskItem = document.getElementById(`task-${taskId}`);
-            if (!taskItem) return;
+            const task = currentTasks.find(t => t.id === Number(taskId));
+            if (!task) return;
 
-            activeDetailTaskId = taskId;
+            activeDetailTaskId = task.id;
 
-            const name = taskItem.getAttribute("data-name") || "";
-            const date = taskItem.getAttribute("data-date") || "";
-            const time = taskItem.getAttribute("data-time") || "";
-            const patientName = taskItem.getAttribute("data-patient") || "";
-            const patientRoom = taskItem.getAttribute("data-room") || "";
-            const staffName = taskItem.getAttribute("data-staff") || "Chưa phân công";
-            const status = taskItem.getAttribute("data-status") || "Chưa thực hiện";
-            const note = taskItem.getAttribute("data-note") || "";
-
-            document.getElementById("detail-val-name").innerText = name;
-            document.getElementById("detail-val-time").innerText = `${formatDateShortVN(date)} ${time}`;
-            document.getElementById("detail-val-patient").innerText = patientName;
-            document.getElementById("detail-val-room").innerText = patientRoom ? `Phòng ${patientRoom}` : "---";
-            document.getElementById("detail-val-status").innerText = status;
-            document.getElementById("detail-val-note").innerText = note || "Không có";
+            document.getElementById("detail-val-name").innerText = task.name;
+            document.getElementById("detail-val-time").innerText = `${formatDateShortVN(task.date)} ${task.time}`;
+            document.getElementById("detail-val-patient").innerText = task.patientName;
+            document.getElementById("detail-val-room").innerText = task.patientRoom ? `Phòng ${task.patientRoom}` : "---";
+            document.getElementById("detail-val-status").innerText = task.status;
+            document.getElementById("detail-val-note").innerText = task.note || "Không có";
 
             const staffRow = document.getElementById("detail-row-staff");
-            if (staffRow) document.getElementById("detail-val-staff").innerText = staffName;
+            if (staffRow) document.getElementById("detail-val-staff").innerText = task.staffName || "Chưa phân công";
 
             // Show or hide Note row based on content
             const noteSection = document.getElementById("detail-row-note");
             if (noteSection) {
-                noteSection.style.display = note ? "block" : "none";
+                noteSection.style.display = task.note ? "block" : "none";
             }
 
-            // Show or hide Complete button depending on status & quyền
-            const completeBtn = document.getElementById("btn-detail-modal-complete");
-            if (completeBtn) {
-                const canComplete = status !== "Hoàn thành" && window.currentUser && ["admin", "manager", "staff"].indexOf(window.currentUser.role) !== -1;
-                completeBtn.style.display = canComplete ? "inline-flex" : "none";
+            // Kết quả thực hiện / lý do không thực hiện được
+            const resultSection = document.getElementById("detail-row-result");
+            if (resultSection) {
+                const hasResult = !!task.resultNote;
+                resultSection.style.display = hasResult ? "block" : "none";
+                document.getElementById("detail-label-result").innerText =
+                    task.status === "Không thực hiện được" ? "Lý do không thực hiện được" : "Kết quả thực hiện";
+                document.getElementById("detail-val-result").innerText = task.resultNote;
+                document.getElementById("detail-val-completed-meta").innerText = task.completedAt
+                    ? `Ghi nhận bởi ${task.completedByName || "---"} lúc ${formatDateTimeVN(task.completedAt)}`
+                    : "";
             }
+
+            // Các nút thao tác theo quyền thực tế trên lịch này
+            const completeBtn = document.getElementById("btn-detail-modal-complete");
+            if (completeBtn) completeBtn.style.display = canWorkOnTask(task) ? "inline-flex" : "none";
+            const editBtnEl = document.getElementById("btn-detail-modal-edit");
+            if (editBtnEl) editBtnEl.style.display = canEditTask(task) ? "" : "none";
+            const deleteBtnEl = document.getElementById("btn-detail-modal-delete");
+            if (deleteBtnEl) deleteBtnEl.style.display = canDeleteTask(task) ? "" : "none";
 
             // Show modal
             const detailModal = document.getElementById("detail-schedule-modal-overlay");
@@ -1678,8 +1966,9 @@
         if (completeDetailBtn) {
             completeDetailBtn.addEventListener("click", function() {
                 if (activeDetailTaskId) {
-                    markCompleted(activeDetailTaskId);
+                    const id = activeDetailTaskId;
                     closeDetailModal();
+                    openResultModal(id);
                 }
             });
         }
@@ -1705,9 +1994,10 @@
             });
         }
 
-        // Event delegation for "Chi tiết" button
+        // Event delegation for "Chi tiết" button (các nút Sửa/Xóa/Bắt đầu cũng dùng
+        // class .btn-detail để lấy style nên phải lọc riêng .btn-open-detail)
         document.addEventListener("click", function(e) {
-            if (e.target.classList.contains("btn-detail")) {
+            if (e.target.classList.contains("btn-open-detail")) {
                 e.preventDefault();
                 const item = e.target.closest(".schedule-item");
                 if (item) {
@@ -1735,8 +2025,9 @@
             });
         }
 
-        // Initial check
-        document.addEventListener("DOMContentLoaded", async function () {
+        // Initial check — chờ auth-guard nạp xong window.currentUser (vai trò quyết
+        // định nhân viên chỉ thấy lịch của mình và các nút thao tác được phép)
+        document.addEventListener("silvercare:auth-ready", async function () {
             await Promise.all([populateRoomFilter(), populateStaffFilter()]);
 
             // Check URL parameters for initial room filtering

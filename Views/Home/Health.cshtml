@@ -283,9 +283,88 @@
     </div>
 </div>
 
+<!-- ==========================================================================
+   NGƯỠNG CẢNH BÁO CÁ NHÂN (Admin/Manager) — bảng resident_vital_thresholds
+   ========================================================================== -->
+<div class="modal-overlay" id="threshold-modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2 class="modal-title" id="threshold-modal-title">Ngưỡng cảnh báo riêng</h2>
+            <button class="modal-close-btn" id="btn-threshold-close" title="Đóng">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <div class="modal-body" style="max-height: 65vh; overflow-y: auto;">
+            <p style="font-size: 13px; color: #667085; margin: 0;">
+                Để trống ô nào thì dùng ngưỡng mặc định (ghi trong ô). Vượt ngưỡng sẽ tạo cảnh báo mức <strong>Cao</strong>.
+                Chỉ nên đặt theo chỉ định của bác sĩ.
+            </p>
+            <div class="modal-form-row">
+                <div class="modal-form-group">
+                    <label class="modal-label" for="th-sys-high">Tâm thu cao từ (mmHg)</label>
+                    <input type="number" class="modal-input" id="th-sys-high" placeholder="140" min="100" max="220" />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-label" for="th-sys-low">Tâm thu thấp dưới (mmHg)</label>
+                    <input type="number" class="modal-input" id="th-sys-low" placeholder="90" min="60" max="120" />
+                </div>
+            </div>
+            <div class="modal-form-row">
+                <div class="modal-form-group">
+                    <label class="modal-label" for="th-dia-high">Tâm trương cao từ (mmHg)</label>
+                    <input type="number" class="modal-input" id="th-dia-high" placeholder="90" min="60" max="140" />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-label" for="th-temp-high">Sốt cao từ (&deg;C)</label>
+                    <input type="number" step="0.1" class="modal-input" id="th-temp-high" placeholder="38.5" min="37" max="41" />
+                </div>
+            </div>
+            <div class="modal-form-row">
+                <div class="modal-form-group">
+                    <label class="modal-label" for="th-hr-low">Nhịp tim chậm dưới</label>
+                    <input type="number" class="modal-input" id="th-hr-low" placeholder="50" min="30" max="80" />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-label" for="th-hr-high">Nhịp tim nhanh trên</label>
+                    <input type="number" class="modal-input" id="th-hr-high" placeholder="100" min="80" max="160" />
+                </div>
+            </div>
+            <div class="modal-form-row">
+                <div class="modal-form-group">
+                    <label class="modal-label" for="th-spo2-low">SpO2 thấp dưới (%)</label>
+                    <input type="number" step="0.1" class="modal-input" id="th-spo2-low" placeholder="92" min="80" max="98" />
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-label" for="th-sugar-low">Đường huyết thấp dưới</label>
+                    <input type="number" class="modal-input" id="th-sugar-low" placeholder="70" min="40" max="120" />
+                </div>
+            </div>
+            <div class="modal-form-group">
+                <label class="modal-label" for="th-sugar-high">Đường huyết cao từ (mg/dL)</label>
+                <input type="number" class="modal-input" id="th-sugar-high" placeholder="250" min="140" max="500" />
+            </div>
+            <div class="modal-form-group">
+                <label class="modal-label" for="th-note">Căn cứ / chỉ định</label>
+                <textarea class="modal-textarea" id="th-note" placeholder="VD: Theo chỉ định BS. ..., cư dân THA mãn tính, HA nền 150/90"></textarea>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="modal-footer-btn modal-btn-cancel" id="btn-threshold-reset" style="color: #d92d20;">Dùng mặc định</button>
+            <button class="modal-footer-btn modal-btn-cancel" id="btn-threshold-cancel">Hủy</button>
+            <button class="modal-footer-btn modal-btn-save" id="btn-threshold-save">Lưu ngưỡng</button>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
-        document.addEventListener("DOMContentLoaded", async function () {
+        // Chờ auth-guard nạp window.currentUser để áp quyền đúng cho các nút trên bảng
+        document.addEventListener("silvercare:auth-ready", async function () {
             const modalOverlay = document.getElementById("update-modal-overlay");
             const modalTitle = document.getElementById("modal-title-text");
             const btnClose = document.getElementById("btn-modal-close");
@@ -324,6 +403,17 @@
 
             const todayKey = getLocalDateKey();
             selectedViewDate = todayKey;
+
+            // Nhân viên chỉ được nhập bù trong khoảng ngắn (DB chặn quá 48 giờ)
+            const staffMinDateKey = (function () {
+                const d = new Date();
+                d.setDate(d.getDate() - 1);
+                return getLocalDateKey(d);
+            })();
+
+            function isStaffRole() {
+                return !!window.currentUser && window.currentUser.role === "staff";
+            }
 
             // Helper to get initials
             function computeInitials(name) {
@@ -394,7 +484,7 @@
                 const { start, end } = dayBoundsIso(dateIso);
                 const { data, error } = await window.sb
                     .from("health_records")
-                    .select("resident_id, systolic, diastolic, heart_rate, temperature, oxygen_saturation, weight, blood_sugar, recorded_at, note")
+                    .select("resident_id, systolic, diastolic, heart_rate, temperature, oxygen_saturation, weight, blood_sugar, recorded_at, note, severity, is_backfilled")
                     .gte("recorded_at", start)
                     .lte("recorded_at", end)
                     .order("recorded_at", { ascending: false });
@@ -442,9 +532,11 @@
                     `${dateKey}T${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:00`
                 );
 
+                // recorded_by, severity, cờ nhập bù và trạng thái tổng quan của cư dân
+                // (residents.status) đều do trigger phía DB tính — xem prepare_health_record
+                // và evaluate_health_alert trong supabase/schema.sql.
                 const { error } = await window.sb.from("health_records").insert({
                     resident_id: residentId,
-                    recorded_by: window.currentUser ? window.currentUser.id : null,
                     recorded_at: recordedAt.toISOString(),
                     systolic: payload.sys,
                     diastolic: payload.dia,
@@ -457,27 +549,47 @@
                 });
 
                 if (error) throw error;
-
-                // Chỉ cập nhật trạng thái tổng quan nếu đo cho hôm nay
-                if (dateKey === todayKey) {
-                    const sev = calculateSeverity(payload.sys, payload.dia, payload.hr, payload.temp);
-                    const residentStatus = sev.Text === "Cao" ? "Cần theo dõi" : (sev.Text === "Trung bình" ? "Trung bình" : "Đang ổn định");
-                    await window.sb.from("residents").update({ status: residentStatus }).eq("resident_id", residentId);
-                }
             }
 
-            // Severity calculation helper
-            function calculateSeverity(sys, dia, hr, temp) {
-                if (sys === null || dia === null || hr === null || temp === null) {
-                    return { Text: "Chưa đo", Class: "severity-unmeasured" };
+            // Mức độ: ưu tiên giá trị severity do DB tính (đã gồm SpO2, đường huyết và
+            // ngưỡng cá nhân của từng cư dân). Hàm dự phòng bên dưới chỉ dùng cho bản
+            // ghi cũ chưa có cột severity — giữ ngưỡng mặc định khớp với vital_assessment.
+            const SEVERITY_CLASS = { "Cao": "severity-high", "Trung bình": "severity-medium", "Bình thường": "severity-normal" };
+
+            function getSeverity(vitals) {
+                if (!vitals.isMeasured) return { Text: "Chưa đo", Class: "severity-unmeasured" };
+                if (vitals.severity && SEVERITY_CLASS[vitals.severity]) {
+                    return { Text: vitals.severity, Class: SEVERITY_CLASS[vitals.severity] };
                 }
-                const bpDiff = sys - dia;
-                if (sys >= 140 || dia >= 90 || bpDiff <= 20 || hr > 100 || hr < 50 || temp >= 38.5 || temp < 35.0) {
-                    return { Text: "Cao", Class: "severity-high" };
+                return calculateSeverity(vitals);
+            }
+
+            function calculateSeverity(v) {
+                const { sys, dia, hr, temp, spo2, bloodSugar } = v;
+                let high = false;
+                let medium = false;
+                if (sys != null && dia != null) {
+                    if (sys >= 140 || dia >= 90 || sys < 90 || sys - dia <= 20) high = true;
+                    else if (sys >= 120 || dia >= 80) medium = true;
                 }
-                if ((sys >= 120 && sys <= 139) || (dia >= 80 && dia <= 89) || (hr >= 91 && hr <= 100) || (hr >= 50 && hr <= 59) || (temp >= 37.5 && temp <= 38.4)) {
-                    return { Text: "Trung bình", Class: "severity-medium" };
+                if (hr != null) {
+                    if (hr > 100 || hr < 50) high = true;
+                    else if (hr > 90 || hr < 60) medium = true;
                 }
+                if (temp != null) {
+                    if (temp >= 38.5 || temp < 35) high = true;
+                    else if (temp >= 37.5) medium = true;
+                }
+                if (spo2 != null) {
+                    if (spo2 < 92) high = true;
+                    else if (spo2 < 95) medium = true;
+                }
+                if (bloodSugar != null) {
+                    if (bloodSugar < 70 || bloodSugar >= 250) high = true;
+                    else if (bloodSugar >= 180 || bloodSugar < 80) medium = true;
+                }
+                if (high) return { Text: "Cao", Class: "severity-high" };
+                if (medium) return { Text: "Trung bình", Class: "severity-medium" };
                 return { Text: "Bình thường", Class: "severity-normal" };
             }
 
@@ -500,6 +612,8 @@
                         bloodSugar: rec.blood_sugar,
                         time: formatTimeVN(rec.recorded_at),
                         note: rec.note || "",
+                        severity: rec.severity,
+                        isBackfilled: !!rec.is_backfilled,
                         isMeasured: true
                     };
                 }
@@ -580,7 +694,7 @@
 
                 currentResidents.forEach(res => {
                     const vitals = getResidentTodayVitals(res.residentId);
-                    const sev = calculateSeverity(vitals.sys, vitals.dia, vitals.hr, vitals.temp);
+                    const sev = getSeverity(vitals);
 
                     const matchesSeverity = (
                         selectedSeverity === "Tất cả" ||
@@ -601,7 +715,9 @@
                         const bpDisplay = vitals.isMeasured ? `<strong>${vitals.sys}/${vitals.dia}</strong>` : `<span style="color:#98a2b3;">--/--</span>`;
                         const hrDisplay = vitals.isMeasured ? `<strong>${vitals.hr}</strong>` : `<span style="color:#98a2b3;">--</span>`;
                         const tempDisplay = vitals.isMeasured ? `<strong>${vitals.temp}</strong>` : `<span style="color:#98a2b3;">--</span>`;
-                        const timeDisplay = vitals.isMeasured ? vitals.time : `<span style="color:#667085; font-style:italic;">${vitals.time}</span>`;
+                        const timeDisplay = vitals.isMeasured
+                            ? `${vitals.time}${vitals.isBackfilled ? ` <span title="Bản ghi được nhập bù sau thời điểm đo" style="font-size:11px; color:#b54708; background:#fffaeb; border-radius:4px; padding:1px 5px;">nhập bù</span>` : ""}`
+                            : `<span style="color:#667085; font-style:italic;">${vitals.time}</span>`;
                         const badgeStyle = (sev.Text === "Chưa đo") ? `background:#f2f4f7; color:#667085; font-weight:500;` : ``;
 
                         tr.innerHTML = `
@@ -635,6 +751,11 @@
                                         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                                     </svg>
                                     <span>Cập nhật</span>
+                                </a>
+                                <a href="#" class="table-action-link btn-threshold-trigger" data-roles="admin,manager"
+                                   data-resident-id="${res.residentId}" data-name="${res.name}"
+                                   title="Đặt ngưỡng cảnh báo riêng cho cư dân này" style="margin-left: 8px; color: #667085;">
+                                    <span>Ngưỡng</span>
                                 </a>
                             </td>
                         `;
@@ -674,7 +795,11 @@
                         const note = this.getAttribute("data-note");
 
                         modalTitle.innerText = `Cập nhật chỉ số - ${name}`;
-                        if (inputDate) inputDate.value = selectedViewDate;
+                        if (inputDate) {
+                            inputDate.max = todayKey;
+                            inputDate.min = isStaffRole() ? staffMinDateKey : "";
+                            inputDate.value = (isStaffRole() && selectedViewDate < staffMinDateKey) ? todayKey : selectedViewDate;
+                        }
                         inputSys.value = sys || "120";
                         inputDia.value = dia || "80";
                         inputHr.value = hr || "75";
@@ -685,6 +810,14 @@
                         inputNote.value = note || "";
 
                         modalOverlay.classList.add("active");
+                    });
+                });
+
+                document.querySelectorAll(".btn-threshold-trigger").forEach(trigger => {
+                    trigger.addEventListener("click", function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openThresholdModal(parseInt(this.getAttribute("data-resident-id"), 10), this.getAttribute("data-name"));
                     });
                 });
 
@@ -755,6 +888,29 @@
                         return;
                     }
 
+                    // Kiểm tra trước các giới hạn mà DB cũng ép (chk_health_records_vitals_range,
+                    // prepare_health_record) để báo lỗi dễ hiểu hơn.
+                    const rangeErrors = [];
+                    if (sys < 40 || sys > 260) rangeErrors.push("Huyết áp tâm thu phải trong khoảng 40–260 mmHg");
+                    if (dia < 30 || dia > 180) rangeErrors.push("Huyết áp tâm trương phải trong khoảng 30–180 mmHg");
+                    if (sys <= dia) rangeErrors.push("Huyết áp tâm thu phải lớn hơn tâm trương");
+                    if (hr < 30 || hr > 220) rangeErrors.push("Nhịp tim phải trong khoảng 30–220 lần/phút");
+                    if (temp < 30 || temp > 45) rangeErrors.push("Nhiệt độ phải trong khoảng 30–45 °C");
+                    if (spo2 != null && (spo2 < 50 || spo2 > 100)) rangeErrors.push("SpO2 phải trong khoảng 50–100%");
+                    if (weight != null && (weight < 20 || weight > 200)) rangeErrors.push("Cân nặng phải trong khoảng 20–200 kg");
+                    if (bloodSugar != null && (bloodSugar < 30 || bloodSugar > 600)) rangeErrors.push("Đường huyết phải trong khoảng 30–600 mg/dL");
+                    if (targetDateKey > todayKey) rangeErrors.push("Không thể ghi chỉ số cho ngày trong tương lai");
+                    if (isStaffRole() && targetDateKey < staffMinDateKey) rangeErrors.push("Nhân viên chỉ được nhập bù chỉ số trong vòng 1 ngày trước. Liên hệ quản lý để nhập dữ liệu cũ hơn");
+                    if (rangeErrors.length > 0) {
+                        alert("Vui lòng kiểm tra lại:\n- " + rangeErrors.join("\n- "));
+                        return;
+                    }
+                    if (targetDateKey !== todayKey && !note) {
+                        alert("Nhập bù chỉ số cho ngày trước: vui lòng ghi chú lý do nhập bù.");
+                        inputNote.focus();
+                        return;
+                    }
+
                     btnSave.disabled = true;
                     btnSave.textContent = "Đang lưu...";
 
@@ -783,6 +939,109 @@
                     }
                 });
             }
+
+            // ==========================================================================
+            // 5b. NGƯỠNG CẢNH BÁO CÁ NHÂN (resident_vital_thresholds — chỉ Admin/Manager ghi)
+            // ==========================================================================
+            const thresholdOverlay = document.getElementById("threshold-modal-overlay");
+            const THRESHOLD_FIELDS = {
+                systolic_high: "th-sys-high",
+                systolic_low: "th-sys-low",
+                diastolic_high: "th-dia-high",
+                heart_rate_low: "th-hr-low",
+                heart_rate_high: "th-hr-high",
+                temperature_high: "th-temp-high",
+                spo2_low: "th-spo2-low",
+                blood_sugar_low: "th-sugar-low",
+                blood_sugar_high: "th-sugar-high"
+            };
+            let thresholdResidentId = null;
+
+            async function openThresholdModal(residentId, name) {
+                thresholdResidentId = residentId;
+                document.getElementById("threshold-modal-title").innerText = `Ngưỡng cảnh báo riêng - ${name}`;
+                const { data, error } = await window.sb
+                    .from("resident_vital_thresholds")
+                    .select("*")
+                    .eq("resident_id", residentId)
+                    .maybeSingle();
+                if (error) {
+                    alert("Không tải được ngưỡng hiện tại: " + error.message);
+                    return;
+                }
+                Object.entries(THRESHOLD_FIELDS).forEach(([col, id]) => {
+                    document.getElementById(id).value = data && data[col] != null ? data[col] : "";
+                });
+                document.getElementById("th-note").value = data && data.note ? data.note : "";
+                thresholdOverlay.classList.add("active");
+            }
+
+            function closeThresholdModal() {
+                thresholdOverlay.classList.remove("active");
+                thresholdResidentId = null;
+            }
+
+            document.getElementById("btn-threshold-close").addEventListener("click", closeThresholdModal);
+            document.getElementById("btn-threshold-cancel").addEventListener("click", closeThresholdModal);
+            thresholdOverlay.addEventListener("click", function (e) {
+                if (e.target === thresholdOverlay) closeThresholdModal();
+            });
+
+            document.getElementById("btn-threshold-reset").addEventListener("click", async function () {
+                if (!thresholdResidentId) return;
+                if (!confirm("Xóa ngưỡng riêng và quay về ngưỡng mặc định cho cư dân này?")) return;
+                const { error } = await window.sb.from("resident_vital_thresholds").delete().eq("resident_id", thresholdResidentId);
+                if (error) {
+                    alert("Không thể xóa ngưỡng: " + error.message);
+                    return;
+                }
+                closeThresholdModal();
+                alert("Đã quay về ngưỡng mặc định. Áp dụng cho các lần đo tiếp theo.");
+            });
+
+            document.getElementById("btn-threshold-save").addEventListener("click", async function () {
+                if (!thresholdResidentId) return;
+                const row = { resident_id: thresholdResidentId };
+                Object.entries(THRESHOLD_FIELDS).forEach(([col, id]) => {
+                    const raw = document.getElementById(id).value;
+                    row[col] = raw === "" ? null : Number(raw);
+                });
+                row.note = document.getElementById("th-note").value.trim() || null;
+
+                const customized = Object.keys(THRESHOLD_FIELDS).some(col => row[col] != null);
+                if (customized && !row.note) {
+                    alert("Vui lòng ghi căn cứ / chỉ định khi đặt ngưỡng riêng.");
+                    return;
+                }
+                if (row.systolic_low != null && row.systolic_high != null && row.systolic_low >= row.systolic_high) {
+                    alert("Ngưỡng tâm thu thấp phải nhỏ hơn ngưỡng tâm thu cao.");
+                    return;
+                }
+                if (row.heart_rate_low != null && row.heart_rate_high != null && row.heart_rate_low >= row.heart_rate_high) {
+                    alert("Ngưỡng nhịp tim chậm phải nhỏ hơn ngưỡng nhịp tim nhanh.");
+                    return;
+                }
+                if (row.blood_sugar_low != null && row.blood_sugar_high != null && row.blood_sugar_low >= row.blood_sugar_high) {
+                    alert("Ngưỡng đường huyết thấp phải nhỏ hơn ngưỡng đường huyết cao.");
+                    return;
+                }
+                row.updated_by = window.currentUser ? window.currentUser.id : null;
+                row.updated_at = new Date().toISOString();
+
+                const btn = this;
+                btn.disabled = true;
+                try {
+                    const { error } = await window.sb.from("resident_vital_thresholds").upsert(row, { onConflict: "resident_id" });
+                    if (error) throw error;
+                    closeThresholdModal();
+                    alert("Đã lưu ngưỡng riêng. Áp dụng cho các lần đo tiếp theo.");
+                } catch (err) {
+                    console.error(err);
+                    alert("Không thể lưu ngưỡng: " + err.message);
+                } finally {
+                    btn.disabled = false;
+                }
+            });
 
             // Filter Pills listener
             document.querySelectorAll(".health-pills-wrapper .health-pill").forEach(pill => {

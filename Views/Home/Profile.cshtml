@@ -566,6 +566,24 @@
                     <span class="permission-status-badge" data-permission="edit_health">—</span>
                 </div>
 
+                <!-- 4. Ghi nhật ký chăm sóc & bàn giao ca -->
+                <div class="permission-row-item">
+                    <span class="permission-title">Ghi nhật ký chăm sóc, sự cố &amp; bàn giao ca</span>
+                    <span class="permission-status-badge" data-permission="care_log">—</span>
+                </div>
+
+                <!-- 4b. Phân công / hủy lịch chăm sóc của người khác -->
+                <div class="permission-row-item">
+                    <span class="permission-title">Phân công, hủy, xóa lịch chăm sóc của nhân viên khác</span>
+                    <span class="permission-status-badge" data-permission="assign_schedules">—</span>
+                </div>
+
+                <!-- 4c. Ngưỡng cảnh báo riêng & lịch sử chỉnh sửa -->
+                <div class="permission-row-item">
+                    <span class="permission-title">Đặt ngưỡng cảnh báo riêng, xem lịch sử chỉnh sửa</span>
+                    <span class="permission-status-badge" data-permission="clinical_oversight">—</span>
+                </div>
+
                 <!-- 5. Xuất báo cáo PDF -->
                 <div class="permission-row-item">
                     <span class="permission-title">Xuất báo cáo PDF</span>
@@ -590,6 +608,13 @@
 
 @section Scripts {
     <script>
+        // Bản tĩnh (Cloudflare Pages) không có server đọc ?tab= nên chọn tab phía client.
+        document.addEventListener('DOMContentLoaded', function () {
+            const tab = new URLSearchParams(window.location.search).get('tab');
+            const btn = /^\w+$/.test(tab || '') && document.querySelector(`.settings-nav-item[onclick*="'${tab}'"]`);
+            if (btn && document.getElementById('tab-' + tab)) switchSettingsTab(tab, btn);
+        });
+
         function switchSettingsTab(tabName, btnElement) {
             // Hide all tab panes
             document.querySelectorAll('.settings-tab-pane').forEach(pane => {
@@ -667,6 +692,9 @@
         const PERMISSION_MATRIX = {
             edit_residents:   ["admin", "manager", "staff"],
             edit_health:      ["admin", "manager", "staff"],
+            care_log:         ["admin", "manager", "staff"],
+            assign_schedules: ["admin", "manager"],
+            clinical_oversight: ["admin", "manager"],
             reports:          ["admin", "manager", "staff"],
             user_management:  ["admin"],
             system_settings:  ["admin"]

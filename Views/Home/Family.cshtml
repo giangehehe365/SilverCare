@@ -144,6 +144,8 @@
                     return;
                 }
 
+                // Xóa cờ "phiên tạm" có thể còn sót từ lần đăng nhập nhân viên trước đó trên máy này
+                try { localStorage.removeItem("sc_session_only"); } catch (e) { }
                 window.location.href = "/Home/Dashboard";
             } catch (err) {
                 console.error(err);

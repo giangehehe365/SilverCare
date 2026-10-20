@@ -47,10 +47,12 @@
                 <span id="loginErrorText">Email hoặc mật khẩu không đúng.</span>
             </div>
 
+            <div id="loginInfoBox" style="display:none; background:#ecfdf3; border:1px solid #a6f4c5; color:#027a48; border-radius:8px; padding:10px 14px; font-size:14px; margin-bottom:16px;"></div>
+
             <form class="login-form" id="staffLoginForm">
                 <div class="form-group">
-                    <label for="username">Email / Số điện thoại</label>
-                    <input type="text" id="username" name="username" placeholder="example@silvercare.vn" required />
+                    <label for="username">Email</label>
+                    <input type="text" id="username" name="username" inputmode="email" autocomplete="username" placeholder="example@silvercare.vn" required />
                 </div>
                 
                 <div class="form-group">
@@ -69,13 +71,38 @@
                 
                 <div class="form-options">
                     <label class="remember-checkbox-label">
-                        <input type="checkbox" name="remember" />
+                        <input type="checkbox" name="remember" id="rememberLogin" />
                         <span>Ghi nhớ đăng nhập</span>
                     </label>
-                    <a href="#" class="forgot-password-link">Quên mật khẩu?</a>
+                    <a href="#" class="forgot-password-link" id="forgotPasswordLink">Quên mật khẩu?</a>
                 </div>
-                
+
                 <button type="submit" class="login-submit-btn">Đăng nhập</button>
+            </form>
+
+            <!-- Quên mật khẩu: gửi email đặt lại -->
+            <form class="login-form" id="forgotPasswordForm" style="display:none;">
+                <p style="font-size:14px; color:#475467; margin:0 0 4px 0;">Nhập email tài khoản, hệ thống sẽ gửi liên kết đặt lại mật khẩu.</p>
+                <div class="form-group">
+                    <label for="forgotEmail">Email</label>
+                    <input type="text" id="forgotEmail" inputmode="email" autocomplete="email" placeholder="example@silvercare.vn" required />
+                </div>
+                <button type="submit" class="login-submit-btn">Gửi liên kết đặt lại</button>
+                <a href="#" class="forgot-password-link" data-back-to-login style="display:block; text-align:center; margin-top:12px;">← Quay lại đăng nhập</a>
+            </form>
+
+            <!-- Đặt mật khẩu mới (mở từ liên kết trong email) -->
+            <form class="login-form" id="resetPasswordForm" style="display:none;">
+                <p style="font-size:14px; color:#475467; margin:0 0 4px 0;">Đặt mật khẩu mới cho tài khoản của bạn.</p>
+                <div class="form-group">
+                    <label for="newPassword">Mật khẩu mới</label>
+                    <input type="password" id="newPassword" autocomplete="new-password" placeholder="Tối thiểu 8 ký tự" required />
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Nhập lại mật khẩu mới</label>
+                    <input type="password" id="confirmPassword" autocomplete="new-password" required />
+                </div>
+                <button type="submit" class="login-submit-btn">Lưu mật khẩu mới</button>
             </form>
         </div>
     </main>
@@ -110,7 +137,126 @@
             var text = document.getElementById("loginErrorText");
             text.textContent = message;
             box.style.display = "flex";
+            document.getElementById("loginInfoBox").style.display = "none";
         }
+
+        function showLoginInfo(message) {
+            var box = document.getElementById("loginInfoBox");
+            box.textContent = message;
+            box.style.display = "block";
+            document.getElementById("loginErrorBox").style.display = "none";
+        }
+
+        function showForm(id) {
+            ["staffLoginForm", "forgotPasswordForm", "resetPasswordForm"].forEach(function (formId) {
+                document.getElementById(formId).style.display = formId === id ? "" : "none";
+            });
+        }
+
+        // "Ghi nhớ đăng nhập": không tích thì phiên chỉ sống đến khi đóng trình duyệt —
+        // session cookie sc_session_alive mất khi tắt trình duyệt, auth-guard.js thấy
+        // vậy sẽ đăng xuất.
+        function applyRememberChoice(remember) {
+            document.cookie = "sc_session_alive=1; path=/; SameSite=Lax";
+            try {
+                if (remember) {
+                    localStorage.removeItem("sc_session_only");
+                } else {
+                    localStorage.setItem("sc_session_only", "1");
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+        }
+
+        document.getElementById("forgotPasswordLink").addEventListener("click", function (e) {
+            e.preventDefault();
+            document.getElementById("forgotEmail").value = document.getElementById("username").value.trim();
+            showForm("forgotPasswordForm");
+        });
+
+        document.querySelectorAll("[data-back-to-login]").forEach(function (link) {
+            link.addEventListener("click", function (e) {
+                e.preventDefault();
+                showForm("staffLoginForm");
+            });
+        });
+
+        document.getElementById("forgotPasswordForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+            var btn = this.querySelector(".login-submit-btn");
+            var email = document.getElementById("forgotEmail").value.trim();
+            if (!/^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/.test(email)) {
+                showLoginError("Vui lòng nhập đúng định dạng email.");
+                return;
+            }
+            btn.disabled = true;
+            try {
+                var { error } = await window.sb.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.origin + "/Home/Staff"
+                });
+                if (error) throw error;
+                // Không tiết lộ email có tồn tại hay không
+                showLoginInfo("Nếu email thuộc một tài khoản trong hệ thống, liên kết đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư.");
+                showForm("staffLoginForm");
+            } catch (err) {
+                console.error(err);
+                showLoginError("Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau hoặc liên hệ quản trị viên.");
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        // Liên kết khôi phục từ email trả về dạng #access_token=...&type=recovery
+        // (client tắt detectSessionInUrl nên tự xử lý ở đây).
+        (async function handleRecoveryLink() {
+            var hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+            if (hash.get("error_description")) {
+                showLoginError("Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Vui lòng gửi lại.");
+                history.replaceState(null, "", window.location.pathname);
+                return;
+            }
+            if (hash.get("type") !== "recovery" || !hash.get("access_token")) return;
+
+            var { error } = await window.sb.auth.setSession({
+                access_token: hash.get("access_token"),
+                refresh_token: hash.get("refresh_token")
+            });
+            history.replaceState(null, "", window.location.pathname);
+            if (error) {
+                showLoginError("Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Vui lòng gửi lại.");
+                return;
+            }
+            showForm("resetPasswordForm");
+        })();
+
+        document.getElementById("resetPasswordForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+            var btn = this.querySelector(".login-submit-btn");
+            var pass = document.getElementById("newPassword").value;
+            var confirmPass = document.getElementById("confirmPassword").value;
+            if (pass.length < 8) {
+                showLoginError("Mật khẩu mới phải có tối thiểu 8 ký tự.");
+                return;
+            }
+            if (pass !== confirmPass) {
+                showLoginError("Hai mật khẩu nhập vào không khớp.");
+                return;
+            }
+            btn.disabled = true;
+            try {
+                var { error } = await window.sb.auth.updateUser({ password: pass });
+                if (error) throw error;
+                await window.sb.auth.signOut();
+                showForm("staffLoginForm");
+                showLoginInfo("Đã đặt mật khẩu mới. Vui lòng đăng nhập lại.");
+            } catch (err) {
+                console.error(err);
+                showLoginError("Không thể đặt mật khẩu mới: " + err.message);
+            } finally {
+                btn.disabled = false;
+            }
+        });
 
         document.getElementById("staffLoginForm").addEventListener("submit", async function (e) {
             e.preventDefault();
@@ -147,6 +293,7 @@
                     return;
                 }
 
+                applyRememberChoice(document.getElementById("rememberLogin").checked);
                 window.location.href = "/Home/Dashboard";
             } catch (err) {
                 console.error(err);

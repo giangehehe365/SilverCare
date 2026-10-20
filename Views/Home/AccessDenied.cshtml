@@ -187,7 +187,7 @@
 
         <h1 class="denied-title">Truy cập bị từ chối</h1>
         <p class="denied-desc">
-            Tài khoản của bạn không có quyền thực hiện hoặc xem <strong>@featureName</strong>. Vui lòng liên hệ Quản trị viên hệ thống để được cấp thêm quyền nếu cần thiết.
+            Tài khoản của bạn không có quyền thực hiện hoặc xem <strong id="deniedFeature">@featureName</strong>. Vui lòng liên hệ Quản trị viên hệ thống để được cấp thêm quyền nếu cần thiết.
         </p>
 
         <div>
@@ -237,3 +237,13 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        // Bản tĩnh (Cloudflare Pages) không có server đọc ?feature= nên lấy từ URL phía client.
+        (function () {
+            var feature = new URLSearchParams(window.location.search).get('feature');
+            if (feature) document.getElementById('deniedFeature').textContent = feature;
+        })();
+    </script>
+}
