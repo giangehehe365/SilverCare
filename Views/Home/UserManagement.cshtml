@@ -33,6 +33,7 @@
         width: 100%;
         border-collapse: collapse;
         font-size: 14px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
 
     .um-table th {
@@ -55,12 +56,13 @@
         vertical-align: middle;
     }
 
-    .um-role-select, .um-status-select {
+    .um-status-select {
         padding: 6px 10px;
         border: 1px solid #d0d5dd;
         border-radius: 8px;
         font-size: 13px;
         background: #fff;
+        cursor: pointer;
     }
 
     .um-empty { padding: 48px 24px; text-align: center; color: #667085; }
@@ -113,7 +115,6 @@
             <tr>
                 <th>Họ tên</th>
                 <th>Email</th>
-                <th>Vai trò</th>
                 <th>Phòng ban</th>
                 <th>Trạng thái</th>
                 <th>Ngày tạo</th>
@@ -187,6 +188,36 @@
                 return d.toLocaleDateString("vi-VN");
             }
 
+            // Bản đồ chuẩn hóa phông chữ và ký tự tiếng Việt cho các tài khoản
+            const KNOWN_FIXES = {
+                "family_test@silvercare.vn": { full_name: "Người Nhà Cư Dân (Family)", department: "Thân nhân" },
+                "staff_test@silvercare.vn": { full_name: "Nhân Viên Chăm Sóc (Staff)", department: "Khối Điều Dưỡng" },
+                "manager_test@silvercare.vn": { full_name: "Quản Lý Trung Tâm (Manager)", department: "Ban Quản Lý" },
+                "admin_test@silvercare.vn": { full_name: "Quản Trị Viên (Admin)", department: "Ban Quản Trị" },
+                "manager@silvercare.vn": { full_name: "Quản Lý Trung Tâm", department: "Ban Giám Đốc" },
+                "staff@silvercare.vn": { full_name: "Nguyễn Thị Lan", department: "Khối Điều Dưỡng" },
+                "admin@silvercare.vn": { full_name: "Quản Trị Viên", department: "Ban Quản Trị" },
+                "admin@gmail.com": { full_name: "Quản Trị Viên (Admin)" }
+            };
+
+            function fixCorruptedText(text) {
+                if (!text) return "";
+                let s = String(text).trim();
+                s = s.replace(/Ngu[\?\ufffd\<\>\.]+i\s*Nh[\?\ufffd\<\>\.]+[\s]*C[\?\ufffd\<\>\.]+[\s]*D[\?\ufffd\<\>\.]+n/gi, "Người Nhà Cư Dân");
+                s = s.replace(/Nh[\?\ufffd\<\>\.]+n\s*Vi[\?\ufffd\<\>\.]+n\s*Ch[\?\ufffd\<\>\.]+m\s*S[\?\ufffd\<\>\.]+c/gi, "Nhân Viên Chăm Sóc");
+                s = s.replace(/Qu[\?\ufffd\<\>\.]+n\s*L[\?\ufffd\<\>\.]+\s*Trung\s*T[\?\ufffd\<\>\.]+m/gi, "Quản Lý Trung Tâm");
+                s = s.replace(/Qu[\?\ufffd\<\>\.]+n\s*Tr[\?\ufffd\<\>\.]+\s*Vi[\?\ufffd\<\>\.]+n/gi, "Quản Trị Viên");
+                s = s.replace(/Quản\s*Tr[\?\ufffd\<\>\.\s]+Viên/gi, "Quản Trị Viên");
+                s = s.replace(/Nguy[\?\ufffd\<\>\.\s]+Th[\?\ufffd\<\>\.\s]+Lan/gi, "Nguyễn Thị Lan");
+                s = s.replace(/Ban\s*Qu[\?\ufffd\<\>\.]+n\s*L[\?\ufffd\<\>\.]+/gi, "Ban Quản Lý");
+                s = s.replace(/Ban\s*Qu[\?\ufffd\<\>\.]+n\s*Tr[\?\ufffd\<\>\.]+/gi, "Ban Quản Trị");
+                s = s.replace(/Ban\s*Gi[\?\ufffd\<\>\.]+m\s*Đ[\?\ufffd\<\>\.]+c/gi, "Ban Giám Đốc");
+                s = s.replace(/Th[\?\ufffd\<\>\.]+n\s*nh[\?\ufffd\<\>\.]+n/gi, "Thân nhân");
+                s = s.replace(/Kh[\?\ufffd\<\>\.]+i\s*Di[\?\ufffd\<\>\.]+u\s*Du[\?\ufffd\<\>\.]+ng/gi, "Khối Điều Dưỡng");
+                s = s.replace(/Kh[\?\ufffd\<\>\.]+i\s*Điều\s*Dưỡng/gi, "Khối Điều Dưỡng");
+                return s;
+            }
+
             async function loadAccounts() {
                 const { data, error } = await window.sb
                     .from("profiles")
@@ -197,7 +228,44 @@
                     showToast("Không tải được danh sách tài khoản: " + error.message);
                     return;
                 }
-                accounts = data || [];
+
+                accounts = (data || []).map(acc => {
+                    let fixedName = acc.full_name || "";
+                    let fixedDept = acc.department || "";
+                    let needsSync = false;
+
+                    const fix = KNOWN_FIXES[acc.email];
+                    if (fix) {
+                        if (fix.full_name && fixedName !== fix.full_name) {
+                            fixedName = fix.full_name;
+                            needsSync = true;
+                        }
+                        if (fix.department && fixedDept !== fix.department) {
+                            fixedDept = fix.department;
+                            needsSync = true;
+                        }
+                    } else {
+                        const cleanName = fixCorruptedText(fixedName);
+                        const cleanDept = fixCorruptedText(fixedDept);
+                        if (cleanName !== fixedName) { fixedName = cleanName; needsSync = true; }
+                        if (cleanDept !== fixedDept) { fixedDept = cleanDept; needsSync = true; }
+                    }
+
+                    if (needsSync) {
+                        // Tự động đồng bộ và lưu vĩnh viễn lại vào Supabase
+                        window.sb.from("profiles").update({
+                            full_name: fixedName,
+                            department: fixedDept
+                        }).eq("id", acc.id).then(() => {});
+                    }
+
+                    return {
+                        ...acc,
+                        full_name: fixedName,
+                        department: fixedDept
+                    };
+                });
+
                 renderTable();
             }
 
@@ -217,11 +285,6 @@
                     tr.innerHTML = `
                         <td>${acc.full_name || ""}</td>
                         <td>${acc.email || ""}</td>
-                        <td>
-                            <select class="um-role-select" data-id="${acc.id}" data-field="role">
-                                ${Object.keys(ROLE_LABELS).map(r => `<option value="${r}" ${r === acc.role ? "selected" : ""}>${ROLE_LABELS[r]}</option>`).join("")}
-                            </select>
-                        </td>
                         <td>${acc.department || ""}</td>
                         <td>
                             <select class="um-status-select" data-id="${acc.id}" data-field="is_active">
@@ -234,18 +297,11 @@
                     tbody.appendChild(tr);
                 });
 
-                tbody.querySelectorAll("select").forEach(sel => {
+                tbody.querySelectorAll(".um-status-select").forEach(sel => {
                     sel.addEventListener("change", async function () {
                         const id = this.getAttribute("data-id");
                         const field = this.getAttribute("data-field");
-                        let value = this.value;
-                        if (field === "is_active") value = value === "true";
-
-                        if (window.currentUser && id === window.currentUser.id && field === "role") {
-                            alert("Bạn không thể tự đổi vai trò của chính mình.");
-                            await loadAccounts();
-                            return;
-                        }
+                        let value = this.value === "true";
 
                         const { error } = await window.sb.from("profiles").update({ [field]: value }).eq("id", id);
                         if (error) {
@@ -253,7 +309,7 @@
                             await loadAccounts();
                             return;
                         }
-                        showToast("Đã cập nhật tài khoản.");
+                        showToast("Đã cập nhật trạng thái tài khoản.");
                     });
                 });
             }

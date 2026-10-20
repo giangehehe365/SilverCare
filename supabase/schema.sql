@@ -73,9 +73,12 @@ begin
     -- auth.uid() luôn là NULL — đây là truy cập đã được tin cậy (cần đăng nhập
     -- Supabase Dashboard), nên bỏ qua giới hạn để Admin có thể tự cấp quyền
     -- cho tài khoản đầu tiên.
-    if auth.uid() is not null and public.user_role() is distinct from 'admin' then
+    -- Vai trò tài khoản (role) là cố định không đổi sau khi tạo
+    if auth.uid() is not null then
         new.role := old.role;
-        new.is_active := old.is_active;
+        if public.user_role() is distinct from 'admin' then
+            new.is_active := old.is_active;
+        end if;
     end if;
     return new;
 end;
