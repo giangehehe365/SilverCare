@@ -1,0 +1,874 @@
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewData["Title"] = "Nhật ký chăm sóc";
+    ViewData["AllowedRoles"] = "admin,manager,staff";
+}
+
+<style>
+    .cl-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .cl-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #101828;
+        margin: 0;
+    }
+    .cl-subtitle {
+        font-size: 14px;
+        color: #667085;
+        margin: 4px 0 0 0;
+    }
+    .cl-header-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .cl-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid #d0d5dd;
+        background: #ffffff;
+        color: #344054;
+    }
+    .cl-btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: #ffffff;
+    }
+    .cl-btn-primary:hover {
+        background-color: var(--color-primary-hover);
+    }
+    .cl-btn-small {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+    .cl-tabs {
+        display: flex;
+        gap: 6px;
+        border-bottom: 1px solid #eaecf0;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+    .cl-tab {
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #667085;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .cl-tab.active {
+        color: #026aa2;
+        border-bottom-color: var(--color-primary);
+    }
+    .cl-tab-badge {
+        background: #f04438;
+        color: #ffffff;
+        border-radius: 999px;
+        font-size: 11px;
+        padding: 1px 7px;
+    }
+    .cl-filters {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        background: #ffffff;
+        border: 1px solid #eaecf0;
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+    }
+    .cl-filters select, .cl-filters input[type="date"] {
+        height: 38px;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        padding: 0 12px;
+        font-size: 13.5px;
+        background: #ffffff;
+        color: #344054;
+    }
+    .cl-filters label {
+        font-size: 13.5px;
+        color: #344054;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .cl-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .cl-card {
+        background: #ffffff;
+        border: 1px solid #eaecf0;
+        border-radius: 12px;
+        padding: 14px 18px;
+    }
+    .cl-card.is-incident {
+        border-left: 4px solid #f04438;
+    }
+    .cl-card.is-pending {
+        border-left: 4px solid #f79009;
+    }
+    .cl-card-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 6px;
+    }
+    .cl-chip {
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 999px;
+        padding: 2px 10px;
+        background: #f2f4f7;
+        color: #344054;
+    }
+    .cl-chip-high { background: #fef3f2; color: #b42318; }
+    .cl-chip-medium { background: #fffaeb; color: #b54708; }
+    .cl-chip-ok { background: #ecfdf3; color: #027a48; }
+    .cl-card-title {
+        font-size: 14.5px;
+        font-weight: 700;
+        color: #101828;
+    }
+    .cl-card-body {
+        font-size: 13.5px;
+        color: #344054;
+        line-height: 1.55;
+        white-space: pre-wrap;
+    }
+    .cl-card-section-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #667085;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin: 10px 0 2px 0;
+    }
+    .cl-card-meta {
+        font-size: 12.5px;
+        color: #667085;
+        margin-top: 8px;
+    }
+    .cl-card-actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+    }
+    .cl-empty {
+        text-align: center;
+        padding: 36px 20px;
+        color: #667085;
+        font-size: 14px;
+        background: #ffffff;
+        border: 1px dashed #d0d5dd;
+        border-radius: 12px;
+    }
+    .cl-section-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #101828;
+        margin: 18px 0 10px 0;
+    }
+    .cl-audit-diff {
+        font-size: 13px;
+        color: #344054;
+        margin-top: 4px;
+    }
+    .cl-audit-diff code {
+        background: #f2f4f7;
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-size: 12.5px;
+    }
+    .cl-select, .cl-modal select.modal-input {
+        appearance: auto;
+    }
+    .cl-modal .modal-container {
+        max-width: 560px;
+    }
+    .cl-modal .modal-body {
+        max-height: 68vh;
+        overflow-y: auto;
+    }
+    .cl-hint {
+        font-size: 12.5px;
+        color: #667085;
+        margin: -8px 0 0 0;
+    }
+    .cl-incident-hint {
+        display: none;
+        font-size: 13px;
+        color: #b42318;
+        background: #fef3f2;
+        border: 1px solid #fecdca;
+        border-radius: 8px;
+        padding: 10px 12px;
+    }
+</style>
+
+<div class="cl-header">
+    <div>
+        <h1 class="cl-title">Nhật ký chăm sóc</h1>
+        <p class="cl-subtitle">Ghi nhận diễn biến, sự cố ngoài lịch và bàn giao ca giữa các nhân viên.</p>
+    </div>
+    <div class="cl-header-actions">
+        <button type="button" class="cl-btn" id="btn-open-handover">Bàn giao ca</button>
+        <button type="button" class="cl-btn cl-btn-primary" id="btn-open-note">+ Thêm ghi nhận</button>
+    </div>
+</div>
+
+<div class="cl-tabs" role="tablist">
+    <button class="cl-tab active" data-tab="notes">Nhật ký &amp; sự cố</button>
+    <button class="cl-tab" data-tab="handover">Bàn giao ca <span class="cl-tab-badge" id="handover-pending-badge" hidden>0</span></button>
+    <button class="cl-tab" data-tab="audit" data-roles="admin,manager">Lịch sử chỉnh sửa</button>
+</div>
+
+<!-- ===================== TAB: NHẬT KÝ & SỰ CỐ ===================== -->
+<section id="tab-notes">
+    <div class="cl-filters">
+        <select id="note-filter-resident"><option value="all">Tất cả người cao tuổi</option></select>
+        <select id="note-filter-type">
+            <option value="all">Tất cả loại</option>
+            <option>Ghi chú</option>
+            <option>Ăn uống</option>
+            <option>Vệ sinh</option>
+            <option>Tinh thần/Hành vi</option>
+            <option>Da/Vết loét</option>
+            <option>Té ngã</option>
+            <option>Sự cố khác</option>
+        </select>
+        <input type="date" id="note-filter-from" title="Từ ngày" />
+        <label><input type="checkbox" id="note-filter-incident" /> Chỉ sự cố</label>
+    </div>
+    <div class="cl-list" id="notes-list"></div>
+</section>
+
+<!-- ===================== TAB: BÀN GIAO CA ===================== -->
+<section id="tab-handover" hidden>
+    <h3 class="cl-section-title">Chờ bạn xác nhận</h3>
+    <div class="cl-list" id="handover-incoming-list"></div>
+    <h3 class="cl-section-title">Bàn giao gần đây (7 ngày)</h3>
+    <div class="cl-list" id="handover-recent-list"></div>
+</section>
+
+<!-- ===================== TAB: LỊCH SỬ CHỈNH SỬA (Admin/Manager) ===================== -->
+<section id="tab-audit" hidden>
+    <div class="cl-filters">
+        <select id="audit-filter-table">
+            <option value="all">Tất cả dữ liệu</option>
+            <option value="health_records">Chỉ số sức khỏe</option>
+            <option value="care_schedules">Lịch chăm sóc</option>
+            <option value="health_alerts">Cảnh báo sức khỏe</option>
+            <option value="residents">Hồ sơ người cao tuổi</option>
+            <option value="care_notes">Nhật ký chăm sóc</option>
+            <option value="resident_vital_thresholds">Ngưỡng cảnh báo riêng</option>
+        </select>
+        <select id="audit-filter-action">
+            <option value="all">Sửa &amp; xóa</option>
+            <option value="UPDATE">Chỉ sửa</option>
+            <option value="DELETE">Chỉ xóa</option>
+        </select>
+    </div>
+    <div class="cl-list" id="audit-list"></div>
+</section>
+
+<!-- ===================== MODAL: THÊM GHI NHẬN ===================== -->
+<div class="modal-overlay cl-modal" id="note-modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2 class="modal-title">Thêm ghi nhận chăm sóc</h2>
+            <button class="modal-close-btn" data-close-modal title="Đóng">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-form-group">
+                <label class="modal-label" for="note-resident">Người cao tuổi *</label>
+                <select class="modal-input" id="note-resident"></select>
+            </div>
+            <div class="modal-form-row">
+                <div class="modal-form-group">
+                    <label class="modal-label" for="note-type">Loại ghi nhận</label>
+                    <select class="modal-input" id="note-type">
+                        <option>Ghi chú</option>
+                        <option>Ăn uống</option>
+                        <option>Vệ sinh</option>
+                        <option>Tinh thần/Hành vi</option>
+                        <option>Da/Vết loét</option>
+                        <option>Té ngã</option>
+                        <option>Sự cố khác</option>
+                    </select>
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-label" for="note-severity">Mức độ</label>
+                    <select class="modal-input" id="note-severity">
+                        <option>Thấp</option>
+                        <option>Trung bình</option>
+                        <option>Cao</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-form-group">
+                <label class="modal-label" for="note-occurred">Thời điểm xảy ra</label>
+                <input type="datetime-local" class="modal-input" id="note-occurred" />
+            </div>
+            <div class="modal-form-group">
+                <label class="modal-label" for="note-content">Mô tả *</label>
+                <textarea class="modal-textarea" id="note-content" placeholder="Mô tả khách quan điều quan sát được: thời gian, vị trí, biểu hiện, lời kể của cư dân..."></textarea>
+            </div>
+            <div class="cl-incident-hint" id="note-incident-hint">
+                Đây là <strong>sự cố</strong>: quản lý sẽ được báo ngay; té ngã hoặc mức Cao sẽ báo cả người nhà. Bắt buộc ghi biện pháp đã xử lý.
+            </div>
+            <div class="modal-form-group">
+                <label class="modal-label" for="note-action" id="note-action-label">Biện pháp đã xử lý</label>
+                <textarea class="modal-textarea" id="note-action" placeholder="VD: Đỡ cư dân dậy, kiểm tra không chảy máu, đo HA 130/80, đã báo bác sĩ trực..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-footer-btn modal-btn-cancel" data-close-modal>Hủy</button>
+            <button class="modal-footer-btn modal-btn-save" id="btn-save-note">Lưu ghi nhận</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== MODAL: BÀN GIAO CA ===================== -->
+<div class="modal-overlay cl-modal" id="handover-modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2 class="modal-title">Bàn giao ca</h2>
+            <button class="modal-close-btn" data-close-modal title="Đóng">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-form-row">
+                <div class="modal-form-group">
+                    <label class="modal-label" for="handover-shift">Ca</label>
+                    <select class="modal-input" id="handover-shift">
+                        <option>Sáng</option>
+                        <option>Chiều</option>
+                        <option>Đêm</option>
+                    </select>
+                </div>
+                <div class="modal-form-group">
+                    <label class="modal-label" for="handover-to">Người nhận ca *</label>
+                    <select class="modal-input" id="handover-to"></select>
+                </div>
+            </div>
+            <div class="modal-form-group">
+                <label class="modal-label" for="handover-summary">Tóm tắt tình hình ca *</label>
+                <textarea class="modal-textarea" id="handover-summary" placeholder="Tình hình chung của ca, việc đã làm, điều cần lưu ý..."></textarea>
+            </div>
+            <div class="modal-form-group">
+                <label class="modal-label" for="handover-pending">Việc tồn đọng</label>
+                <textarea class="modal-textarea" id="handover-pending" style="min-height: 110px;"></textarea>
+            </div>
+            <div class="modal-form-group">
+                <label class="modal-label" for="handover-watch">Cư dân cần theo dõi</label>
+                <textarea class="modal-textarea" id="handover-watch" style="min-height: 110px;"></textarea>
+            </div>
+            <p class="cl-hint">"Việc tồn đọng" và "Cư dân cần theo dõi" được hệ thống tổng hợp sẵn từ lịch chưa xong, cảnh báo chưa xử lý, chỉ số bất thường và sự cố trong ca — kiểm tra và bổ sung trước khi gửi.</p>
+            <button type="button" class="cl-btn cl-btn-small" id="btn-handover-regenerate" style="align-self: flex-start;">↻ Tổng hợp lại</button>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-footer-btn modal-btn-cancel" data-close-modal>Hủy</button>
+            <button class="modal-footer-btn modal-btn-save" id="btn-save-handover">Gửi bàn giao</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+document.addEventListener("silvercare:auth-ready", async function () {
+    const me = window.currentUser;
+    const isManager = ["admin", "manager"].indexOf(me.role) !== -1;
+    const TZ_SHIFTS = { "Sáng": [6, 14], "Chiều": [14, 22], "Đêm": [22, 30] };
+
+    let residents = [];
+    let staffList = [];
+    let notes = [];
+
+    // ---------- Helpers ----------
+    function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.textContent = str == null ? "" : String(str);
+        return div.innerHTML;
+    }
+
+    function pad(n) { return String(n).padStart(2, "0"); }
+
+    function toIsoDate(d) {
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    function toLocalInputValue(d) {
+        return `${toIsoDate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function formatDateTime(iso) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+    }
+
+    function formatTime(iso) {
+        const d = new Date(iso);
+        return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function severityChip(sev) {
+        const cls = sev === "Cao" ? "cl-chip-high" : (sev === "Trung bình" ? "cl-chip-medium" : "");
+        return `<span class="cl-chip ${cls}">${escapeHtml(sev)}</span>`;
+    }
+
+    function residentLabel(r) {
+        return r ? `${r.full_name}${r.rooms ? " - Phòng " + r.rooms.room_code : ""}` : "";
+    }
+
+    function currentShift(now) {
+        const h = now.getHours();
+        if (h >= 6 && h < 14) return "Sáng";
+        if (h >= 14 && h < 22) return "Chiều";
+        return "Đêm";
+    }
+
+    // Khoảng thời gian của một ca, tính quanh thời điểm "now"
+    function shiftWindow(shift, now) {
+        const [startH, endH] = TZ_SHIFTS[shift];
+        const start = new Date(now);
+        start.setHours(startH, 0, 0, 0);
+        if (shift === "Đêm" && now.getHours() < 6) start.setDate(start.getDate() - 1);
+        const end = new Date(start);
+        end.setHours(start.getHours() + (endH - startH));
+        return { start, end };
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add("active"); }
+    function closeModal(el) { el.closest(".modal-overlay").classList.remove("active"); }
+
+    document.querySelectorAll("[data-close-modal]").forEach(btn => btn.addEventListener("click", function () { closeModal(this); }));
+    document.querySelectorAll(".cl-modal").forEach(overlay => overlay.addEventListener("click", function (e) {
+        if (e.target === overlay) overlay.classList.remove("active");
+    }));
+
+    // ---------- Tabs ----------
+    function switchTab(tab) {
+        document.querySelectorAll(".cl-tab").forEach(b => b.classList.toggle("active", b.getAttribute("data-tab") === tab));
+        ["notes", "handover", "audit"].forEach(t => { document.getElementById("tab-" + t).hidden = t !== tab; });
+        if (tab === "audit") loadAudit();
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", tab);
+        window.history.replaceState(null, "", url);
+    }
+    document.querySelectorAll(".cl-tab").forEach(b => b.addEventListener("click", function () { switchTab(this.getAttribute("data-tab")); }));
+
+    // ---------- Dữ liệu dùng chung ----------
+    async function loadLookups() {
+        const [resResult, staffResult] = await Promise.all([
+            window.sb.from("residents").select("resident_id, full_name, rooms(room_code)").eq("is_active", true).order("full_name"),
+            window.sb.from("profiles").select("id, full_name, role").in("role", ["admin", "manager", "staff"]).eq("is_active", true).order("full_name")
+        ]);
+        residents = resResult.data || [];
+        staffList = (staffResult.data || []).filter(p => p.id !== me.id);
+
+        const residentOptions = residents.map(r => `<option value="${r.resident_id}">${escapeHtml(residentLabel(r))}</option>`).join("");
+        document.getElementById("note-filter-resident").insertAdjacentHTML("beforeend", residentOptions);
+        document.getElementById("note-resident").innerHTML = `<option value="" disabled selected>-- Chọn --</option>` + residentOptions;
+        document.getElementById("handover-to").innerHTML = `<option value="" disabled selected>-- Chọn --</option>` +
+            staffList.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}</option>`).join("");
+    }
+
+    // ==========================================================================
+    // NHẬT KÝ & SỰ CỐ (care_notes)
+    // ==========================================================================
+    async function loadNotes() {
+        const residentFilter = document.getElementById("note-filter-resident").value;
+        const typeFilter = document.getElementById("note-filter-type").value;
+        const fromDate = document.getElementById("note-filter-from").value;
+        const onlyIncident = document.getElementById("note-filter-incident").checked;
+
+        let query = window.sb
+            .from("care_notes")
+            .select("care_note_id, resident_id, note_type, severity, content, action_taken, occurred_at, is_incident, family_notified, created_at, residents(full_name, rooms(room_code)), author:profiles!care_notes_author_id_fkey(full_name)")
+            .order("occurred_at", { ascending: false })
+            .limit(200);
+        if (residentFilter !== "all") query = query.eq("resident_id", parseInt(residentFilter, 10));
+        if (typeFilter !== "all") query = query.eq("note_type", typeFilter);
+        if (fromDate) query = query.gte("occurred_at", new Date(`${fromDate}T00:00:00`).toISOString());
+        if (onlyIncident) query = query.eq("is_incident", true);
+
+        const { data, error } = await query;
+        const list = document.getElementById("notes-list");
+        if (error) {
+            console.error(error);
+            list.innerHTML = `<div class="cl-empty">Không tải được nhật ký: ${escapeHtml(error.message)}</div>`;
+            return;
+        }
+        notes = data || [];
+        if (notes.length === 0) {
+            list.innerHTML = `<div class="cl-empty">Chưa có ghi nhận nào phù hợp.</div>`;
+            return;
+        }
+        list.innerHTML = notes.map(n => `
+            <div class="cl-card ${n.is_incident ? "is-incident" : ""}">
+                <div class="cl-card-head">
+                    <span class="cl-chip">${escapeHtml(n.note_type)}</span>
+                    ${severityChip(n.severity)}
+                    <span class="cl-card-title">${escapeHtml(residentLabel(n.residents))}</span>
+                    ${n.is_incident ? `<span class="cl-chip cl-chip-high">Sự cố</span>` : ""}
+                    ${n.family_notified ? `<span class="cl-chip">Đã báo người nhà</span>` : ""}
+                </div>
+                <div class="cl-card-body">${escapeHtml(n.content)}</div>
+                ${n.action_taken ? `<div class="cl-card-section-label">Đã xử lý</div><div class="cl-card-body">${escapeHtml(n.action_taken)}</div>` : ""}
+                <div class="cl-card-meta">
+                    Xảy ra lúc ${formatDateTime(n.occurred_at)} · Ghi bởi ${escapeHtml(n.author ? n.author.full_name : "---")}
+                    ${Math.abs(new Date(n.created_at) - new Date(n.occurred_at)) > 3600 * 1000 ? ` · nhập lúc ${formatDateTime(n.created_at)}` : ""}
+                </div>
+            </div>
+        `).join("");
+    }
+
+    ["note-filter-resident", "note-filter-type", "note-filter-from", "note-filter-incident"].forEach(id => {
+        document.getElementById(id).addEventListener("change", loadNotes);
+    });
+
+    const noteType = document.getElementById("note-type");
+    const noteSeverity = document.getElementById("note-severity");
+    function syncIncidentHint() {
+        const incident = ["Té ngã", "Sự cố khác"].indexOf(noteType.value) !== -1 || noteSeverity.value === "Cao";
+        document.getElementById("note-incident-hint").style.display = incident ? "block" : "none";
+        document.getElementById("note-action-label").innerText = incident ? "Biện pháp đã xử lý *" : "Biện pháp đã xử lý";
+        return incident;
+    }
+    noteType.addEventListener("change", function () {
+        if (this.value === "Té ngã" && noteSeverity.value === "Thấp") noteSeverity.value = "Trung bình";
+        syncIncidentHint();
+    });
+    noteSeverity.addEventListener("change", syncIncidentHint);
+
+    document.getElementById("btn-open-note").addEventListener("click", function () {
+        const now = new Date();
+        document.getElementById("note-resident").selectedIndex = 0;
+        noteType.value = "Ghi chú";
+        noteSeverity.value = "Thấp";
+        const occurred = document.getElementById("note-occurred");
+        occurred.max = toLocalInputValue(now);
+        occurred.value = toLocalInputValue(now);
+        document.getElementById("note-content").value = "";
+        document.getElementById("note-action").value = "";
+        const filterResident = document.getElementById("note-filter-resident").value;
+        if (filterResident !== "all") document.getElementById("note-resident").value = filterResident;
+        syncIncidentHint();
+        openModal("note-modal-overlay");
+    });
+
+    document.getElementById("btn-save-note").addEventListener("click", async function () {
+        const residentId = document.getElementById("note-resident").value;
+        const content = document.getElementById("note-content").value.trim();
+        const action = document.getElementById("note-action").value.trim();
+        const occurredValue = document.getElementById("note-occurred").value;
+        const incident = syncIncidentHint();
+
+        if (!residentId) { alert("Vui lòng chọn người cao tuổi."); return; }
+        if (content.length < 5) { alert("Vui lòng mô tả cụ thể điều đã quan sát."); return; }
+        if (incident && action.length < 5) { alert("Sự cố cần ghi rõ biện pháp đã xử lý."); return; }
+        const occurredAt = occurredValue ? new Date(occurredValue) : new Date();
+        if (occurredAt.getTime() > Date.now() + 5 * 60 * 1000) { alert("Thời điểm xảy ra không thể ở tương lai."); return; }
+
+        const btn = this;
+        btn.disabled = true;
+        try {
+            // author_id, is_incident, family_notified do trigger prepare_care_note gán
+            const { error } = await window.sb.from("care_notes").insert({
+                resident_id: parseInt(residentId, 10),
+                note_type: noteType.value,
+                severity: noteSeverity.value,
+                content: content,
+                action_taken: action || null,
+                occurred_at: occurredAt.toISOString()
+            });
+            if (error) throw error;
+            closeModal(btn);
+            await loadNotes();
+        } catch (err) {
+            console.error(err);
+            alert("Không thể lưu ghi nhận: " + err.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // ==========================================================================
+    // BÀN GIAO CA (shift_handovers)
+    // ==========================================================================
+    const HANDOVER_SELECT = "handover_id, shift_date, shift, summary, pending_tasks, residents_to_watch, acknowledged_at, acknowledge_note, created_at, from_staff_id, to_staff_id, " +
+        "from_staff:profiles!shift_handovers_from_staff_id_fkey(full_name), to_staff:profiles!shift_handovers_to_staff_id_fkey(full_name)";
+
+    function renderHandoverCard(h, withAckButton) {
+        const pending = !h.acknowledged_at;
+        return `
+            <div class="cl-card ${pending ? "is-pending" : ""}">
+                <div class="cl-card-head">
+                    <span class="cl-chip">Ca ${escapeHtml(h.shift)} ${escapeHtml(h.shift_date.split("-").reverse().join("/"))}</span>
+                    <span class="cl-card-title">${escapeHtml(h.from_staff ? h.from_staff.full_name : "---")} → ${escapeHtml(h.to_staff ? h.to_staff.full_name : "Chưa chỉ định")}</span>
+                    ${pending ? `<span class="cl-chip cl-chip-medium">Chờ xác nhận</span>` : `<span class="cl-chip cl-chip-ok">Đã nhận ${formatTime(h.acknowledged_at)}</span>`}
+                </div>
+                <div class="cl-card-body">${escapeHtml(h.summary)}</div>
+                ${h.pending_tasks ? `<div class="cl-card-section-label">Việc tồn đọng</div><div class="cl-card-body">${escapeHtml(h.pending_tasks)}</div>` : ""}
+                ${h.residents_to_watch ? `<div class="cl-card-section-label">Cư dân cần theo dõi</div><div class="cl-card-body">${escapeHtml(h.residents_to_watch)}</div>` : ""}
+                ${h.acknowledge_note ? `<div class="cl-card-section-label">Ghi chú khi nhận ca</div><div class="cl-card-body">${escapeHtml(h.acknowledge_note)}</div>` : ""}
+                <div class="cl-card-meta">Gửi lúc ${formatDateTime(h.created_at)}</div>
+                ${withAckButton ? `<div class="cl-card-actions"><button class="cl-btn cl-btn-primary cl-btn-small" data-ack-handover="${h.handover_id}">Xác nhận đã nhận ca</button></div>` : ""}
+            </div>
+        `;
+    }
+
+    async function loadHandovers() {
+        const since = new Date();
+        since.setDate(since.getDate() - 7);
+        const [incomingResult, recentResult] = await Promise.all([
+            window.sb.from("shift_handovers").select(HANDOVER_SELECT)
+                .eq("to_staff_id", me.id).is("acknowledged_at", null).order("created_at", { ascending: false }),
+            window.sb.from("shift_handovers").select(HANDOVER_SELECT)
+                .gte("shift_date", toIsoDate(since)).order("created_at", { ascending: false }).limit(50)
+        ]);
+
+        const incoming = incomingResult.data || [];
+        const incomingIds = incoming.map(h => h.handover_id);
+        const recent = (recentResult.data || []).filter(h => incomingIds.indexOf(h.handover_id) === -1);
+
+        const badge = document.getElementById("handover-pending-badge");
+        badge.hidden = incoming.length === 0;
+        badge.innerText = incoming.length;
+
+        document.getElementById("handover-incoming-list").innerHTML = incoming.length
+            ? incoming.map(h => renderHandoverCard(h, true)).join("")
+            : `<div class="cl-empty">Không có bàn giao nào đang chờ bạn xác nhận.</div>`;
+        document.getElementById("handover-recent-list").innerHTML = recent.length
+            ? recent.map(h => renderHandoverCard(h, false)).join("")
+            : `<div class="cl-empty">Chưa có bàn giao ca nào trong 7 ngày qua.</div>`;
+    }
+
+    document.getElementById("tab-handover").addEventListener("click", async function (e) {
+        const btn = e.target.closest("[data-ack-handover]");
+        if (!btn) return;
+        const note = prompt("Ghi chú khi nhận ca (không bắt buộc) — VD: đã kiểm tra các cư dân cần theo dõi:", "");
+        if (note === null) return;
+        btn.disabled = true;
+        const { data, error } = await window.sb
+            .from("shift_handovers")
+            .update({ acknowledged_at: new Date().toISOString(), acknowledge_note: note.trim() || null })
+            .eq("handover_id", parseInt(btn.getAttribute("data-ack-handover"), 10))
+            .select("handover_id");
+        if (error || !data || data.length === 0) {
+            alert("Không thể xác nhận: " + (error ? error.message : "bạn không phải người nhận ca này."));
+            btn.disabled = false;
+            return;
+        }
+        await loadHandovers();
+    });
+
+    // Tổng hợp tự động: lịch chưa xong của tôi trong ca, cảnh báo chưa xử lý,
+    // chỉ số mức Cao và sự cố trong ca.
+    async function buildHandoverDraft() {
+        const now = new Date();
+        const shift = document.getElementById("handover-shift").value;
+        const win = shiftWindow(shift, now);
+        const startIso = win.start.toISOString();
+        const shiftDates = [toIsoDate(win.start), toIsoDate(win.end)];
+
+        let scheduleQuery = window.sb.from("care_schedules")
+            .select("schedule_name, schedule_date, start_time, status, residents(full_name, rooms(room_code))")
+            .in("schedule_date", shiftDates)
+            .in("status", ["Chưa thực hiện", "Đang thực hiện"])
+            .order("schedule_date").order("start_time");
+        if (!isManager) scheduleQuery = scheduleQuery.eq("assigned_staff_id", me.id);
+
+        const [schedRes, alertRes, vitalRes, incidentRes] = await Promise.all([
+            scheduleQuery,
+            window.sb.from("health_alerts")
+                .select("title, severity, status, created_at, residents(full_name, rooms(room_code))")
+                .neq("status", "Đã xử lý").order("created_at", { ascending: false }).limit(30),
+            window.sb.from("health_records")
+                .select("recorded_at, severity, systolic, diastolic, heart_rate, temperature, oxygen_saturation, residents(full_name, rooms(room_code))")
+                .gte("recorded_at", startIso).in("severity", ["Cao", "Trung bình"]).order("recorded_at", { ascending: false }),
+            window.sb.from("care_notes")
+                .select("note_type, severity, content, occurred_at, residents(full_name, rooms(room_code))")
+                .gte("occurred_at", startIso).or("is_incident.eq.true,severity.neq.Thấp").order("occurred_at", { ascending: false })
+        ]);
+
+        const pendingLines = (schedRes.data || []).map(s =>
+            `- ${s.start_time ? s.start_time.substring(0, 5) : "--:--"} ${s.schedule_name} — ${residentLabel(s.residents)} (${s.status})`);
+        const alertLines = (alertRes.data || []).map(a =>
+            `- [Cảnh báo ${a.severity}, ${a.status}] ${residentLabel(a.residents)}: ${a.title}`);
+        document.getElementById("handover-pending").value = [...pendingLines, ...alertLines].join("\n");
+
+        const watch = new Map();
+        (vitalRes.data || []).forEach(v => {
+            const key = residentLabel(v.residents);
+            if (!watch.has(key)) watch.set(key, []);
+            watch.get(key).push(`chỉ số ${v.severity} lúc ${formatTime(v.recorded_at)} (${v.systolic}/${v.diastolic} mmHg, ${v.heart_rate} bpm, ${v.temperature}°C${v.oxygen_saturation ? ", SpO2 " + v.oxygen_saturation + "%" : ""})`);
+        });
+        (incidentRes.data || []).forEach(n => {
+            const key = residentLabel(n.residents);
+            if (!watch.has(key)) watch.set(key, []);
+            watch.get(key).push(`${n.note_type} (${n.severity}) lúc ${formatTime(n.occurred_at)}: ${n.content}`);
+        });
+        document.getElementById("handover-watch").value = Array.from(watch.entries())
+            .map(([name, items]) => `- ${name}: ${items.join("; ")}`).join("\n");
+    }
+
+    document.getElementById("btn-open-handover").addEventListener("click", async function () {
+        document.getElementById("handover-shift").value = currentShift(new Date());
+        document.getElementById("handover-to").selectedIndex = 0;
+        document.getElementById("handover-summary").value = "";
+        document.getElementById("handover-pending").value = "Đang tổng hợp...";
+        document.getElementById("handover-watch").value = "Đang tổng hợp...";
+        openModal("handover-modal-overlay");
+        await buildHandoverDraft();
+    });
+    document.getElementById("btn-handover-regenerate").addEventListener("click", buildHandoverDraft);
+    document.getElementById("handover-shift").addEventListener("change", buildHandoverDraft);
+
+    document.getElementById("btn-save-handover").addEventListener("click", async function () {
+        const toStaff = document.getElementById("handover-to").value;
+        const summary = document.getElementById("handover-summary").value.trim();
+        if (!toStaff) { alert("Vui lòng chọn người nhận ca."); return; }
+        if (summary.length < 10) { alert("Vui lòng tóm tắt tình hình ca (tối thiểu một câu)."); return; }
+
+        const btn = this;
+        btn.disabled = true;
+        try {
+            const { error } = await window.sb.from("shift_handovers").insert({
+                shift: document.getElementById("handover-shift").value,
+                shift_date: toIsoDate(shiftWindow(document.getElementById("handover-shift").value, new Date()).start),
+                from_staff_id: me.id,
+                to_staff_id: toStaff,
+                summary: summary,
+                pending_tasks: document.getElementById("handover-pending").value.trim() || null,
+                residents_to_watch: document.getElementById("handover-watch").value.trim() || null
+            });
+            if (error) throw error;
+            closeModal(btn);
+            switchTab("handover");
+            await loadHandovers();
+        } catch (err) {
+            console.error(err);
+            alert("Không thể gửi bàn giao: " + err.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // ==========================================================================
+    // LỊCH SỬ CHỈNH SỬA (audit_log — chỉ Admin/Manager)
+    // ==========================================================================
+    const TABLE_LABELS = {
+        health_records: "Chỉ số sức khỏe",
+        care_schedules: "Lịch chăm sóc",
+        health_alerts: "Cảnh báo sức khỏe",
+        residents: "Hồ sơ người cao tuổi",
+        care_notes: "Nhật ký chăm sóc",
+        resident_vital_thresholds: "Ngưỡng cảnh báo riêng"
+    };
+    const FIELD_LABELS = {
+        systolic: "HA tâm thu", diastolic: "HA tâm trương", heart_rate: "Nhịp tim", temperature: "Nhiệt độ",
+        oxygen_saturation: "SpO2", weight: "Cân nặng", blood_sugar: "Đường huyết", recorded_at: "Thời điểm đo",
+        note: "Ghi chú", severity: "Mức độ", status: "Trạng thái", schedule_name: "Tên lịch", schedule_date: "Ngày",
+        start_time: "Giờ", assigned_staff_id: "Người phụ trách", result_note: "Kết quả", resident_id: "Cư dân",
+        full_name: "Họ tên", room_id: "Phòng", medical_history: "Tiền sử bệnh", allergies: "Dị ứng", is_active: "Hoạt động",
+        content: "Mô tả", action_taken: "Biện pháp", note_type: "Loại", acknowledged_by: "Người tiếp nhận"
+    };
+
+    function formatAuditValue(v) {
+        if (v === null || v === undefined) return "(trống)";
+        if (typeof v === "object") return JSON.stringify(v);
+        const s = String(v);
+        return s.length > 80 ? s.substring(0, 80) + "…" : s;
+    }
+
+    async function loadAudit() {
+        if (!isManager) return;
+        const table = document.getElementById("audit-filter-table").value;
+        const action = document.getElementById("audit-filter-action").value;
+        let query = window.sb.from("audit_log")
+            .select("audit_id, table_name, record_id, action, changed_at, old_data, new_data, profiles(full_name)")
+            .order("changed_at", { ascending: false })
+            .limit(200);
+        if (table !== "all") query = query.eq("table_name", table);
+        if (action !== "all") query = query.eq("action", action);
+
+        const { data, error } = await query;
+        const list = document.getElementById("audit-list");
+        if (error) {
+            list.innerHTML = `<div class="cl-empty">Không tải được lịch sử: ${escapeHtml(error.message)}</div>`;
+            return;
+        }
+        if (!data || data.length === 0) {
+            list.innerHTML = `<div class="cl-empty">Chưa có thao tác sửa/xóa nào được ghi nhận.</div>`;
+            return;
+        }
+        list.innerHTML = data.map(a => {
+            let diffHtml = "";
+            if (a.action === "UPDATE") {
+                diffHtml = Object.keys(a.new_data || {}).map(k =>
+                    `<div class="cl-audit-diff">${escapeHtml(FIELD_LABELS[k] || k)}: <code>${escapeHtml(formatAuditValue(a.old_data[k]))}</code> → <code>${escapeHtml(formatAuditValue(a.new_data[k]))}</code></div>`
+                ).join("");
+            } else {
+                const o = a.old_data || {};
+                const summary = ["full_name", "schedule_name", "title", "content", "systolic"].filter(k => o[k] != null)
+                    .map(k => `${FIELD_LABELS[k] || k}: ${formatAuditValue(o[k])}`).join(" · ");
+                diffHtml = `<div class="cl-audit-diff">Đã xóa bản ghi${summary ? " — " + escapeHtml(summary) : ""}</div>`;
+            }
+            return `
+                <div class="cl-card ${a.action === "DELETE" ? "is-incident" : ""}">
+                    <div class="cl-card-head">
+                        <span class="cl-chip ${a.action === "DELETE" ? "cl-chip-high" : "cl-chip-medium"}">${a.action === "DELETE" ? "Xóa" : "Sửa"}</span>
+                        <span class="cl-card-title">${escapeHtml(TABLE_LABELS[a.table_name] || a.table_name)} #${escapeHtml(a.record_id)}</span>
+                    </div>
+                    ${diffHtml}
+                    <div class="cl-card-meta">${formatDateTime(a.changed_at)} · ${escapeHtml(a.profiles ? a.profiles.full_name : "Hệ thống")}</div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    document.getElementById("audit-filter-table").addEventListener("change", loadAudit);
+    document.getElementById("audit-filter-action").addEventListener("change", loadAudit);
+
+    // ---------- Khởi tạo ----------
+    await loadLookups();
+    await Promise.all([loadNotes(), loadHandovers()]);
+    const initialTab = new URLSearchParams(window.location.search).get("tab");
+    if (initialTab === "handover" || (initialTab === "audit" && isManager)) switchTab(initialTab);
+});
+</script>
+}

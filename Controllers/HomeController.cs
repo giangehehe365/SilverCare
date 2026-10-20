@@ -65,6 +65,13 @@ namespace SilverCare.Controllers
 
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
         [HttpGet]
+        public IActionResult CareLog()
+        {
+            return View();
+        }
+
+        [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+        [HttpGet]
         public IActionResult Profile(string? tab = "profile")
         {
             // Lưu hồ sơ cá nhân (bảng profiles) chạy thẳng phía client qua supabase-js,

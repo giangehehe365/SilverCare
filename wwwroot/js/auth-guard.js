@@ -66,6 +66,21 @@
             return;
         }
 
+        // Đăng nhập không tích "Ghi nhớ đăng nhập": phiên chỉ còn hiệu lực đến khi
+        // đóng trình duyệt — đánh dấu bằng session cookie (dùng chung mọi tab, tự
+        // mất khi tắt trình duyệt), xem applyRememberChoice trong Staff.cshtml.
+        var sessionOnly = false;
+        var sessionAlive = document.cookie.split("; ").indexOf("sc_session_alive=1") !== -1;
+        try {
+            sessionOnly = localStorage.getItem("sc_session_only") === "1";
+        } catch (e) { /* storage bị chặn: bỏ qua, giữ hành vi mặc định */ }
+        if (sessionOnly && !sessionAlive) {
+            await window.sb.auth.signOut();
+            try { localStorage.removeItem("sc_session_only"); } catch (e) { }
+            redirectToLogin();
+            return;
+        }
+
         var user = session.user;
         var profileResult = await window.sb
             .from("profiles")
@@ -123,6 +138,8 @@
                 } catch (err) {
                     console.error(err);
                 }
+                try { localStorage.removeItem("sc_session_only"); } catch (err) { }
+                document.cookie = "sc_session_alive=; path=/; max-age=0; SameSite=Lax";
                 window.location.replace("/");
             });
         }

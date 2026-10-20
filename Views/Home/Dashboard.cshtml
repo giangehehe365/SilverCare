@@ -386,7 +386,8 @@
 
 @section Scripts {
     <script>
-        document.addEventListener("DOMContentLoaded", async function () {
+        // Chờ auth-guard nạp window.currentUser: nhân viên chỉ xem lịch của chính mình
+        document.addEventListener("silvercare:auth-ready", async function () {
             const now = new Date();
 
             function toIso(d) {
@@ -497,7 +498,7 @@
                 const { data, error } = await window.sb
                     .from("health_alerts")
                     .select("alert_id, title, severity, created_at, residents(full_name, rooms(room_code))")
-                    .eq("status", "Chưa xử lý")
+                    .neq("status", "Đã xử lý")
                     .order("created_at", { ascending: false });
 
                 const alerts = error ? [] : (data || []);
@@ -636,8 +637,8 @@
                         .select("recorded_at, systolic, diastolic, residents(full_name), profiles(full_name)")
                         .gte("recorded_at", sinceIso).order("recorded_at", { ascending: false }).limit(6),
                     window.sb.from("care_schedules")
-                        .select("updated_at, schedule_name, residents(full_name), profiles(full_name)")
-                        .eq("status", "Hoàn thành").gte("updated_at", sinceIso).order("updated_at", { ascending: false }).limit(6)
+                        .select("completed_at, schedule_name, residents(full_name), profiles!care_schedules_completed_by_fkey(full_name)")
+                        .eq("status", "Hoàn thành").gte("completed_at", sinceIso).order("completed_at", { ascending: false }).limit(6)
                 ]);
 
                 const items = [];
@@ -660,7 +661,7 @@
                 });
                 (scheduleRes.data || []).forEach(r => {
                     items.push({
-                        time: r.updated_at,
+                        time: r.completed_at,
                         title: `Đã hoàn thành: ${r.schedule_name}`,
                         meta: `${r.residents ? r.residents.full_name : ""} &middot; ${r.profiles ? r.profiles.full_name : "Nhân viên"}`,
                         iconType: "check", iconColor: "green"

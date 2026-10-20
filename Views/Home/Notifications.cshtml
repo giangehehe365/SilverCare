@@ -1011,7 +1011,7 @@
                 <span>Làm mới</span>
             </button>
 
-            <button class="alerts-btn-action" id="btn-resolve-all" data-roles="admin,manager,staff" title="Đánh dấu tất cả cảnh báo là đã xử lý">
+            <button class="alerts-btn-action" id="btn-resolve-all" data-roles="admin,manager,staff" title="Ghi nhận xử lý hàng loạt các cảnh báo mức Trung bình/Thấp (mức Cao phải xử lý riêng)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
@@ -1194,8 +1194,12 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">Ghi chú chi tiết của điều dưỡng / nhân viên</label>
-                <textarea class="form-textarea" id="resolve-note-input" placeholder="Ví dụ: Đã đo lại HA sau 20 phút nghỉ ngơi, tinh thần người bệnh ổn định..."></textarea>
+                <label class="form-label">Ghi chú chi tiết của điều dưỡng / nhân viên <span style="color:#d92d20;">*</span></label>
+                <textarea class="form-textarea" id="resolve-note-input" placeholder="Ví dụ: Đã đo lại HA sau 20 phút nghỉ ngơi: 132/84, tinh thần người bệnh ổn định..."></textarea>
+            </div>
+
+            <div id="resolve-high-hint" style="display: none; font-size: 13px; color: #b54708; background: #fffaeb; border: 1px solid #fedf89; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;">
+                Cảnh báo mức Cao: sau khi xác nhận, hệ thống sẽ tự tạo lịch <strong>"Đo lại sinh hiệu"</strong> sau 30 phút giao cho bạn để kiểm tra hiệu quả can thiệp.
             </div>
 
             <div class="form-group">
@@ -1315,7 +1319,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         const { data, error } = await window.sb
             .from("health_alerts")
             .select(
-                "alert_id, resident_id, alert_type, severity, title, message, trigger_value, ai_recommendation, status, created_at, resolved_at, " +
+                "alert_id, resident_id, alert_type, severity, title, message, trigger_value, ai_recommendation, status, created_at, resolved_at, acknowledged_at, " +
+                "acknowledger:profiles!health_alerts_acknowledged_by_fkey(full_name), " +
                 "residents(resident_code, full_name, age, gender, blood_type, notes, rooms(room_code)), " +
                 "health_records(systolic, diastolic, heart_rate, temperature), " +
                 "alert_resolutions(resolution_type, action_taken, note, resolved_at, profiles(full_name))"
@@ -1340,6 +1345,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             return {
                 id: row.alert_id,
+                isAcknowledged: row.status === "Đã tiếp nhận",
+                acknowledgedBy: row.acknowledger ? row.acknowledger.full_name : null,
+                acknowledgedAt: formatDateTimeVN(row.acknowledged_at),
                 patientId: res.resident_code,
                 patientResidentId: row.resident_id,
                 patientName: res.full_name || "Người cao tuổi",
@@ -1496,7 +1504,12 @@ document.addEventListener("DOMContentLoaded", async function () {
                     </button>
                 `;
             } else {
-                resolveButtonHtml = `
+                resolveButtonHtml = alert.isAcknowledged ? "" : `
+                    <button class="btn-alert-link btn-alert-detail" data-roles="admin,manager,staff" onclick="acknowledgeAlert(${alert.id})" title="Nhận xử lý cảnh báo này (đồng nghiệp sẽ thấy đã có người phụ trách)">
+                        <span>Tiếp nhận</span>
+                    </button>
+                `;
+                resolveButtonHtml += `
                     <button class="btn-alert-link btn-alert-resolve" data-roles="admin,manager,staff" onclick="openResolveModal(${alert.id})" title="Ghi nhận can thiệp xử lý cảnh báo">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="20 6 9 17 4 12"></polyline>
@@ -1516,6 +1529,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                         <span class="alert-patient-name" onclick="openDetailModal(${alert.id})">${alert.patientName}</span>
                         <span class="alert-patient-room">${alert.room}</span>
                         ${alert.isResolved ? `<span class="badge-resolved-status">✓ Đã xử lý</span>` : ""}
+                        ${alert.isAcknowledged ? `<span class="badge-resolved-status" style="background:#fffaeb; color:#b54708;">Đang xử lý: ${alert.acknowledgedBy || "Nhân viên"}</span>` : ""}
                     </div>
                     <h3 class="alert-title-text">${alert.title}</h3>
                     <p class="alert-description-text">${alert.description}</p>
@@ -1590,26 +1604,39 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
     }
 
-    // Button Resolve All — ghi nhận xử lý hàng loạt (thật, vào alert_resolutions + health_alerts)
+    // Button Resolve All — chỉ áp dụng cho cảnh báo mức Trung bình/Thấp. Cảnh báo
+    // mức Cao bắt buộc xử lý và ghi nhận riêng từng trường hợp (DB cũng chặn).
     const btnResolveAll = document.getElementById("btn-resolve-all");
     if (btnResolveAll) {
         btnResolveAll.addEventListener("click", async function () {
             const unresolved = alertsData.filter(a => !a.isResolved);
+            const bulkable = unresolved.filter(a => a.level !== "high");
+            const highCount = unresolved.length - bulkable.length;
             if (unresolved.length === 0) {
                 showToast("Tất cả các cảnh báo đã được xử lý trước đó!");
                 return;
             }
-            if (!confirm(`Bạn có chắc chắn muốn ghi nhận xử lý toàn bộ ${unresolved.length} cảnh báo sức khỏe?`)) return;
+            if (bulkable.length === 0) {
+                alert(`Còn ${highCount} cảnh báo mức Cao — loại này phải được xử lý và ghi nhận riêng từng trường hợp.`);
+                return;
+            }
 
-            const nowIso = new Date().toISOString();
-            const resolvedById = window.currentUser ? window.currentUser.id : null;
+            const action = prompt(
+                `Ghi nhận xử lý ${bulkable.length} cảnh báo mức Trung bình/Thấp` +
+                (highCount > 0 ? ` (bỏ qua ${highCount} cảnh báo mức Cao — cần xử lý riêng)` : "") +
+                `.\n\nMô tả biện pháp đã thực hiện (bắt buộc):`,
+                ""
+            );
+            if (action === null) return;
+            if (action.trim().length < 5) {
+                alert("Vui lòng mô tả cụ thể biện pháp đã thực hiện.");
+                return;
+            }
 
-            const resolutionRows = unresolved.map(a => ({
+            const resolutionRows = bulkable.map(a => ({
                 alert_id: a.id,
-                resolved_by: resolvedById,
                 resolution_type: "Xử lý hàng loạt",
-                action_taken: "Xử lý hàng loạt bởi nhân viên ca trực.",
-                resolved_at: nowIso
+                action_taken: action.trim()
             }));
 
             const { error: insError } = await window.sb.from("alert_resolutions").insert(resolutionRows);
@@ -1620,8 +1647,8 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             const { error: updError } = await window.sb
                 .from("health_alerts")
-                .update({ status: "Đã xử lý", resolved_at: nowIso })
-                .in("alert_id", unresolved.map(a => a.id));
+                .update({ status: "Đã xử lý" })
+                .in("alert_id", bulkable.map(a => a.id));
 
             if (updError) {
                 alert("Không thể cập nhật trạng thái: " + updError.message);
@@ -1629,9 +1656,26 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
 
             await loadAlerts();
-            showToast(`Đã ghi nhận xử lý toàn bộ ${unresolved.length} cảnh báo.`);
+            showToast(`Đã ghi nhận xử lý ${bulkable.length} cảnh báo.` + (highCount > 0 ? ` Còn ${highCount} cảnh báo mức Cao cần xử lý riêng.` : ""));
         });
     }
+
+    // Tiếp nhận cảnh báo: báo cho đồng nghiệp biết đã có người đang xử lý, và
+    // dừng việc leo thang lên quản lý (cảnh báo Cao quá 15 phút chưa ai nhận).
+    window.acknowledgeAlert = async function (alertId) {
+        const { data, error } = await window.sb
+            .from("health_alerts")
+            .update({ status: "Đã tiếp nhận" })
+            .eq("alert_id", alertId)
+            .eq("status", "Chưa xử lý")
+            .select("alert_id");
+        if (error) {
+            alert("Không thể tiếp nhận cảnh báo: " + error.message);
+            return;
+        }
+        await loadAlerts();
+        showToast(data && data.length > 0 ? "Đã tiếp nhận cảnh báo." : "Cảnh báo này đã có người tiếp nhận.");
+    };
 
     // Global Modal Functions
     window.openDetailModal = function (alertId) {
@@ -1653,7 +1697,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         detailValBp.innerText = item.sys && item.dia ? `${item.sys}/${item.dia} mmHg` : "--/-- mmHg";
         detailValHr.innerText = item.hr ? `${item.hr} bpm` : "-- bpm";
         detailValTemp.innerText = item.temp ? `${item.temp} °C` : "-- °C";
-        detailValStaff.innerText = item.isResolved ? (item.resolvedBy || "---") : "Chưa xử lý";
+        detailValStaff.innerText = item.isResolved
+            ? (item.resolvedBy || "---")
+            : (item.isAcknowledged ? `${item.acknowledgedBy || "Nhân viên"} (tiếp nhận ${item.acknowledgedAt})` : "Chưa có người tiếp nhận");
         detailAiRecommendation.innerText = item.aiRecommendation || "Chỉ số cần được theo dõi định kỳ và can thiệp kịp thời nếu bất thường.";
 
         // Badge styling
@@ -1697,9 +1743,13 @@ document.addEventListener("DOMContentLoaded", async function () {
         activeAlertId = alertId;
 
         resolveModalTitle.innerText = `Xử lý cảnh báo - ${item.patientName}`;
-        resolveNoteInput.value = `Đã can thiệp kiểm tra cho bệnh nhân ${item.patientName} (${item.title}), các dấu hiệu ổn định.`;
+        // Không điền sẵn nội dung: ghi chú phải phản ánh đúng việc đã làm thực tế
+        resolveNoteInput.value = "";
         resolveStaffName.value = window.currentUser ? window.currentUser.fullName : "";
+        const hint = document.getElementById("resolve-high-hint");
+        if (hint) hint.style.display = item.level === "high" ? "block" : "none";
         openModal(modalResolveOverlay);
+        resolveNoteInput.focus();
     };
 
     function openModal(modal) {
@@ -1735,30 +1785,36 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             const actionSelect = resolveActionSelect.value;
             const noteText = resolveNoteInput.value.trim();
-            const nowIso = new Date().toISOString();
+
+            if (noteText.length < 10) {
+                alert("Vui lòng ghi chú cụ thể việc đã làm và tình trạng người bệnh sau can thiệp (VD: chỉ số đo lại, phản ứng của người bệnh).");
+                resolveNoteInput.focus();
+                return;
+            }
 
             btnConfirmResolve.disabled = true;
             btnConfirmResolve.textContent = "Đang lưu...";
 
             try {
+                // resolved_by / resolved_at do trigger guard_alert_resolution gán
                 const { error: insError } = await window.sb.from("alert_resolutions").insert({
                     alert_id: item.id,
-                    resolved_by: window.currentUser ? window.currentUser.id : null,
                     resolution_type: actionSelect,
-                    action_taken: noteText || actionSelect,
-                    resolved_at: nowIso
+                    action_taken: `${actionSelect}. ${noteText}`
                 });
                 if (insError) throw insError;
 
                 const { error: updError } = await window.sb
                     .from("health_alerts")
-                    .update({ status: "Đã xử lý", resolved_at: nowIso })
+                    .update({ status: "Đã xử lý" })
                     .eq("alert_id", item.id);
                 if (updError) throw updError;
 
                 await loadAlerts();
                 closeModal(modalResolveOverlay);
-                showToast(`Đã ghi nhận xử lý thành công cho bệnh nhân ${item.patientName}!`);
+                showToast(item.level === "high"
+                    ? `Đã ghi nhận xử lý cho ${item.patientName}. Đã tạo lịch đo lại sinh hiệu sau 30 phút.`
+                    : `Đã ghi nhận xử lý thành công cho bệnh nhân ${item.patientName}!`);
             } catch (err) {
                 console.error(err);
                 alert("Không thể ghi nhận xử lý: " + err.message);
